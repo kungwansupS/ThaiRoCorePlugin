@@ -63,7 +63,7 @@ public class ItemAttributeManager {
         if (item == null || item.getType() == Material.AIR) return;
         ItemMeta meta = item.getItemMeta();
 
-        // FIX: ลบ Attribute Modifiers ทั้งหมดออกจาก ItemMeta
+        // FIX: ใช้ setAttributeModifiers(null) เพื่อลบ Attribute Modifiers ทั้งหมด
         if (meta.hasAttributeModifiers()) {
             meta.setAttributeModifiers(null);
         }

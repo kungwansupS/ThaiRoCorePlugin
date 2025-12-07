@@ -6,10 +6,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.Material; // Import Material
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
+import org.rostats.itemeditor.ItemAttribute;
+import java.util.List; // Import List
+import java.util.ArrayList; // Import ArrayList
+import java.util.Arrays; // Import Arrays
 
 public class AttributeHandler implements Listener {
 
@@ -28,17 +33,38 @@ public class AttributeHandler implements Listener {
         StatManager stats = plugin.getStatManager();
         PlayerData data = stats.getData(player.getUniqueId());
 
-        // --- NEW: Req 3.1 & 3.2: Placeholder for Aggregating Core Stat Bonuses from Equipment ---
-        // (ในระบบจริงต้องมีการวนลูปอ่านค่าจาก ItemAttributeManager สำหรับอุปกรณ์ทั้งหมด)
+        // --- NEW: Implement Aggregation of Core Stat Bonuses from Equipment (Fix for 'ค่าไม่เพิ่ม') ---
 
-        // Placeholder Logic: ใช้ WeaponPAtk เป็นตัวแทนค่า STR Bonus ชั่วคราว (เพื่อแสดงให้เห็นว่าโค้ดทำงาน)
-        // Note: ในโค้ดจริง ควรวนลูปอ่านค่า ItemAttribute.STR_BONUS_GEAR จากอุปกรณ์ทั้งหมด
-        int strBonus = (int) data.getWeaponPAtk();
+        int strBonus = 0;
         int agiBonus = 0;
         int vitBonus = 0;
         int intBonus = 0;
         int dexBonus = 0;
         int lukBonus = 0;
+
+        // 1. Collect all worn equipment items (Armor + Hands)
+        List<ItemStack> wornItems = new ArrayList<>();
+        if (player.getEquipment() != null) {
+            // Add armor contents (Helmet, Chestplate, Leggings, Boots)
+            wornItems.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
+            // Add items in hands (MainHand and OffHand)
+            wornItems.add(player.getEquipment().getItemInMainHand());
+            wornItems.add(player.getEquipment().getItemInOffHand());
+        }
+
+        // Loop through collected items
+        for (ItemStack item : wornItems) {
+            if (item != null && item.getType() != Material.AIR) { // Check for null and air explicitly
+                // Sum bonuses from Persistent Data Container (PDC)
+                // Note: The attribute manager is accessed via the plugin instance
+                strBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.STR_BONUS_GEAR);
+                agiBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.AGI_BONUS_GEAR);
+                vitBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.VIT_BONUS_GEAR);
+                intBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.INT_BONUS_GEAR);
+                dexBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.DEX_BONUS_GEAR);
+                lukBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.LUK_BONUS_GEAR);
+            }
+        }
 
         // Set the aggregated bonuses into PlayerData
         data.setSTRBonusGear(strBonus);

@@ -27,7 +27,7 @@ public class CharacterGUI {
     // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
     private final ThaiRoCorePlugin plugin;
 
-    // แก้ไข: เปลี่ยน Type ใน Constructor เป็น ThaiRoCorePlugin
+    // แก้ไข FIX: แก้ไขชื่อคลาสใน Constructor ให้ถูกต้อง
     public CharacterGUI(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }

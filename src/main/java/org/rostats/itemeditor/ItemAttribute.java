@@ -14,7 +14,7 @@ public enum ItemAttribute {
     PATK_FLAT("PAtkBonusFlat", "§cBonus P.ATK Flat", Material.REDSTONE, "%.0f", 1.0, 10.0),
     MATK_FLAT("MAtkBonusFlat", "§dBonus M.ATK Flat", Material.LAPIS_LAZULI, "%.0f", 1.0, 10.0),
     PDMG_FLAT("PDmgBonusFlat", "§cP.DMG Flat", Material.REDSTONE_BLOCK, "%.0f", 1.0, 10.0),
-    MDMG_FLAT("MDmgBonusFlat", "§dM.DMG Flat", Material.LAPIS_BLOCK, "%.0f", 1.0, 10.0),
+    MDMG_FLAT("MdmgBonusFlat", "§dM.DMG Flat", Material.LAPIS_BLOCK, "%.0f", 1.0, 10.0),
     TRUE_DMG("TrueDamageFlat", "§6True Damage Flat", Material.NETHER_STAR, "%.0f", 1.0, 10.0),
 
     // NEW: Core Stat Bonuses (สำหรับแสดงใน Character GUI เป็น Bonus)
@@ -29,7 +29,7 @@ public enum ItemAttribute {
     MAXHP_PERCENT("MaxHPPercent", "§aMax HP %", Material.RED_WOOL, "%.1f%%", 1.0, 5.0),
     MAXSP_PERCENT("MaxSPPercent", "§bMax SP %", Material.BLUE_WOOL, "%.1f%%", 1.0, 5.0),
     PDMG_PERCENT("PDmgBonusPercent", "§aP.DMG Bonus %", Material.DIAMOND_SWORD, "%.1f%%", 1.0, 5.0),
-    MDMG_PERCENT("MDmgBonusPercent", "§bM.DMG Bonus %", Material.DIAMOND_HOE, "%.1f%%", 1.0, 5.0),
+    MDMG_PERCENT("MdmgBonusPercent", "§bM.DMG Bonus %", Material.DIAMOND_HOE, "%.1f%%", 1.0, 5.0),
     FINAL_DMG_PERCENT("FinalDmgPercent", "§6Final DMG %", Material.GOLD_INGOT, "%.1f%%", 1.0, 5.0),
     FINAL_DMG_RES_PERCENT("FinalDmgResPercent", "§6Final DMG RES %", Material.GOLD_BLOCK, "%.1f%%", 1.0, 5.0),
     CRIT_DMG_PERCENT("CritDmgPercent", "§eCrit DMG %", Material.YELLOW_DYE, "%.1f%%", 5.0, 10.0),
@@ -42,7 +42,7 @@ public enum ItemAttribute {
 
     // Defense & Resistances
     PDR_PERCENT("PDmgReductionPercent", "§cP.DMG Reduce %", Material.IRON_CHESTPLATE, "%.1f%%", 1.0, 5.0),
-    MDR_PERCENT("MDmgReductionPercent", "§dM.DMG Reduce %", Material.LEATHER_CHESTPLATE, "%.1f%%", 1.0, 5.0),
+    MDR_PERCENT("MdmgReductionPercent", "§dM.DMG Reduce %", Material.LEATHER_CHESTPLATE, "%.1f%%", 1.0, 5.0),
     CRIT_RES("CritRes", "§eCrit Resistance", Material.SHIELD, "%.1f", 1.0, 10.0),
     CRIT_DMG_RES_PERCENT("CritDmgResPercent", "§eCrit DMG RES %", Material.SHULKER_SHELL, "%.1f%%", 1.0, 5.0),
     PVE_DMG_REDUCTION_PERCENT("PveDmgReductionPercent", "§aPVE DMG Reduce %", Material.SPRUCE_SAPLING, "%.0f", 1.0, 10.0),

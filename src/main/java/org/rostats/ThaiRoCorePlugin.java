@@ -208,4 +208,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
     public DataManager getDataManager() { return dataManager; }
+
+    // *** NEW GETTER FOR ItemAttributeManager (REQ 1.1 FIX) ***
+    public ItemAttributeManager getItemAttributeManager() { return itemAttributeManager; }
 }
