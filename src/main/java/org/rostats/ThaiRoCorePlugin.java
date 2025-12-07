@@ -14,6 +14,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.rostats.command.AdminCommand;
 import org.rostats.command.PlayerCommand;
+// NEW IMPORT
+import org.rostats.command.SkillCommand;
 import org.rostats.data.DataManager;
 import org.rostats.data.StatManager;
 import org.rostats.gui.GUIListener;
@@ -26,7 +28,6 @@ import org.rostats.itemeditor.ItemAttributeManager;
 import org.rostats.itemeditor.ItemEditorCommand;
 import org.rostats.itemeditor.ItemManager;
 import org.rostats.engine.effect.EffectManager;
-// NEW IMPORT
 import org.rostats.engine.skill.SkillManager;
 
 import java.util.UUID;
@@ -44,7 +45,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private ChatInputHandler chatInputHandler;
 
     private EffectManager effectManager;
-    // NEW: Skill Manager
     private SkillManager skillManager;
 
     @Override
@@ -60,7 +60,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
         // 2. Initialize Engine Managers
         this.effectManager = new EffectManager(this);
-        // Load Skill Manager (After Config/Effect)
         this.skillManager = new SkillManager(this);
 
         // 3. Initialize Item Editor Managers
@@ -92,6 +91,12 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         PluginCommand itemEditCmd = getCommand("roitemedit");
         if (itemEditCmd != null) {
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
+        }
+
+        // NEW: Register Skill Command
+        PluginCommand skillCmd = getCommand("roskill");
+        if (skillCmd != null) {
+            skillCmd.setExecutor(new SkillCommand(this));
         }
 
         // 6. PAPI Hook
@@ -130,8 +135,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public void reload() {
         reloadConfig();
         if (combatHandler != null) combatHandler.loadValues();
-        // Reload Skills
-        if (skillManager != null) skillManager.loadSkills();
+        skillManager.loadSkills();
         getLogger().info("Configuration Reloaded.");
     }
 
@@ -145,11 +149,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         dataManager.savePlayerData(event.getPlayer());
     }
 
-    // --- Floating Text Helpers (Omitted for brevity, keep existing code) ---
-    // ... (Keep existing showFloatingText and other helper methods here)
-    // For full code requirement, I assume you have them from previous steps.
-    // I will just implement the getters below.
-
+    // --- Floating Text Helpers (Keep existing code) ---
     public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
@@ -200,6 +200,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         showCombatFloatingText(loc, color + "-" + String.format("%.0f", value));
     }
 
+    // --- Getters ---
     public StatManager getStatManager() { return statManager; }
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
@@ -209,7 +210,5 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ItemManager getItemManager() { return itemManager; }
     public ChatInputHandler getChatInputHandler() { return chatInputHandler; }
     public EffectManager getEffectManager() { return effectManager; }
-
-    // NEW Getter
     public SkillManager getSkillManager() { return skillManager; }
 }

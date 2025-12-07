@@ -3,6 +3,7 @@ package org.rostats.engine.action.impl;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.Particle;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
@@ -42,6 +43,8 @@ public class HealAction implements SkillAction {
             amount = 1.0;
         }
 
+        if (amount <= 0) return;
+
         if (isMana) {
             if (target instanceof Player player) {
                 PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
@@ -49,12 +52,18 @@ public class HealAction implements SkillAction {
                 data.setCurrentSP(newSP);
                 plugin.getManaManager().updateBar(player);
                 plugin.showHealSPFCT(player.getLocation(), amount);
+
+                // NEW: Show Heart Particle for SP Heal (Blue Hearts)
+                target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
             }
         } else {
             double maxHP = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
             double newHP = Math.min(maxHP, target.getHealth() + amount);
             target.setHealth(newHP);
             plugin.showHealHPFCT(target.getLocation(), amount);
+
+            // NEW: Show Heart Particle for HP Heal
+            target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
         }
     }
 }
