@@ -61,11 +61,11 @@ public class ItemLibraryGUI {
                     // Ignore load error for icon
                 }
 
+                // REMOVED: Middle Click to Duplicate from Lore
                 inv.setItem(slot, createGuiItem(mat, "§f" + file.getName().replace(".yml", ""),
                         "§eLEFT CLICK §7to Edit",
                         "§aSHIFT+RIGHT §7to Give",
-                        "§cSHIFT+LEFT §7to Delete",
-                        "§dMIDDLE CLICK §7to Duplicate"));
+                        "§cSHIFT+LEFT §7to Delete"));
             }
             slot++;
         }
@@ -73,6 +73,29 @@ public class ItemLibraryGUI {
         // Fill empty slots
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
+            if (inv.getItem(i) == null) inv.setItem(i, bg);
+        }
+
+        player.openInventory(inv);
+    }
+
+    // NEW: Method to open Confirmation GUI
+    public void openConfirmDelete(Player player, File fileToDelete) {
+        Inventory inv = Bukkit.createInventory(null, 27, Component.text("Confirm Delete: " + fileToDelete.getName()));
+
+        ItemStack yes = createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE",
+                "§7File: " + fileToDelete.getName(),
+                "§cCannot be undone!");
+
+        ItemStack no = createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL",
+                "§7Return to library");
+
+        inv.setItem(11, yes);
+        inv.setItem(15, no);
+
+        // Fill bg
+        ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 27; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
         }
 

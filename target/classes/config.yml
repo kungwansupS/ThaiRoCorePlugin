@@ -1,0 +1,45 @@
+# Configuration for ROStats Core System
+# ไฟล์นี้ใช้สำหรับตั้งค่าคงที่ที่สำคัญเพื่อให้ง่ายต่อการปรับสมดุล (Balancing)
+
+# --- Stat Cost Formula ---
+# Formula คือ: ((Current Value - 1) / Stat_Cost_Divisor) + Stat_Cost_Base
+stat-cost:
+  base: 2
+  divisor: 10
+  cost-start-level: 2 # ค่า Stat จะเริ่มคิด Cost เมื่อมีค่าถึงระดับนี้ (เช่น เมื่อค่า Stat >= 2)
+
+# --- Experience & Points ---
+exp-formula:
+  job-exp-ratio: 0.75 # RawJobEXP = RawBaseEXP * Ratio
+  base-exp-multiplier: 0.06663935073413368 # EXP ที่ต้องการ: A (Multiplier) สำหรับ Base EXP [UPDATED]
+  job-exp-multiplier: 0.06663935073413368 # EXP ที่ต้องการ: A (Multiplier) สำหรับ Job EXP [UPDATED]
+  exp-exponent: 4.707041855905981 # Exponent B ในสูตร EXP_required(level) = A * level^B * (1 + WLF) [UPDATED]
+  world-level-factor: 0.0 # World Level Factor (WLF) ในสูตร EXP_required(level) = A * level^B * (1 + WLF)
+  # NEW: Max Base Level is calculated as: [max-level-world-base] + 8
+  max-level-world-base: 92 # World Level Base. Max Base LV Cap = Config Value + 8 (e.g. 92+8=100)
+  max-job-level: 10 # Maximum Job Level. หาก Job Level ถึงค่านี้ จะไม่ได้รับ Job EXP เพิ่ม
+stat-points-gain:
+  level-50-threshold: 50
+  points-low-level: 5 # Stat Points ที่ได้รับต่อเลเวล (เมื่อ Base Level <= 50)
+  points-high-level: 8 # Stat Points ที่ได้รับต่อเลเวล (เมื่อ Base Level > 50)
+
+# --- Reset System ---
+reset-system:
+  free-resets: 3
+  reset-item: "NETHER_STAR" # ไอเท็มที่ต้องใช้ในการรีเซ็ตหลังจากใช้สิทธิ์ฟรีหมดแล้ว
+
+# --- Mana/SP System ---
+sp-regen:
+  tick-interval: 40 # Task Regen ทำงานทุก X ticks (20 ticks = 1 วินาที)
+  regen-int-divisor: 6.0
+  regen-maxsp-divisor: 100.0
+
+# --- Bar Display (สำหรับแสดงผลใน Lore) ---
+bar-length: 10
+bar-colors:
+  HP: "§a|§4"    # Green fill | Red empty (Dark Red)
+  SP: "§b|§1"    # Light Blue | Dark Blue
+  BASE_LV: "§9|§3" # Blue fill | Light Blue empty
+  JOB_LV: "§e|§6" # Yellow fill | Orange empty
+  STAMINA: "§c|§4" # Red fill | Dark Red empty
+  POWER: "§9|§3" # Blue fill | Light Blue empty (ใช้สีเดียวกับ BASE_LV)

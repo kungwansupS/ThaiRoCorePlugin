@@ -144,11 +144,13 @@ public class AttributeEditorGUI {
         List<String> lore = new ArrayList<>();
         lore.add("§7Current: §e" + String.format(type.getFormat(), val));
         lore.add(" ");
+        // FIX: Display exact values defined in ItemAttributeType
         lore.add("§eLeft: §7+" + type.getClickStep());
         lore.add("§eRight: §7-" + type.getClickStep());
+        // FIX: Display RightClickStep for Shift clicks (Corrected Logic)
         lore.add("§eShift+Left: §7+" + type.getRightClickStep());
         lore.add("§eShift+Right: §7-" + type.getRightClickStep());
-        lore.add("§dMiddle Click: §7Type Value");
+        // REMOVED: Middle Click Lore
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         icon.setItemMeta(meta);

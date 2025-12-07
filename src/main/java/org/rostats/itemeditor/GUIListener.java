@@ -32,7 +32,7 @@ public class GUIListener implements Listener {
         if (title.startsWith("Library: ")) {
             event.setCancelled(true);
 
-            // FIX: เช็คว่าคลิกที่ Inventory ของผู้เล่นหรือไม่?
+            // เช็คว่าคลิกที่ Inventory ของผู้เล่นหรือไม่?
             if (event.getClickedInventory() == event.getView().getBottomInventory()) {
                 // คลิกของในตัว -> เข้าสู่โหมด Import Item
                 String relativePath = title.substring(9);
@@ -51,9 +51,51 @@ public class GUIListener implements Listener {
                 handleEditorClick(event, player, title);
             }
         }
+        // 3. Confirm Logic (NEW)
+        else if (title.startsWith("Confirm Delete: ")) {
+            event.setCancelled(true);
+            handleConfirmDeleteClick(event, player, title);
+        }
     }
 
-    // --- NEW: Import Logic ---
+    // --- NEW: Handle Confirm Delete Click ---
+    private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
+        String fileName = title.substring("Confirm Delete: ".length());
+
+        // Find the file again (Recursive search to be safe)
+        File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+
+        if (event.getCurrentItem() == null) return;
+        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
+
+        if (dp.contains("CONFIRM DELETE")) {
+            if (target != null && target.exists()) {
+                File parent = target.getParentFile();
+                plugin.getItemManager().deleteFile(target);
+                player.sendMessage("§cDeleted: " + fileName);
+                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
+
+                // Go back to library parent
+                new BukkitRunnableWrapper(plugin, () ->
+                        new ItemLibraryGUI(plugin, parent).open(player));
+            } else {
+                player.sendMessage("§cFile not found.");
+                player.closeInventory();
+            }
+        } else if (dp.contains("CANCEL")) {
+            if (target != null && target.exists()) {
+                // Go back to library
+                new BukkitRunnableWrapper(plugin, () ->
+                        new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
+            } else {
+                // Return to root if lost
+                new BukkitRunnableWrapper(plugin, () ->
+                        new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player));
+            }
+        }
+    }
+
+    // --- Import Logic ---
     private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
@@ -132,8 +174,8 @@ public class GUIListener implements Listener {
             if (event.getClick().isLeftClick() && !event.isShiftClick()) {
                 new ItemLibraryGUI(plugin, target).open(player);
             } else if (event.isShiftClick() && event.isLeftClick()) {
-                plugin.getItemManager().deleteFile(target);
-                new ItemLibraryGUI(plugin, currentDir).open(player);
+                // FIX: Open Confirmation for folder delete
+                new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
             } else if (event.isShiftClick() && event.isRightClick()) {
                 plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ของ Folder:", (str) -> {
                     plugin.getItemManager().renameFile(finalTarget, str);
@@ -149,12 +191,10 @@ public class GUIListener implements Listener {
                 player.sendMessage("§aได้รับไอเทมแล้ว!");
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1f, 1f);
             } else if (event.getClick() == ClickType.SHIFT_LEFT) {
-                plugin.getItemManager().deleteFile(target);
-                new ItemLibraryGUI(plugin, currentDir).open(player);
-            } else if (event.getClick() == ClickType.MIDDLE) {
-                plugin.getItemManager().duplicateItem(target);
-                new ItemLibraryGUI(plugin, currentDir).open(player);
+                // FIX: Open Confirmation for item delete
+                new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
             }
+            // REMOVED: Middle Click (Duplicate) Logic
         }
     }
 
@@ -228,36 +268,19 @@ public class GUIListener implements Listener {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
 
-                final ItemAttributeType finalType = type;
-                final ItemAttribute finalAttr = attr;
-                final String finalTitle = title;
-
-                if (event.getClick() == ClickType.MIDDLE) {
-                    plugin.getChatInputHandler().awaitInput(player, "พิมพ์ค่าของ " + type.getKey() + ":", (str) -> {
-                        try {
-                            double val = Double.parseDouble(str);
-                            plugin.getItemAttributeManager().setAttributeToObj(finalAttr, finalType, val);
-                            plugin.getItemManager().saveItem(finalItemFile, finalAttr, plugin.getItemManager().loadItemStack(finalItemFile));
-                            new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, getPageFromTitle(finalTitle)));
-                        } catch (NumberFormatException e) {
-                            player.sendMessage("§cค่าไม่ถูกต้อง");
-                        }
-                    });
-                    return;
-                }
-
                 double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
                 double change = 0;
 
-                // *** FIX: Correct Shift Click Logic ***
                 if (event.getClick() == ClickType.LEFT) {
-                    change = type.getClickStep(); // +1
+                    change = type.getClickStep();
                 } else if (event.getClick() == ClickType.RIGHT) {
-                    change = -type.getClickStep(); // -1
+                    change = -type.getClickStep();
                 } else if (event.getClick() == ClickType.SHIFT_LEFT) {
-                    change = type.getClickStep() * 10; // +10 (or use RightClickStep if defined as 10)
+                    // FIX: Use getRightClickStep (large step) to match lore
+                    change = type.getRightClickStep();
                 } else if (event.getClick() == ClickType.SHIFT_RIGHT) {
-                    change = -type.getClickStep() * 10; // -10
+                    // FIX: Use getRightClickStep (large step) to match lore
+                    change = -type.getRightClickStep();
                 }
 
                 plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
