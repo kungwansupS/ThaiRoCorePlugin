@@ -32,14 +32,16 @@ public class ManaManager implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        // สร้าง 3 แถบสำหรับผู้เล่นคนเดียว
         createBar(player); // SP (calls updateBar internally)
-        createBaseExpBar(player); // Base EXP (removed internal update)
-        createJobExpBar(player);  // Job EXP (removed internal update)
+        createBaseExpBar(player); // Base EXP
+        createJobExpBar(player);  // Job EXP
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        // ลบ 3 แถบสำหรับผู้เล่นคนเดียวที่ Quit
         removeBar(player);
         removeBaseExpBar(player);
         removeJobExpBar(player);
@@ -48,8 +50,9 @@ public class ManaManager implements Listener {
     // --- SP Bar Logic (Original) ---
 
     public void createBar(Player player) {
+        // Boss Bar นี้ถูกสร้างแยกสำหรับ Player คนนี้เท่านั้น
         BossBar bar = Bukkit.createBossBar("SP", BarColor.BLUE, BarStyle.SOLID);
-        bar.addPlayer(player);
+        bar.addPlayer(player); // เพิ่มเฉพาะเจ้าของ
         playerSpBars.put(player.getUniqueId(), bar);
         updateBar(player);
     }
@@ -77,11 +80,10 @@ public class ManaManager implements Listener {
     // --- NEW Base EXP Bar Logic ---
 
     public void createBaseExpBar(Player player) {
-        // Use different color (e.g., GREEN)
+        // Boss Bar นี้ถูกสร้างแยกสำหรับ Player คนนี้เท่านั้น
         BossBar bar = Bukkit.createBossBar("Base EXP", BarColor.GREEN, BarStyle.SOLID);
-        bar.addPlayer(player);
+        bar.addPlayer(player); // เพิ่มเฉพาะเจ้าของ
         playerBaseExpBars.put(player.getUniqueId(), bar);
-        // updateBaseExpBar(player); // **ลบการเรียกใช้งานนี้ออก**
     }
 
     public void removeBaseExpBar(Player player) {
@@ -123,11 +125,10 @@ public class ManaManager implements Listener {
     // --- NEW Job EXP Bar Logic ---
 
     public void createJobExpBar(Player player) {
-        // Use different color (e.g., YELLOW)
+        // Boss Bar นี้ถูกสร้างแยกสำหรับ Player คนนี้เท่านั้น
         BossBar bar = Bukkit.createBossBar("Job EXP", BarColor.YELLOW, BarStyle.SOLID);
-        bar.addPlayer(player);
+        bar.addPlayer(player); // เพิ่มเฉพาะเจ้าของ
         playerJobExpBars.put(player.getUniqueId(), bar);
-        // updateJobExpBar(player); // **ลบการเรียกใช้งานนี้ออก**
     }
 
     public void removeJobExpBar(Player player) {

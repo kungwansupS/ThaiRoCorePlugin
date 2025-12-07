@@ -39,12 +39,41 @@ public class GUIListener implements Listener {
 
         int slot = event.getSlot();
 
-        // 1. Handle Close Button (Slot 8)
+        // --- NEW: Handle Utility Buttons (R0, C5-C7) ---
+
+        // Slot 8: Close Button
         if (slot == 8 && clickedItem.getType() == Material.BARRIER) {
             player.closeInventory();
             player.sendMessage("§aItem editing closed. Changes applied automatically.");
             return;
         }
+
+        // Slot 6: Remove Vanilla Attributes (Req 1 & 2)
+        if (slot == 6 && clickedItem.getType() == Material.REDSTONE_BLOCK) {
+            attributeManager.removeVanillaAttributes(editingItem);
+            // Re-open/refresh the GUI (สำคัญเพื่อให้เห็นการเปลี่ยนแปลงของ Item Icon)
+            new AttributeEditorGUI(plugin, attributeManager).open(player, editingItem);
+            player.sendMessage("§aVanilla Minecraft attributes removed (Attack Damage, Armor, etc.).");
+            return;
+        }
+
+        // Slot 7: Save & Copy (Req 4 - Placeholder)
+        if (slot == 7 && clickedItem.getType() == Material.ENDER_CHEST) {
+            // In a real implementation: Save item PDC to database/file, then copy and give the item.
+            ItemStack finalCopy = editingItem.clone();
+            player.getInventory().addItem(finalCopy);
+            player.sendMessage("§d[Editor] Item attributes saved (Placeholder) and a copy has been placed in your inventory.");
+            return;
+        }
+
+        // Slot 5: Load Template (Req 4 - Placeholder)
+        if (slot == 5 && clickedItem.getType() == Material.BOOK) {
+            // In a real implementation: Open a secondary menu to select a template.
+            player.sendMessage("§b[Editor] Loading templates is not yet implemented. Requires Template Manager system.");
+            return;
+        }
+
+        // ---------------------------------------------------
 
         // 2. Prevent clicking on the item being edited (Slot 0)
         if (slot == 0) return;
@@ -83,6 +112,11 @@ public class GUIListener implements Listener {
 
             // Update the clicked attribute icon
             event.getInventory().setItem(slot, gui.createAttributeIcon(editingItem, attribute));
+
+            // Trigger recalculation of player stats if a gear bonus was changed
+            if (attribute.getKey().contains("BonusGear")) {
+                plugin.getAttributeHandler().updatePlayerStats(player);
+            }
         }
     }
 }

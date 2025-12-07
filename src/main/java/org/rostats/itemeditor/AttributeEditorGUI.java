@@ -39,9 +39,28 @@ public class AttributeEditorGUI {
             if (i > 8 && i != 0) inv.setItem(i, filler); // Fill slots 9-53
         }
 
-        // Control Row (R0)
+        // Control Row (R0) - NEW DESIGN
+        // [R0, C8] EXIT BUTTON
         inv.setItem(8, createItem(Material.BARRIER, "§cClose", "§7Close the editor and apply changes."));
+        // [R0, C7] NEW: SAVE & COPY (Req 4)
+        inv.setItem(7, createItem(Material.ENDER_CHEST, "§d§lSave & Copy",
+                "§7คลิกเพื่อบันทึก Attribute ทั้งหมดของไอเทมนี้",
+                "§7เป็น Template และคัดลอกไอเทมที่เสร็จสมบูรณ์",
+                "§eคลิกซ้าย: §7Save & Get Copy"
+        ));
+        // [R0, C6] NEW: REMOVE VANILLA (Req 1 & 2)
+        inv.setItem(6, createItem(Material.REDSTONE_BLOCK, "§c§lRemove Vanilla Attributes",
+                "§7(Vanilla Damage/Armor)",
+                "§cคลิกเพื่อลบ Attribute Modifiers ของ Minecraft ทั้งหมด"
+        ));
+        // [R0, C5] NEW: LOAD TEMPLATE (Req 4)
+        inv.setItem(5, createItem(Material.BOOK, "§b§lLoad Template",
+                "§7คลิกเพื่อโหลด Attribute จาก Template ที่บันทึกไว้",
+                "§e(ฟีเจอร์นี้ต้องใช้งานร่วมกับระบบ Template Manager)"
+        ));
+
         inv.setItem(1, createItem(Material.PAPER, "§bCustom Lore", "§7Custom Lore lines are preserved when editing."));
+
 
         // Placeholders for ItemAttribute rows (Slots 9+)
         int slot = 9;

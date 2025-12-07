@@ -2,7 +2,6 @@ package org.rostats.itemeditor;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
 import org.rostats.ThaiRoCorePlugin;
 
 public enum ItemAttribute {
@@ -17,6 +16,14 @@ public enum ItemAttribute {
     PDMG_FLAT("PDmgBonusFlat", "§cP.DMG Flat", Material.REDSTONE_BLOCK, "%.0f", 1.0, 10.0),
     MDMG_FLAT("MDmgBonusFlat", "§dM.DMG Flat", Material.LAPIS_BLOCK, "%.0f", 1.0, 10.0),
     TRUE_DMG("TrueDamageFlat", "§6True Damage Flat", Material.NETHER_STAR, "%.0f", 1.0, 10.0),
+
+    // NEW: Core Stat Bonuses (สำหรับแสดงใน Character GUI เป็น Bonus)
+    STR_BONUS_GEAR("STRBonusGear", "§cSTR Bonus", Material.IRON_BLOCK, "%.0f", 1.0, 1.0),
+    AGI_BONUS_GEAR("AGIBonusGear", "§bAGI Bonus", Material.FEATHER, "%.0f", 1.0, 1.0),
+    VIT_BONUS_GEAR("VITBonusGear", "§aVIT Bonus", Material.IRON_CHESTPLATE, "%.0f", 1.0, 1.0),
+    INT_BONUS_GEAR("INTBonusGear", "§dINT Bonus", Material.ENCHANTED_BOOK, "%.0f", 1.0, 1.0),
+    DEX_BONUS_GEAR("DEXBonusGear", "§6DEX Bonus", Material.BOW, "%.0f", 1.0, 1.0),
+    LUK_BONUS_GEAR("LUKBonusGear", "§eLUK Bonus", Material.RABBIT_FOOT, "%.0f", 1.0, 1.0),
 
     // Percent Bonuses
     MAXHP_PERCENT("MaxHPPercent", "§aMax HP %", Material.RED_WOOL, "%.1f%%", 1.0, 5.0),

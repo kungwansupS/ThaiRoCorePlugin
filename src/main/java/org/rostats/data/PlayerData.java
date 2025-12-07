@@ -76,6 +76,14 @@ public class PlayerData {
     private double fleeBonusFlat = 0.0;
     private double baseMSPD = 0.1;
 
+    // NEW FIELDS for Core Stat Bonuses from Gear (Req 3)
+    private int strBonusGear = 0;
+    private int agiBonusGear = 0;
+    private int vitBonusGear = 0;
+    private int intBonusGear = 0;
+    private int dexBonusGear = 0;
+    private int lukBonusGear = 0;
+
     private final ThaiRoCorePlugin plugin; // แก้ไข: เปลี่ยน Type
 
     public PlayerData(ThaiRoCorePlugin plugin) { // แก้ไข: เปลี่ยน Type
@@ -148,6 +156,20 @@ public class PlayerData {
     public int getSkillPoints() { return skillPoints; }
     public void setSkillPoints(int skillPoints) { this.skillPoints = skillPoints; }
 
+    // NEW Getters/Setters for Core Stat Bonuses (Req 3)
+    public int getSTRBonusGear() { return strBonusGear; }
+    public void setSTRBonusGear(int val) { this.strBonusGear = val; }
+    public int getAGIBonusGear() { return agiBonusGear; }
+    public void setAGIBonusGear(int val) { this.agiBonusGear = val; }
+    public int getVITBonusGear() { return vitBonusGear; }
+    public void setVITBonusGear(int val) { this.vitBonusGear = val; }
+    public int getINTBonusGear() { return intBonusGear; }
+    public void setINTBonusGear(int val) { this.intBonusGear = val; }
+    public int getDEXBonusGear() { return dexBonusGear; }
+    public void setDEXBonusGear(int val) { this.dexBonusGear = val; }
+    public int getLUKBonusGear() { return lukBonusGear; }
+    public void setLUKBonusGear(int val) { this.lukBonusGear = val; }
+
 
     // --- Core Methods (Modified) ---
     public int getStat(String key) { return stats.getOrDefault(key.toUpperCase(), 1); }
@@ -158,9 +180,9 @@ public class PlayerData {
     public void clearAllPendingStats() { pendingStats.put("STR", 0); pendingStats.put("AGI", 0); pendingStats.put("VIT", 0);
         pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0); }
 
-    // Formula A.1 (Max HP) - Corrected
+    // Formula A.1 (Max HP) - Corrected (Updated to include Gear Bonus)
     public double getMaxHP() {
-        int vit = getStat("VIT") + getPendingStat("VIT"); // Base Stat + Pending Stat
+        int vit = getStat("VIT") + getPendingStat("VIT") + getVITBonusGear(); // Base Stat + Pending Stat + Gear Bonus
         int baseLevel = getBaseLevel();
 
         // MaxHP = (BaseHP + BaseHP × VIT × 0.01) × (1 + MaxHP% / 100)
@@ -172,9 +194,9 @@ public class PlayerData {
         return Math.floor(finalMaxHealth * (1 + getMaxHPPercent() / 100.0));
     }
 
-    // Formula A.2 (Max SP) - Corrected
+    // Formula A.2 (Max SP) - Corrected (Updated to include Gear Bonus)
     public double getMaxSP() {
-        int intel = getStat("INT") + getPendingStat("INT");
+        int intel = getStat("INT") + getPendingStat("INT") + getINTBonusGear();
         int baseLevel = getBaseLevel();
 
         // MaxSP = (BaseSP + BaseSP × INT × 0.01) × (1 + MaxSP% / 100)
@@ -186,21 +208,21 @@ public class PlayerData {
         return Math.floor(finalMaxSP * (1 + getMaxSPPercent() / 100.0));
     }
 
-    // NEW: HP Recovery Formula
+    // NEW: HP Recovery Formula (Updated to include Gear Bonus)
     // HP Recovery = (BaseHPRecovery + VIT × 0.2) × (1 + HealingReceive% / 100)
     public double getHPRegen() {
-        int vit = getStat("VIT");
+        int vit = getStat("VIT") + getVITBonusGear(); // Base Stat + Gear Bonus
         double baseHPRecovery = 1.0; // Assume BaseHPRecovery = 1.0
 
         double baseRegen = baseHPRecovery + (vit * 0.2);
         return baseRegen * (1 + getHealingReceivedPercent() / 100.0);
     }
 
-    // SP Regen - Corrected to include HealingReceive% and exclude maxSpBonus
+    // SP Regen - Corrected to include HealingReceive% and exclude maxSpBonus (Updated to include Gear Bonus)
     public void calculateMaxSP() { if (this.currentSP > getMaxSP()) this.currentSP = getMaxSP(); }
     public void regenSP() { double max = getMaxSP();
         if (this.currentSP < max) {
-            int intel = getStat("INT");
+            int intel = getStat("INT") + getINTBonusGear(); // Base Stat + Gear Bonus
 
             // SP Recovery = (BaseSPRecovery + INT × small_bonus) * (1 + HealingReceive% / 100)
             double baseRegen = 1.0;

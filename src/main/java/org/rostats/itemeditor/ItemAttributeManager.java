@@ -6,6 +6,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.inventory.ItemFlag;
 // แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
 import org.rostats.ThaiRoCorePlugin;
 
@@ -50,6 +51,31 @@ public class ItemAttributeManager {
         }
         item.setItemMeta(meta);
         updateLore(item); // Update lore automatically upon setting attribute
+    }
+
+    // --- NEW: Vanilla Attribute Management (Req 1 & 2) ---
+
+    /**
+     * Removes all vanilla Attribute Modifiers (e.g., from Diamond Sword, Armor)
+     * โดยไม่กระทบต่อ Name/Lore/Custom Attributes
+     */
+    public void removeVanillaAttributes(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return;
+        ItemMeta meta = item.getItemMeta();
+
+        // FIX: ลบ Attribute Modifiers ทั้งหมดออกจาก ItemMeta
+        if (meta.hasAttributeModifiers()) {
+            meta.setAttributeModifiers(null);
+        }
+
+        // NEW: เพิ่ม ItemFlag.HIDE_ATTRIBUTES เพื่อให้มั่นใจว่า Lore ของ Vanilla Attributes จะถูกซ่อน
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+
+        // Apply meta changes
+        item.setItemMeta(meta);
+
+        // Refresh lore to ensure consistency (สำคัญ)
+        updateLore(item);
     }
 
     // --- Lore Management (Main Stats + Custom Lore) ---

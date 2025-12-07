@@ -170,7 +170,7 @@ public class CharacterGUI {
         double currentHP = player.getHealth();
         // SP Recovery calculation (from PlayerData.regenSP logic)
         double regenIntDivisor = plugin.getConfig().getDouble("sp-regen.regen-int-divisor", 6.0);
-        double currentSPRegen = 1 + (data.getStat("INT") / regenIntDivisor);
+        double currentSPRegen = 1 + ((data.getStat("INT") + data.getINTBonusGear()) / regenIntDivisor); // รวม Gear Bonus
         currentSPRegen *= (1 + data.getHealingReceivedPercent() / 100.0);
         // HP Recovery calculation (from PlayerData.getHPRegen logic)
         double currentHPRegen = data.getHPRegen();
@@ -201,7 +201,7 @@ public class CharacterGUI {
     // 3. Advanced Attribute Lore (Section 2) - Corrected for format and suffixes
     private String[] getAdvancedLore(Player player, PlayerData data) {
         StatManager stats = plugin.getStatManager();
-        double totalCritResRaw = (data.getStat("LUK") * 0.2) + data.getCritRes();
+        double totalCritResRaw = ((data.getStat("LUK") + data.getLUKBonusGear()) * 0.2) + data.getCritRes(); // รวม Gear Bonus
 
         List<String> lore = new ArrayList<>();
         lore.add("§7");
@@ -348,12 +348,23 @@ public class CharacterGUI {
         inv.setItem(14, createItem(Material.GRAY_STAINED_GLASS_PANE, " "));
     }
 
+    // UPDATED: createStatRow (Req 3)
     private void createStatRow(Inventory inv, Player player, PlayerData data, String statKey, Material mat, int statSlot, int bonusSlot, int reqSlot, int addSlot, int minusSlot, String statFullName) {
         StatManager stats = plugin.getStatManager();
         int currentVal = data.getStat(statKey);
         int pendingCount = data.getPendingStat(statKey);
 
-        int bonusVal = 0;
+        // NEW: Get Bonus from Gear (Req 3)
+        int bonusVal = switch (statKey) {
+            case "STR" -> data.getSTRBonusGear();
+            case "AGI" -> data.getAGIBonusGear();
+            case "VIT" -> data.getVITBonusGear();
+            case "INT" -> data.getINTBonusGear();
+            case "DEX" -> data.getDEXBonusGear();
+            case "LUK" -> data.getLUKBonusGear();
+            default -> 0;
+        };
+
         int totalVal = currentVal + bonusVal + pendingCount;
 
         int costNextPoint = stats.getStatCost(currentVal + pendingCount);
@@ -369,10 +380,11 @@ public class CharacterGUI {
         // 1. Stat Icon & Value (Slot: R1)
         inv.setItem(statSlot, createItem(mat, statFullName, statLines.toArray(new String[0])));
 
-        // 2. Bonus Slot (Slot: R2)
+        // 2. Bonus Slot (Slot: R2) - UPDATED to show actual bonus and confirmation message
         inv.setItem(bonusSlot, createItem(Material.DIAMOND, "§b§lBonus (" + statKey + ")",
-                "§7Bonus Stats (จากอุปกรณ์/บัฟ): §b" + bonusVal,
-                "§8(ยังไม่เปิดใช้งาน)"));
+                "§7Bonus Stats (จากอุปกรณ์/บัฟ): §b" + bonusVal, // ใช้ค่า bonusVal จริง
+                "§8(รวมในการคำนวณ Stat ปลายทาง)"
+        ));
 
         // 3. Req Slot (Slot: R3) - Displays cumulative cost
         inv.setItem(reqSlot, createItem(Material.IRON_NUGGET, "§6§lRequired Points",

@@ -28,13 +28,34 @@ public class AttributeHandler implements Listener {
         StatManager stats = plugin.getStatManager();
         PlayerData data = stats.getData(player.getUniqueId());
 
+        // --- NEW: Req 3.1 & 3.2: Placeholder for Aggregating Core Stat Bonuses from Equipment ---
+        // (ในระบบจริงต้องมีการวนลูปอ่านค่าจาก ItemAttributeManager สำหรับอุปกรณ์ทั้งหมด)
+
+        // Placeholder Logic: ใช้ WeaponPAtk เป็นตัวแทนค่า STR Bonus ชั่วคราว (เพื่อแสดงให้เห็นว่าโค้ดทำงาน)
+        // Note: ในโค้ดจริง ควรวนลูปอ่านค่า ItemAttribute.STR_BONUS_GEAR จากอุปกรณ์ทั้งหมด
+        int strBonus = (int) data.getWeaponPAtk();
+        int agiBonus = 0;
+        int vitBonus = 0;
+        int intBonus = 0;
+        int dexBonus = 0;
+        int lukBonus = 0;
+
+        // Set the aggregated bonuses into PlayerData
+        data.setSTRBonusGear(strBonus);
+        data.setAGIBonusGear(agiBonus);
+        data.setVITBonusGear(vitBonus);
+        data.setINTBonusGear(intBonus);
+        data.setDEXBonusGear(dexBonus);
+        data.setLUKBonusGear(lukBonus);
+        // -------------------------------------------------------------------------------------
+
         int vit = data.getStat("VIT");
         int agi = data.getStat("AGI");
         int dex = data.getStat("DEX");
         int baseLevel = data.getBaseLevel();
 
         // 1. VIT -> Max HP
-        // ใช้สูตร MaxHP ที่ถูกแก้ไขใน PlayerData.java
+        // ใช้สูตร MaxHP ที่ถูกแก้ไขใน PlayerData.java (ซึ่งรวม Gear Bonus แล้ว)
         double finalMaxHealth = data.getMaxHP();
 
         if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0;
