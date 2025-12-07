@@ -8,6 +8,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.inventory.ItemFlag;
 <<<<<<< HEAD
+<<<<<<< HEAD
 // แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
 import org.rostats.ThaiRoCorePlugin;
 
@@ -25,19 +26,16 @@ public class ItemAttributeManager {
 =======
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+=======
+// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+>>>>>>> parent of ec02f17 (1)
 import org.rostats.ThaiRoCorePlugin;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class ItemAttributeManager {
-
-    private static final PlainTextComponentSerializer PLAIN_TEXT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
     // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
     private final ThaiRoCorePlugin plugin;
@@ -55,6 +53,7 @@ public class ItemAttributeManager {
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     // --- Serialization Helper to resolve ambiguity (FIX) ---
     private String serializeComponentToString(Component component) {
@@ -62,6 +61,8 @@ public class ItemAttributeManager {
     }
 
 >>>>>>> parent of d30d525 (0)
+=======
+>>>>>>> parent of ec02f17 (1)
     // --- Data Management ---
 
     public double getAttribute(ItemStack item, ItemAttribute attribute) {
@@ -85,6 +86,7 @@ public class ItemAttributeManager {
         updateLore(item); // Update lore automatically upon setting attribute
     }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     // --- NEW: Vanilla Attribute Management (Req 1 & 2) ---
 
@@ -235,6 +237,8 @@ public class ItemAttributeManager {
 
         // Apply new lore
 =======
+=======
+>>>>>>> parent of ec02f17 (1)
     // --- NEW: Vanilla Attribute Management (Req 1 & 2) ---
 
     /**
@@ -265,8 +269,6 @@ public class ItemAttributeManager {
     public void updateLore(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return;
         ItemMeta meta = item.getItemMeta();
-
-        // Use meta.getLore() (List<String>) to read the existing lore lines to preserve custom formatting/color codes.
         List<String> currentLore = meta.hasLore() ? Objects.requireNonNull(meta.getLore()) : new ArrayList<>();
 
         List<String> newLore = new ArrayList<>();
@@ -276,7 +278,6 @@ public class ItemAttributeManager {
         boolean inCustomLore = false;
 
         for (String line : currentLore) {
-            // Assuming currentLore contains Strings with Bukkit color codes ('§').
             String stripped = line.replaceAll("§[0-9a-fk-or]", "");
             if (stripped.equals("--- Custom Lore ---")) {
                 inCustomLore = true;
@@ -316,8 +317,11 @@ public class ItemAttributeManager {
         }
 
         // Apply new lore
+<<<<<<< HEAD
         // Convert String list back to Component list
 >>>>>>> parent of d30d525 (0)
+=======
+>>>>>>> parent of ec02f17 (1)
         meta.lore(newLore.stream().map(Component::text).toList());
         item.setItemMeta(meta);
     }
