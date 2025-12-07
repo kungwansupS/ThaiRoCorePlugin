@@ -21,11 +21,13 @@ import org.rostats.handler.AttributeHandler;
 import org.rostats.handler.CombatHandler;
 import org.rostats.handler.ManaManager;
 import org.rostats.hook.PAPIHook;
-// NEW IMPORTS for Item Editor
 import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
 import org.rostats.itemeditor.ItemEditorCommand;
 import org.rostats.itemeditor.ItemManager;
+import org.rostats.engine.effect.EffectManager;
+// NEW IMPORT
+import org.rostats.engine.skill.SkillManager;
 
 import java.util.UUID;
 
@@ -36,40 +38,47 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private CombatHandler combatHandler;
     private ManaManager manaManager;
     private DataManager dataManager;
-    // NEW FIELDS for Item Editor
+
     private ItemAttributeManager itemAttributeManager;
     private ItemManager itemManager;
     private ChatInputHandler chatInputHandler;
 
+    private EffectManager effectManager;
+    // NEW: Skill Manager
+    private SkillManager skillManager;
+
     @Override
     public void onEnable() {
-        // 0. Load Config
         saveDefaultConfig();
 
-        // 1. Initialize Managers
+        // 1. Initialize Core Managers
         this.statManager = new StatManager(this);
         this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
 
-        // NEW: Initialize ItemAttributeManager & Utils
+        // 2. Initialize Engine Managers
+        this.effectManager = new EffectManager(this);
+        // Load Skill Manager (After Config/Effect)
+        this.skillManager = new SkillManager(this);
+
+        // 3. Initialize Item Editor Managers
         this.itemAttributeManager = new ItemAttributeManager(this);
         this.itemManager = new ItemManager(this);
         this.chatInputHandler = new ChatInputHandler(this);
 
-        // 2. Register Events
+        // 4. Register Events
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(this, this);
 
-        // NEW: Register Item Editor Listener & Chat Input
         getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this), this);
         getServer().getPluginManager().registerEvents(chatInputHandler, this);
 
-        // 3. Register Commands
+        // 5. Register Commands
         PluginCommand statusCmd = getCommand("status");
         if (statusCmd != null) statusCmd.setExecutor(new PlayerCommand(this));
 
@@ -80,18 +89,17 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             adminCmd.setTabCompleter(adminExecutor);
         }
 
-        // NEW: Register Item Editor Command
         PluginCommand itemEditCmd = getCommand("roitemedit");
         if (itemEditCmd != null) {
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
-        // 4. PAPI Hook
+        // 6. PAPI Hook
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PAPIHook(this).register();
         }
 
-        // 5. Auto-Save Task
+        // 7. Tasks
         getServer().getScheduler().runTaskTimer(this, () -> {
             for (Player player : getServer().getOnlinePlayers()) {
                 dataManager.savePlayerData(player);
@@ -99,14 +107,11 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             getLogger().info("💾 Auto-Saved all player data.");
         }, 6000L, 6000L);
 
-        // --- NEW: Passive Effect Task (Every 20 ticks = 1 second) ---
-        // เช็คไอเทมที่สวมใส่และยัด Effect ให้ผู้เล่น
         getServer().getScheduler().runTaskTimer(this, () -> {
             if (attributeHandler != null) {
                 attributeHandler.runPassiveEffectsTask();
             }
         }, 20L, 20L);
-        // -----------------------------------------------------------
 
         getLogger().info("✅ ThaiRoCorePlugin Enabled!");
     }
@@ -122,10 +127,11 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getLogger().info("❌ ThaiRoCorePlugin Disabled");
     }
 
-    // NEW: Reload Method
     public void reload() {
         reloadConfig();
         if (combatHandler != null) combatHandler.loadValues();
+        // Reload Skills
+        if (skillManager != null) skillManager.loadSkills();
         getLogger().info("Configuration Reloaded.");
     }
 
@@ -139,22 +145,19 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         dataManager.savePlayerData(event.getPlayer());
     }
 
+    // --- Floating Text Helpers (Omitted for brevity, keep existing code) ---
+    // ... (Keep existing showFloatingText and other helper methods here)
+    // For full code requirement, I assume you have them from previous steps.
+    // I will just implement the getters below.
+
     public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
-
         Location startLoc = player.getLocation().add(0, 2.0 + verticalOffset, 0);
         showAnimatedText(startLoc, text);
     }
-
-    public void showFloatingText(UUID playerUUID, String text) {
-        showFloatingText(playerUUID, text, 0.25);
-    }
-
-    public void showCombatFloatingText(Location loc, String text) {
-        showAnimatedText(loc.add(0, 1.5, 0), text);
-    }
-
+    public void showFloatingText(UUID playerUUID, String text) { showFloatingText(playerUUID, text, 0.25); }
+    public void showCombatFloatingText(Location loc, String text) { showAnimatedText(loc.add(0, 1.5, 0), text); }
     private void showAnimatedText(Location startLoc, String text) {
         getServer().getScheduler().runTask(this, () -> {
             final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
@@ -164,14 +167,11 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.setCustomNameVisible(true);
             stand.customName(Component.text(text));
             stand.setSmall(true);
-
             BukkitTask[] task = new BukkitTask[1];
             task[0] = getServer().getScheduler().runTaskTimer(this, new Runnable() {
                 private int ticks = 0;
                 private final Location currentLocation = stand.getLocation();
-                private final double distance = 0.5;
-                private final double step = distance / 20.0;
-
+                private final double step = 0.5 / 20.0;
                 @Override
                 public void run() {
                     if (stand.isDead() || ticks >= 20) {
@@ -186,23 +186,10 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             }, 0L, 1L);
         });
     }
-
-    public void showDamageFCT(Location loc, double damage) {
-        showCombatFloatingText(loc, "§f" + String.format("%.0f", damage));
-    }
-
-    public void showTrueDamageFCT(Location loc, double damage) {
-        showCombatFloatingText(loc, "§6" + String.format("%.0f", damage));
-    }
-
-    public void showHealHPFCT(Location loc, double value) {
-        showCombatFloatingText(loc, "§a+" + String.format("%.0f", value) + " HP");
-    }
-
-    public void showHealSPFCT(Location loc, double value) {
-        showCombatFloatingText(loc, "§b+" + String.format("%.0f", value) + " SP");
-    }
-
+    public void showDamageFCT(Location loc, double damage) { showCombatFloatingText(loc, "§f" + String.format("%.0f", damage)); }
+    public void showTrueDamageFCT(Location loc, double damage) { showCombatFloatingText(loc, "§6" + String.format("%.0f", damage)); }
+    public void showHealHPFCT(Location loc, double value) { showCombatFloatingText(loc, "§a+" + String.format("%.0f", value) + " HP"); }
+    public void showHealSPFCT(Location loc, double value) { showCombatFloatingText(loc, "§b+" + String.format("%.0f", value) + " SP"); }
     public void showStatusDamageFCT(Location loc, String status, double value) {
         String color = switch (status.toLowerCase()) {
             case "poison" -> "§2";
@@ -221,4 +208,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ItemAttributeManager getItemAttributeManager() { return itemAttributeManager; }
     public ItemManager getItemManager() { return itemManager; }
     public ChatInputHandler getChatInputHandler() { return chatInputHandler; }
+    public EffectManager getEffectManager() { return effectManager; }
+
+    // NEW Getter
+    public SkillManager getSkillManager() { return skillManager; }
 }

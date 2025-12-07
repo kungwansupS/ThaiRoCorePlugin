@@ -3,10 +3,11 @@ package org.rostats.data;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import org.rostats.engine.effect.ActiveEffect;
+import org.rostats.engine.effect.EffectType;
+
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class PlayerData {
     private int baseLevel = 1;
@@ -20,6 +21,9 @@ public class PlayerData {
 
     private final Map<String, Integer> stats = new HashMap<>();
     private final Map<String, Integer> pendingStats = new HashMap<>();
+
+    // Active Effects List
+    private final List<ActiveEffect> activeEffects = new CopyOnWriteArrayList<>();
 
     // Gear Bonuses & Advanced Stats
     private int strBonusGear = 0;
@@ -103,7 +107,32 @@ public class PlayerData {
         calculateMaxSP();
     }
 
-    // Fix: Added missing 0-arg methods that were causing errors in ManaManager
+    // --- Active Effect Logic ---
+    public List<ActiveEffect> getActiveEffects() {
+        return activeEffects;
+    }
+
+    public void addActiveEffect(ActiveEffect effect) {
+        this.activeEffects.add(effect);
+    }
+
+    public void removeActiveEffect(ActiveEffect effect) {
+        this.activeEffects.remove(effect);
+    }
+
+    public double getEffectBonus(String key) {
+        double bonus = 0.0;
+        for (ActiveEffect effect : activeEffects) {
+            if (effect.getType() == EffectType.STAT_MODIFIER &&
+                    effect.getStatKey() != null &&
+                    effect.getStatKey().equalsIgnoreCase(key)) {
+                bonus += effect.getPower();
+            }
+        }
+        return bonus;
+    }
+    // ---------------------------
+
     public long getBaseExpReq() {
         return getBaseExpReq(this.baseLevel);
     }
@@ -144,7 +173,7 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // Getters and Setters
+    // --- FULL Getters and Setters ---
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -205,6 +234,7 @@ public class PlayerData {
     public void setPveDmgBonusPercent(double v) { this.pveDmgBonusPercent = v; }
     public double getPvpDmgBonusPercent() { return pvpDmgBonusPercent; }
     public void setPvpDmgBonusPercent(double v) { this.pvpDmgBonusPercent = v; }
+
     public double getPveDmgReductionPercent() { return pveDmgReductionPercent; }
     public void setPveDmgReductionPercent(double v) { this.pveDmgReductionPercent = v; }
     public double getPvpDmgReductionPercent() { return pvpDmgReductionPercent; }
@@ -274,26 +304,34 @@ public class PlayerData {
     public void clearAllPendingStats() { pendingStats.put("STR", 0); pendingStats.put("AGI", 0); pendingStats.put("VIT", 0);
         pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0); }
 
+    // --- Core Calcs ---
+
     public double getMaxHP() {
-        int vit = getStat("VIT") + getPendingStat("VIT") + getVITBonusGear();
+        int vit = getStat("VIT") + getPendingStat("VIT") + getVITBonusGear() + (int)getEffectBonus("VIT");
         double baseHealth = 18 + (baseLevel * 2.0);
         double vitMultiplier = 1.0 + (vit * 0.01);
         double finalMaxHealth = baseHealth * vitMultiplier;
-        return Math.floor(finalMaxHealth * (1 + getMaxHPPercent() / 100.0));
+
+        double percentBonus = getMaxHPPercent() + getEffectBonus("MAX_HP_PERCENT");
+        return Math.floor(finalMaxHealth * (1 + percentBonus / 100.0));
     }
 
     public double getMaxSP() {
-        int intel = getStat("INT") + getPendingStat("INT") + getINTBonusGear();
+        int intel = getStat("INT") + getPendingStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
         double baseSP = 20.0 + (baseLevel * 3.0);
         double intMultiplier = 1.0 + (intel * 0.01);
         double finalMaxSP = baseSP * intMultiplier;
-        return Math.floor(finalMaxSP * (1 + getMaxSPPercent() / 100.0));
+
+        double percentBonus = getMaxSPPercent() + getEffectBonus("MAX_SP_PERCENT");
+        return Math.floor(finalMaxSP * (1 + percentBonus / 100.0));
     }
 
     public double getHPRegen() {
-        int vit = getStat("VIT") + getVITBonusGear();
+        int vit = getStat("VIT") + getVITBonusGear() + (int)getEffectBonus("VIT");
         double baseRegen = 1.0 + (vit * 0.2);
-        return baseRegen * (1 + getHealingReceivedPercent() / 100.0);
+
+        double healRecv = getHealingReceivedPercent() + getEffectBonus("HEAL_RECEIVED");
+        return baseRegen * (1 + healRecv / 100.0);
     }
 
     public void calculateMaxSP() { if (this.currentSP > getMaxSP()) this.currentSP = getMaxSP(); }
@@ -301,8 +339,10 @@ public class PlayerData {
     public void regenSP() {
         double max = getMaxSP();
         if (this.currentSP < max) {
-            int intel = getStat("INT") + getINTBonusGear();
-            double regen = (1.0 + (intel / plugin.getConfig().getDouble("sp-regen.regen-int-divisor", 6.0))) * (1 + getHealingReceivedPercent() / 100.0);
+            int intel = getStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
+            double healRecv = getHealingReceivedPercent() + getEffectBonus("HEAL_RECEIVED");
+
+            double regen = (1.0 + (intel / plugin.getConfig().getDouble("sp-regen.regen-int-divisor", 6.0))) * (1 + healRecv / 100.0);
             this.currentSP = Math.min(max, this.currentSP + regen);
         }
     }

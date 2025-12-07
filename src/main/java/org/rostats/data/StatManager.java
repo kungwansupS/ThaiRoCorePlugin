@@ -105,7 +105,7 @@ public class StatManager {
         return ((currentVal - 1) / costDivisor) + costBase;
     }
 
-    // --- FIX: Helper Method to get Base + Pending + Gear Bonus ---
+    // --- FIX: Helper Method to get Base + Pending + Gear + Effect Bonus ---
     private int getTotalStat(PlayerData data, String statKey) {
         int base = data.getStat(statKey);
         int pending = data.getPendingStat(statKey);
@@ -118,66 +118,84 @@ public class StatManager {
             case "LUK" -> data.getLUKBonusGear();
             default -> 0;
         };
-        return base + pending + gear;
+        // Add Effect Bonus
+        int effect = (int) data.getEffectBonus(statKey.toUpperCase());
+        return base + pending + gear + effect;
     }
 
-    // --- UPDATED CALCULATIONS USING TOTAL STATS ---
+    // --- UPDATED CALCULATIONS USING TOTAL STATS & EFFECT BONUSES ---
 
     public double getPhysicalAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int str = getTotalStat(data, "STR");
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
-        return (str * 1.0) + (dex * 0.2) + (luk * 0.2) + data.getWeaponPAtk() + data.getPAtkBonusFlat();
+
+        double effectBonus = data.getEffectBonus("P_ATK");
+        return (str * 1.0) + (dex * 0.2) + (luk * 0.2) + data.getWeaponPAtk() + data.getPAtkBonusFlat() + effectBonus;
     }
 
     public double getMagicAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int intel = getTotalStat(data, "INT");
         int luk = getTotalStat(data, "LUK");
-        return (intel * 1.5) + (luk * 0.3) + data.getWeaponMAtk() + data.getMAtkBonusFlat();
+
+        double effectBonus = data.getEffectBonus("M_ATK");
+        return (intel * 1.5) + (luk * 0.3) + data.getWeaponMAtk() + data.getMAtkBonusFlat() + effectBonus;
     }
 
     public int getHit(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
-        return (int) (dex + luk + data.getBaseLevel() + data.getHitBonusFlat());
+
+        int effectBonus = (int) data.getEffectBonus("HIT");
+        return (int) (dex + luk + data.getBaseLevel() + data.getHitBonusFlat() + effectBonus);
     }
 
     public int getFlee(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int agi = getTotalStat(data, "AGI");
         int luk = getTotalStat(data, "LUK");
-        return (int) (agi + (luk * 0.2) + data.getBaseLevel() + data.getFleeBonusFlat());
+
+        int effectBonus = (int) data.getEffectBonus("FLEE");
+        return (int) (agi + (luk * 0.2) + data.getBaseLevel() + data.getFleeBonusFlat() + effectBonus);
     }
 
     public double getAspdBonus(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int agi = getTotalStat(data, "AGI");
         int dex = getTotalStat(data, "DEX");
-        double statBonus = (agi * 0.02) + (dex * 0.005); // Increased multiplier slightly
-        return 1.0 + statBonus + (data.getASpdPercent() / 100.0);
+        double statBonus = (agi * 0.02) + (dex * 0.005);
+
+        double effectBonus = data.getEffectBonus("ASPD_PERCENT");
+        return 1.0 + statBonus + ((data.getASpdPercent() + effectBonus) / 100.0);
     }
 
     public double getSoftDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int vit = getTotalStat(data, "VIT");
         int agi = getTotalStat(data, "AGI");
-        return (vit * 0.5) + (agi * 0.1);
+
+        double effectBonus = data.getEffectBonus("DEF");
+        return (vit * 0.5) + (agi * 0.1) + effectBonus;
     }
 
     public double getSoftMDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int intel = getTotalStat(data, "INT");
         int vit = getTotalStat(data, "VIT");
-        return (intel * 1.0) + (vit * 0.5);
+
+        double effectBonus = data.getEffectBonus("MDEF");
+        return (intel * 1.0) + (vit * 0.5) + effectBonus;
     }
 
     public double getCritChance(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int luk = getTotalStat(data, "LUK");
-        return luk * 0.3;
+
+        double effectBonus = data.getEffectBonus("CRIT");
+        return (luk * 0.3) + effectBonus;
     }
 
     public double calculatePower(Player player) {

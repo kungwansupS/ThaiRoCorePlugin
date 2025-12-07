@@ -2,8 +2,11 @@ package org.rostats.itemeditor;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.potion.PotionEffectType;
+import org.rostats.engine.trigger.TriggerType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ItemAttribute {
@@ -83,8 +86,11 @@ public class ItemAttribute {
     private boolean removeVanillaAttribute;
     private Integer customModelData;
 
-    // NEW: Potion Effects (Type -> Amplifier/Level)
+    // Potion Effects
     private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
+
+    // NEW: Skill Bindings (Triggers)
+    private List<ItemSkillBinding> skillBindings = new ArrayList<>();
 
     public ItemAttribute() {}
 
@@ -187,6 +193,24 @@ public class ItemAttribute {
             }
         }
 
+        // NEW: Load Skill Bindings
+        if (att.contains("skills")) {
+            List<Map<?, ?>> skillList = att.getMapList("skills");
+            for (Map<?, ?> map : skillList) {
+                try {
+                    String skillId = (String) map.get("id");
+                    String triggerStr = (String) map.get("trigger");
+                    TriggerType trigger = TriggerType.valueOf(triggerStr);
+                    int level = (int) map.get("level");
+                    double chance = ((Number) map.get("chance")).doubleValue();
+
+                    attr.skillBindings.add(new ItemSkillBinding(skillId, trigger, level, chance));
+                } catch (Exception e) {
+                    // Ignore invalid skills
+                }
+            }
+        }
+
         return attr;
     }
 
@@ -270,6 +294,20 @@ public class ItemAttribute {
             for (Map.Entry<PotionEffectType, Integer> entry : potionEffects.entrySet()) {
                 effectsSec.set(entry.getKey().getName(), entry.getValue());
             }
+        }
+
+        // NEW: Save Skill Bindings
+        if (!skillBindings.isEmpty()) {
+            List<Map<String, Object>> skillList = new ArrayList<>();
+            for (ItemSkillBinding binding : skillBindings) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", binding.getSkillId());
+                map.put("trigger", binding.getTrigger().name());
+                map.put("level", binding.getLevel());
+                map.put("chance", binding.getChance());
+                skillList.add(map);
+            }
+            section.set("skills", skillList);
         }
     }
 
@@ -414,4 +452,8 @@ public class ItemAttribute {
 
     public Map<PotionEffectType, Integer> getPotionEffects() { return potionEffects; }
     public void setPotionEffects(Map<PotionEffectType, Integer> potionEffects) { this.potionEffects = potionEffects; }
+
+    // NEW Getter
+    public List<ItemSkillBinding> getSkillBindings() { return skillBindings; }
+    public void setSkillBindings(List<ItemSkillBinding> bindings) { this.skillBindings = bindings; }
 }

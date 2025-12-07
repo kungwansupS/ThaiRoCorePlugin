@@ -2,6 +2,7 @@ package org.rostats.handler;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
@@ -13,26 +14,32 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.inventory.ItemStack;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
+import org.rostats.engine.trigger.TriggerType;
+import org.rostats.itemeditor.ItemAttribute;
+import org.rostats.itemeditor.ItemSkillBinding;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 public class CombatHandler implements Listener {
 
     private final ThaiRoCorePlugin plugin;
     private final Random random = new Random();
-    private final double SKILL_POWER = 1.0; // Default skill power for basic attacks
-    private final int K_DEFENSE = 400; // Constant K for defense formula (Section G)
-    private double jobExpRatio; // Changed to non-final to support reload
+    private final double SKILL_POWER = 1.0;
+    private final int K_DEFENSE = 400;
+    private double jobExpRatio;
 
     public CombatHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         loadValues();
     }
 
-    // New method to load config values
     public void loadValues() {
         this.jobExpRatio = plugin.getConfig().getDouble("exp-formula.job-exp-ratio", 0.75);
     }
@@ -42,6 +49,9 @@ public class CombatHandler implements Listener {
         if (!(event.getEntity().getKiller() instanceof Player killer)) return;
         LivingEntity victim = event.getEntity();
         PlayerData data = plugin.getStatManager().getData(killer.getUniqueId());
+
+        // Check for ON_KILL triggers on killer's equipment
+        checkTriggers(killer, victim, TriggerType.ON_KILL);
 
         int rawBaseExp = event.getDroppedExp();
         event.setDroppedExp(0);
@@ -88,6 +98,16 @@ public class CombatHandler implements Listener {
             return;
         }
 
+        // --- NEW: Trigger Checks ---
+        // 1. ON_HIT (Attacker)
+        checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
+
+        // 2. ON_DEFEND (Defender)
+        if (defenderEntity instanceof Player defenderPlayer) {
+            checkTriggers(defenderPlayer, attackerPlayer, TriggerType.ON_DEFEND);
+        }
+        // ---------------------------
+
         PlayerData A = plugin.getStatManager().getData(attackerPlayer.getUniqueId());
         StatManager stats = plugin.getStatManager();
         PlayerData D = (defenderEntity instanceof Player) ? plugin.getStatManager().getData(defenderEntity.getUniqueId()) : null;
@@ -96,9 +116,6 @@ public class CombatHandler implements Listener {
         if (!isMagic) {
             int attackerHit = stats.getHit(attackerPlayer);
             int defenderFlee = (defenderEntity instanceof Player) ? stats.getFlee((Player) defenderEntity) : 0;
-
-            // Formula: ChanceToHit = Hit / (Hit + TargetFLEE)
-            // FIX: Removed 95% Cap, now allows 100% (1.0)
             double hitRate = (double) attackerHit / (attackerHit + defenderFlee);
             hitRate = Math.max(0.05, Math.min(1.0, hitRate));
 
@@ -164,7 +181,7 @@ public class CombatHandler implements Listener {
             }
         }
 
-        // 9. Apply Critical (FIXED: Use Total Stats)
+        // 9. Apply Critical
         boolean isCritical = false;
         if (!isMagic) {
             double effectiveCritChance = calculateCritChance(attackerPlayer, defenderEntity);
@@ -214,6 +231,32 @@ public class CombatHandler implements Listener {
         if (A.getTrueDamageFlat() > 0.0) {
             double trueDmg = A.getTrueDamageFlat();
             plugin.showTrueDamageFCT(defenderEntity.getLocation().add(0, 0.5, 0), trueDmg);
+        }
+    }
+
+    // --- NEW: Check Triggers Logic ---
+    private void checkTriggers(Player player, LivingEntity target, TriggerType type) {
+        List<ItemStack> items = new ArrayList<>();
+        if (player.getEquipment() != null) {
+            items.add(player.getEquipment().getItemInMainHand());
+            items.add(player.getEquipment().getItemInOffHand());
+            items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
+        }
+
+        for (ItemStack item : items) {
+            if (item == null || item.getType() == Material.AIR) continue;
+
+            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+            if (attr == null) continue;
+
+            for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                if (binding.getTrigger() == type) {
+                    if (random.nextDouble() < binding.getChance()) {
+                        // Cast Skill
+                        plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), target);
+                    }
+                }
+            }
         }
     }
 
