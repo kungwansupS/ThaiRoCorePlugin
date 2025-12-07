@@ -1,5 +1,6 @@
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\command\AdminCommand.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\command\PlayerCommand.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\command\SkillCommand.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\data\DataManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\data\PlayerData.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\data\StatManager.java
@@ -16,6 +17,9 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\skill\SkillManager.j
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\trigger\TriggerType.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\CharacterGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\GUIListener.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillActionSelectorGUI.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillEditorGUI.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillLibraryGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\AttributeHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\CombatHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\DeathHandler.java

@@ -6,8 +6,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.rostats.ThaiRoCorePlugin;
-// NEW: Import SkillManager for context
-import org.rostats.engine.skill.SkillManager;
+import org.rostats.gui.SkillLibraryGUI;
 
 public class SkillCommand implements CommandExecutor {
 
@@ -30,13 +29,8 @@ public class SkillCommand implements CommandExecutor {
         }
 
         if (args.length == 1 && args[0].equalsIgnoreCase("editor")) {
-            // TODO: Implement SkillEditorGUI.open(player);
-
-            player.sendMessage("§a[Skill Editor] Accessing Skill Manager (" + plugin.getSkillManager().getSkills().size() + " skills loaded).");
-            player.sendMessage("§eระบบ GUI สำหรับการสร้างสกิลจะถูกเปิดในอนาคต! ตอนนี้ใช้ไฟล์ YAML ในโฟลเดอร์ skills/ ก่อน");
-
-            // Example: Open a simple GUI (Placeholder for now)
-            // new SkillEditorGUI(plugin).open(player);
+            // Open Skill Library GUI at root
+            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
             return true;
         }
 

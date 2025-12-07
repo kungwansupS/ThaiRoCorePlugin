@@ -1,20 +1,23 @@
 package org.rostats.engine.action.impl;
 
+import org.bukkit.Particle;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.Particle;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.utils.FormulaParser;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class HealAction implements SkillAction {
 
     private final ThaiRoCorePlugin plugin;
     private final String formula;
-    private final boolean isMana; // True = SP, False = HP
+    private final boolean isMana;
 
     public HealAction(ThaiRoCorePlugin plugin, String formula, boolean isMana) {
         this.plugin = plugin;
@@ -29,8 +32,7 @@ public class HealAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level) {
-        if (target == null) target = caster; // Default to self heal if no target
-
+        if (target == null) target = caster;
         double amount = 0.0;
         try {
             String calcFormula = formula.replace("LVL", String.valueOf(level));
@@ -52,8 +54,6 @@ public class HealAction implements SkillAction {
                 data.setCurrentSP(newSP);
                 plugin.getManaManager().updateBar(player);
                 plugin.showHealSPFCT(player.getLocation(), amount);
-
-                // NEW: Show Heart Particle for SP Heal (Blue Hearts)
                 target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
             }
         } else {
@@ -61,9 +61,16 @@ public class HealAction implements SkillAction {
             double newHP = Math.min(maxHP, target.getHealth() + amount);
             target.setHealth(newHP);
             plugin.showHealHPFCT(target.getLocation(), amount);
-
-            // NEW: Show Heart Particle for HP Heal
             target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
         }
+    }
+
+    @Override
+    public Map<String, Object> serialize() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("type", "HEAL");
+        map.put("formula", formula);
+        map.put("is-mana", isMana);
+        return map;
     }
 }

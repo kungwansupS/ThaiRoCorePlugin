@@ -7,6 +7,9 @@ import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.effect.ActiveEffect;
 import org.rostats.engine.effect.EffectType;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class EffectAction implements SkillAction {
 
     private final ThaiRoCorePlugin plugin;
@@ -37,33 +40,33 @@ public class EffectAction implements SkillAction {
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int skillLevel) {
         if (target == null) return;
-
-        // Check Chance
         if (Math.random() > chance) return;
 
-        // Create Effect Instance
-        // Note: duration is in ticks (from config)
         ActiveEffect effect = new ActiveEffect(
-                effectId,
-                type,
-                level, // Can use skillLevel logic later if needed
-                power,
-                duration,
-                20L, // Default interval 1s for DoT
-                caster.getUniqueId()
+                effectId, type, level, power, duration, 20L, caster.getUniqueId()
         );
-
-        if (statKey != null) {
-            effect.setStatKey(statKey);
-        }
+        if (statKey != null) effect.setStatKey(statKey);
 
         plugin.getEffectManager().applyEffect(target, effect);
 
-        // Visual Feedback
         if (type == EffectType.STAT_MODIFIER) {
-            plugin.showCombatFloatingText(target.getLocation(), "§aBuff Applied!");
+            plugin.showCombatFloatingText(target.getLocation(), "§aBuff!");
         } else {
             plugin.showStatusDamageFCT(target.getLocation(), type.name(), 0);
         }
+    }
+
+    @Override
+    public Map<String, Object> serialize() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("type", "APPLY_EFFECT");
+        map.put("effect-id", effectId);
+        map.put("effect-type", type.name());
+        map.put("level", level);
+        map.put("power", power);
+        map.put("duration", duration);
+        map.put("chance", chance);
+        if (statKey != null) map.put("stat-key", statKey);
+        return map;
     }
 }

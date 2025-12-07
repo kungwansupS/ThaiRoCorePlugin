@@ -1,4 +1,4 @@
-package org.rostats.itemeditor;
+package org.rostats.gui;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -14,57 +14,55 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
-public class ItemLibraryGUI {
+public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
     private final File currentDir;
 
-    public ItemLibraryGUI(ThaiRoCorePlugin plugin, File currentDir) {
+    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentDir) {
         this.plugin = plugin;
         this.currentDir = currentDir;
     }
 
     public void open(Player player) {
-        // Path Display
-        String pathDisplay = plugin.getItemManager().getRelativePath(currentDir);
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Library: " + pathDisplay));
+        String pathDisplay = plugin.getSkillManager().getRelativePath(currentDir);
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("SkillLib: " + pathDisplay));
 
-        // 1. Navigation Row (Top)
-        if (!currentDir.equals(plugin.getItemManager().getRootDir())) {
+        // 1. Navigation
+        if (!currentDir.equals(plugin.getSkillManager().getRootDir())) {
             inv.setItem(0, createGuiItem(Material.ARROW, "§eBack / ย้อนกลับ",
-                    "§7Go back to the previous folder.",
+                    "§7Go back to previous folder.",
                     "§8---------------",
                     "§7ย้อนกลับไปโฟลเดอร์ก่อนหน้า"
             ));
         } else {
             inv.setItem(0, createGuiItem(Material.BOOKSHELF, "§eRoot / หน้าแรก",
-                    "§7You are at the root directory.",
+                    "§7You are at root folder.",
                     "§8---------------",
-                    "§7คุณอยู่ที่หน้าหลักของคลังไอเทม"
+                    "§7คุณอยู่ที่หน้าหลักของคลังสกิล"
             ));
         }
 
         inv.setItem(4, createGuiItem(Material.CHEST, "§aNew Folder / สร้างโฟลเดอร์",
-                "§7Create a new folder to organize items.",
+                "§7Create a new folder.",
                 "§8---------------",
-                "§7สร้างโฟลเดอร์ใหม่เพื่อจัดหมวดหมู่ไอเทม"
+                "§7สร้างโฟลเดอร์ใหม่เพื่อจัดหมวดหมู่"
         ));
 
-        inv.setItem(8, createGuiItem(Material.EMERALD, "§aNew Item / สร้างไอเทม",
-                "§7Create a new item configuration file.",
+        inv.setItem(8, createGuiItem(Material.WRITABLE_BOOK, "§aNew Skill / สร้างสกิล",
+                "§7Create a new skill file.",
                 "§8---------------",
-                "§7สร้างไฟล์ไอเทมใหม่ในโฟลเดอร์นี้"
+                "§7สร้างไฟล์สกิลใหม่ในโฟลเดอร์นี้"
         ));
 
-        // 2. Content Grid (Row 1-5)
-        List<File> files = plugin.getItemManager().listContents(currentDir);
+        // 2. Content Grid
+        List<File> files = plugin.getSkillManager().listContents(currentDir);
         int slot = 9;
 
         for (File file : files) {
             if (slot >= 54) break;
 
             if (file.isDirectory()) {
-                // Folder Item
                 inv.setItem(slot, createGuiItem(Material.CHEST, "§6§l" + file.getName(),
                         "§eLEFT CLICK §7to Open",
                         "§bSHIFT+RIGHT §7to Rename",
@@ -75,29 +73,18 @@ public class ItemLibraryGUI {
                         "§cShift+ซ้าย §7เพื่อลบ"
                 ));
             } else {
-                // File Item
-                Material mat = Material.PAPER;
-                try {
-                    ItemStack temp = plugin.getItemManager().loadItemStack(file);
-                    if (temp != null) mat = temp.getType();
-                } catch (Exception e) {
-                    // Ignore load error
-                }
-
-                inv.setItem(slot, createGuiItem(mat, "§f" + file.getName().replace(".yml", ""),
+                inv.setItem(slot, createGuiItem(Material.BOOK, "§f" + file.getName().replace(".yml", ""),
                         "§eLEFT CLICK §7to Edit",
-                        "§aSHIFT+RIGHT §7to Give",
                         "§cSHIFT+LEFT §7to Delete",
                         "§8---------------",
-                        "§eคลิกซ้าย §7เพื่อแก้ไข",
-                        "§aShift+ขวา §7เพื่อรับไอเทม",
+                        "§eคลิกซ้าย §7เพื่อแก้ไขสกิล",
                         "§cShift+ซ้าย §7เพื่อลบ"
                 ));
             }
             slot++;
         }
 
-        // Fill empty slots
+        // Fill bg
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
@@ -107,7 +94,7 @@ public class ItemLibraryGUI {
     }
 
     public void openConfirmDelete(Player player, File fileToDelete) {
-        Inventory inv = Bukkit.createInventory(null, 27, Component.text("Confirm Delete: " + fileToDelete.getName()));
+        Inventory inv = Bukkit.createInventory(null, 27, Component.text("Skill Delete: " + fileToDelete.getName()));
 
         ItemStack yes = createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE / ยืนยัน",
                 "§7File: " + fileToDelete.getName(),
@@ -120,14 +107,14 @@ public class ItemLibraryGUI {
         ItemStack no = createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL / ยกเลิก",
                 "§7Return to library",
                 "§8---------------",
-                "§7กลับไปหน้าคลังไอเทม"
+                "§7กลับไปหน้าคลังสกิล"
         );
 
         inv.setItem(11, yes);
         inv.setItem(15, no);
 
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) {
+        for (int i=0; i<27; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
         }
 

@@ -16,6 +16,10 @@ commands:
     usage: /roitemedit
     aliases: [riedit]
     permission: rostats.itemeditor.admin
+  roskill: # NEW COMMAND
+    description: Skill creation and management menu
+    usage: /roskill <editor>
+    permission: rostats.admin
 permissions:
   rostats.admin:
     description: Admin permission
