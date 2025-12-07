@@ -13,6 +13,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\hook\PAPIHook.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\AttributeEditorGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\GUIListener.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\ItemAttribute.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\ItemAttributeLoader.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\ItemAttributeManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\ItemEditorCommand.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\ThaiRoCorePlugin.java

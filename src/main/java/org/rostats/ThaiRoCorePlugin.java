@@ -16,6 +16,7 @@ import org.rostats.command.AdminCommand;
 import org.rostats.command.PlayerCommand;
 import org.rostats.data.DataManager;
 import org.rostats.data.StatManager;
+import org.rostats.gui.CharacterGUI; // Renamed as StatPanel
 import org.rostats.gui.GUIListener;
 import org.rostats.handler.AttributeHandler;
 import org.rostats.handler.CombatHandler;
@@ -37,6 +38,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private DataManager dataManager;
     // NEW FIELDS for Item Editor
     private ItemAttributeManager itemAttributeManager;
+    // NEW FIELD for Stat Panel (CharacterGUI)
+    private CharacterGUI statPanel;
 
     @Override
     public void onEnable() {
@@ -51,16 +54,21 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.combatHandler = new CombatHandler(this);
         // NEW: Initialize ItemAttributeManager
         this.itemAttributeManager = new ItemAttributeManager(this);
+        // NEW: Initialize StatPanel
+        this.statPanel = new CharacterGUI(this);
 
         // 2. Register Events
+        // The original AttributeHandler now handles the item updates (Req 5)
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
+        // We only need one GUIListener for the stat panel
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(this, this);
 
-        // NEW: Register Item Editor Listener (from ItemEditorPlugin.java)
-        getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this, itemAttributeManager), this);
+        // NEW: Register Item Editor Listener
+        // Note: The listener must use the correct ItemAttributeManager
+        getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this, itemAttributeManager, statPanel), this);
 
         // 3. Register Commands
         PluginCommand statusCmd = getCommand("status");
@@ -73,7 +81,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             adminCmd.setTabCompleter(adminExecutor);
         }
 
-        // NEW: Register Item Editor Command (from ItemEditorPlugin.java)
+        // NEW: Register Item Editor Command
         PluginCommand itemEditCmd = getCommand("roitemedit");
         if (itemEditCmd != null) {
             itemEditCmd.setExecutor(new ItemEditorCommand(this, itemAttributeManager));
@@ -209,6 +217,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
     public DataManager getDataManager() { return dataManager; }
 
-    // *** NEW GETTER FOR ItemAttributeManager (REQ 1.1 FIX) ***
+    // *** NEW GETTER FOR ItemAttributeManager (Req 1.1 FIX) ***
     public ItemAttributeManager getItemAttributeManager() { return itemAttributeManager; }
+
+    // *** NEW GETTER FOR Stat Panel (Req 7) ***
+    public CharacterGUI getStatPanel() { return statPanel; }
 }

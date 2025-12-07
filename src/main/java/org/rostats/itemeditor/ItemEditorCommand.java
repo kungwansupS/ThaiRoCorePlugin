@@ -38,10 +38,8 @@ public class ItemEditorCommand implements CommandExecutor {
             return true;
         }
 
-        // Update lore structure before opening (ensures the item can be edited safely)
-        attributeManager.updateLore(item);
-
-        new AttributeEditorGUI(plugin, attributeManager).open(player, item);
+        // Open the editor at page 1
+        new AttributeEditorGUI(plugin, attributeManager).open(player, item, 1);
 
         return true;
     }

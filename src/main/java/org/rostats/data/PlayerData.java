@@ -24,57 +24,82 @@ public class PlayerData {
     private final Map<String, Integer> pendingStats = new HashMap<>();
 
     // Advanced/Bonus Attributes (All initialized to 0.0)
-    private double pAtkBonusFlat = 0.0;
-    private double mAtkBonusFlat = 0.0;
-    private double critRes = 0.0;
-    private double critDmgPercent = 50.0;
-    private double critDmgResPercent = 0.0;
-    private double pDmgBonusPercent = 0.0;
-    private double mDmgBonusPercent = 0.0;
-    private double pDmgBonusFlat = 0.0;
-    private double mDmgBonusFlat = 0.0;
-    private double pDmgReductionPercent = 0.0;
-    private double mDmgReductionPercent = 0.0;
-    private double meleePDmgPercent = 0.0;
-    private double rangePDmgPercent = 0.0;
-    private double meleePDReductionPercent = 0.0;
-    private double rangePDReductionPercent = 0.0;
-    private double pPenFlat = 0.0;
-    private double mPenFlat = 0.0;
-    private double pPenPercent = 0.0;
-    private double mPenPercent = 0.0;
-    private double ignorePDefFlat = 0.0;
-    private double ignoreMDefFlat = 0.0;
-    private double ignorePDefPercent = 0.0;
-    private double ignoreMDefPercent = 0.0;
-    private double aSpdPercent = 0.0;
-    private double mSpdPercent = 0.0;
-    private double varCTPercent = 0.0;
-    private double varCTFlat = 0.0;
-    private double fixedCTPercent = 0.0;
-    private double fixedCTFlat = 0.0;
-    private double healingEffectPercent = 0.0;
-    private double healingReceivedPercent = 0.0;
-    private double finalDmgPercent = 0.0;
-    private double finalDmgResPercent = 0.0;
-    private double finalPDmgPercent = 0.0;
-    private double finalMDmgPercent = 0.0;
-    private double pveDmgBonusPercent = 0.0;
-    private double pvpDmgBonusPercent = 0.0;
-    private double pveDmgReductionPercent = 0.0;
-    private double pvpDmgReductionPercent = 0.0;
-    private double maxHPPercent = 0.0;
-    private double maxSPPercent = 0.0;
-    private double lifestealPPercent = 0.0;
-    private double lifestealMPercent = 0.0;
-    private double trueDamageFlat = 0.0;
-    private double shieldValueFlat = 0.0;
-    private double shieldRatePercent = 0.0;
-    private double weaponPAtk = 0.0;
-    private double weaponMAtk = 0.0;
-    private double hitBonusFlat = 0.0;
-    private double fleeBonusFlat = 0.0;
-    private double baseMSPD = 0.1;
+    // NOTE: These fields now represent the SUM of all Boni from all equipped items.
+
+    // --- Flat ATK ---
+    private double pAtkBonusFlat = 0.0; // PAtkBonusFlat
+    private double mAtkBonusFlat = 0.0; // MAtkBonusFlat
+    private double weaponPAtk = 0.0; // WeaponPAtk
+    private double weaponMAtk = 0.0; // WeaponMAtk
+
+    // --- Critical ---
+    private double critRes = 0.0; // CritRes
+    private double critDmgPercent = 50.0; // CritDmgPercent (Base is 50.0, added by gear)
+    private double critDmgResPercent = 0.0; // CritDmgResPercent
+
+    // --- Damage %/Flat ---
+    private double pDmgBonusPercent = 0.0; // PDmgBonusPercent
+    private double mDmgBonusPercent = 0.0; // MDmgBonusPercent
+    private double pDmgBonusFlat = 0.0; // PDmgBonusFlat (same as PDMG_FLAT/MDMG_FLAT in editor)
+    private double mDmgBonusFlat = 0.0; // MDmgBonusFlat
+    private double pDmgReductionPercent = 0.0; // PDmgReductionPercent
+    private double mDmgReductionPercent = 0.0; // MDmgReductionPercent
+
+    // --- Melee/Range ---
+    private double meleePDmgPercent = 0.0; // MeleePDmgPercent
+    private double rangePDmgPercent = 0.0; // RangePDmgPercent
+    private double meleePDReductionPercent = 0.0; // MeleePDReductionPercent
+    private double rangePDReductionPercent = 0.0; // RangePDReductionPercent
+
+    // --- Penetration / Ignore Def ---
+    private double pPenFlat = 0.0; // PPenFlat
+    private double mPenFlat = 0.0; // MPenFlat
+    private double pPenPercent = 0.0; // PPenPercent
+    private double mPenPercent = 0.0; // MPenPercent
+    private double ignorePDefFlat = 0.0; // IgnorePDefFlat
+    private double ignoreMDefFlat = 0.0; // IgnoreMDefFlat
+    private double ignorePDefPercent = 0.0; // IgnorePDefPercent
+    private double ignoreMDefPercent = 0.0; // IgnoreMDefPercent
+
+    // --- Speed / Cast ---
+    private double aSpdPercent = 0.0; // ASpdPercent
+    private double mSpdPercent = 0.0; // MSpdPercent
+    private double baseMSPD = 0.1; // BaseMSPD (Base is 0.1, added by gear)
+    private double varCTPercent = 0.0; // VarCTPercent
+    private double varCTFlat = 0.0; // VarCTFlat
+    private double fixedCTPercent = 0.0; // FixedCTPercent
+    private double fixedCTFlat = 0.0; // FixedCTFlat
+
+    // --- Healing / Lifesteal ---
+    private double healingEffectPercent = 0.0; // HealingEffectPercent
+    private double healingReceivedPercent = 0.0; // HealingReceivedPercent
+    private double lifestealPPercent = 0.0; // LifestealPPercent
+    private double lifestealMPercent = 0.0; // LifestealMPercent
+    private double trueDamageFlat = 0.0; // TrueDamageFlat
+
+    // --- Final Damage ---
+    private double finalDmgPercent = 0.0; // FinalDmgPercent
+    private double finalDmgResPercent = 0.0; // FinalDmgResPercent
+    private double finalPDmgPercent = 0.0; // FinalPDmgPercent
+    private double finalMDmgPercent = 0.0; // FinalMDmgPercent
+
+    // --- PVE/PVP ---
+    private double pveDmgBonusPercent = 0.0; // PveDmgBonusPercent
+    private double pvpDmgBonusPercent = 0.0; // PvpDmgBonusPercent
+    private double pveDmgReductionPercent = 0.0; // PveDmgReductionPercent
+    private double pvpDmgReductionPercent = 0.0; // PvpDmgReductionPercent
+
+    // --- Max HP/SP % ---
+    private double maxHPPercent = 0.0; // MaxHPPercent
+    private double maxSPPercent = 0.0; // MaxSPPercent
+
+    // --- Shield ---
+    private double shieldValueFlat = 0.0; // ShieldValueFlat
+    private double shieldRatePercent = 0.0; // ShieldRatePercent
+
+    // --- Hit/Flee ---
+    private double hitBonusFlat = 0.0; // HitBonusFlat
+    private double fleeBonusFlat = 0.0; // FleeBonusFlat
 
     // NEW FIELDS for Core Stat Bonuses from Gear (Req 3)
     private int strBonusGear = 0;
@@ -95,68 +120,34 @@ public class PlayerData {
         pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0);
     }
 
-    // --- Getters for New Fields ---
-    public double getPAtkBonusFlat() { return pAtkBonusFlat; }
-    public double getMAtkBonusFlat() { return mAtkBonusFlat; }
-    public double getCritRes() { return critRes; }
-    public double getCritDmgPercent() { return critDmgPercent; }
-    public double getPDmgBonusPercent() { return pDmgBonusPercent; }
-    public double getMDmgBonusPercent() { return mDmgBonusPercent; }
-    public double getPPenPercent() { return pPenPercent; }
-    public double getMPenPercent() { return mPenPercent; }
-    public double getIgnorePDefPercent() { return ignorePDefPercent; }
-    public double getIgnoreMDefPercent() { return ignoreMDefPercent; }
-    public double getASpdPercent() { return aSpdPercent; }
-    public double getMSpdPercent() { return mSpdPercent; }
-    public double getFinalDmgPercent() { return finalDmgPercent; }
-    public double getFinalDmgResPercent() { return finalDmgResPercent; }
-    public double getFinalPDmgPercent() { return finalPDmgPercent; }
-    public double getFinalMDmgPercent() { return finalMDmgPercent; }
-    public double getPveDmgBonusPercent() { return pveDmgBonusPercent; }
-    public double getPvpDmgBonusPercent() { return pvpDmgBonusPercent; }
-    public double getPDmgBonusFlat() { return pDmgBonusFlat; }
-    public double getMDmgBonusFlat() { return mDmgBonusFlat; }
-    public double getMaxHPPercent() { return maxHPPercent; }
-    public double getMaxSPPercent() { return maxSPPercent; }
-    public double getLifestealPPercent() { return lifestealPPercent; }
-    public double getLifestealMPercent() { return lifestealMPercent; }
-    public double getTrueDamageFlat() { return trueDamageFlat; }
-    public double getShieldValueFlat() { return shieldValueFlat; }
-    public double getShieldRatePercent() { return shieldRatePercent; }
-    public double getFixedCTFlat() { return fixedCTFlat; }
-    public double getPvpDmgReductionPercent() { return pvpDmgReductionPercent; }
-    public double getPveDmgReductionPercent() { return pveDmgReductionPercent; }
-    public double getPDmgReductionPercent() { return pDmgReductionPercent; }
-    public double getMDmgReductionPercent() { return mDmgReductionPercent; }
-    public double getFixedCTPercent() { return fixedCTPercent; }
-    public double getVarCTPercent() { return varCTPercent; }
-    public double getVarCTFlat() { return varCTFlat; }
-    public double getHealingEffectPercent() { return healingEffectPercent; }
-    public double getHealingReceivedPercent() { return healingReceivedPercent; }
-    public double getMeleePDmgPercent() { return meleePDmgPercent; }
-    public double getRangePDmgPercent() { return rangePDmgPercent; }
-    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
-    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
-    public double getPPenFlat() { return pPenFlat; }
-    public double getMPenFlat() { return mPenFlat; }
-    public double getCritDmgResPercent() { return critDmgResPercent; }
-    public double getIgnorePDefFlat() { return ignorePDefFlat; }
-    public double getIgnoreMDefFlat() { return ignoreMDefFlat; }
-    public double getWeaponPAtk() { return weaponPAtk; }
-    public double getWeaponMAtk() { return weaponMAtk; }
-    public double getHitBonusFlat() { return hitBonusFlat; }
-    public double getFleeBonusFlat() { return fleeBonusFlat; }
-    public double getBaseMSPD() { return baseMSPD; }
+    // --- General Getters/Setters ---
 
-    // NEW Getters/Setters for Job Level/Exp/Points
+    public int getStat(String key) { return stats.getOrDefault(key.toUpperCase(), 1); }
+    public void setStat(String key, int val) { stats.put(key.toUpperCase(), val); calculateMaxSP(); }
+    public Set<String> getStatKeys() { return stats.keySet(); }
+    public int getPendingStat(String key) { return pendingStats.getOrDefault(key.toUpperCase(), 0); }
+    public void setPendingStat(String key, int count) { pendingStats.put(key.toUpperCase(), count); }
+    public void clearAllPendingStats() { pendingStats.put("STR", 0); pendingStats.put("AGI", 0); pendingStats.put("VIT", 0);
+        pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0); }
+    public int getBaseLevel() { return baseLevel; }
+    public void setBaseLevel(int level) { this.baseLevel = level; calculateMaxSP(); }
     public int getJobLevel() { return jobLevel; }
     public void setJobLevel(int jobLevel) { this.jobLevel = jobLevel; }
     public long getJobExp() { return jobExp; }
     public void setJobExp(long jobExp) { this.jobExp = jobExp; }
+    public int getStatPoints() { return statPoints; }
+    public void setStatPoints(int points) { this.statPoints = points; }
     public int getSkillPoints() { return skillPoints; }
     public void setSkillPoints(int skillPoints) { this.skillPoints = skillPoints; }
+    public double getCurrentSP() { return currentSP; }
+    public void setCurrentSP(double sp) { this.currentSP = sp; }
+    public int getResetCount() { return resetCount; }
+    public void setResetCount(int count) { this.resetCount = count; }
+    public void incrementResetCount() { this.resetCount++; }
 
-    // NEW Getters/Setters for Core Stat Bonuses (Req 3)
+    // --- Gear/Item Attribute Getters/Setters (Required by Prompt) ---
+
+    // Core Stat Bonuses (Gear)
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int val) { this.strBonusGear = val; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -170,15 +161,133 @@ public class PlayerData {
     public int getLUKBonusGear() { return lukBonusGear; }
     public void setLUKBonusGear(int val) { this.lukBonusGear = val; }
 
+    // Flat ATK
+    public double getWeaponPAtk() { return weaponPAtk; }
+    public void setWeaponPAtk(double weaponPAtk) { this.weaponPAtk = weaponPAtk; }
+    public double getWeaponMAtk() { return weaponMAtk; }
+    public void setWeaponMAtk(double weaponMAtk) { this.weaponMAtk = weaponMAtk; }
+    public double getPAtkBonusFlat() { return pAtkBonusFlat; } // Used to be PAtkBonusFlat
+    public void setPAtkBonusFlat(double pAtkBonusFlat) { this.pAtkBonusFlat = pAtkBonusFlat; }
+    public double getMAtkBonusFlat() { return mAtkBonusFlat; } // Used to be MAtkBonusFlat
+    public void setMAtkBonusFlat(double mAtkBonusFlat) { this.mAtkBonusFlat = mAtkBonusFlat; }
 
-    // --- Core Methods (Modified) ---
-    public int getStat(String key) { return stats.getOrDefault(key.toUpperCase(), 1); }
-    public void setStat(String key, int val) { stats.put(key.toUpperCase(), val); calculateMaxSP(); }
-    public Set<String> getStatKeys() { return stats.keySet(); }
-    public int getPendingStat(String key) { return pendingStats.getOrDefault(key.toUpperCase(), 0); }
-    public void setPendingStat(String key, int count) { pendingStats.put(key.toUpperCase(), count); }
-    public void clearAllPendingStats() { pendingStats.put("STR", 0); pendingStats.put("AGI", 0); pendingStats.put("VIT", 0);
-        pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0); }
+    // Damage %/Flat (P/M DMg)
+    public double getPDmgBonusPercent() { return pDmgBonusPercent; }
+    public void setPDmgBonusPercent(double pDmgBonusPercent) { this.pDmgBonusPercent = pDmgBonusPercent; }
+    public double getMDmgBonusPercent() { return mDmgBonusPercent; }
+    public void setMDmgBonusPercent(double mDmgBonusPercent) { this.mDmgBonusPercent = mDmgBonusPercent; }
+    public double getPDmgBonusFlat() { return pDmgBonusFlat; }
+    public void setPDmgBonusFlat(double pDmgBonusFlat) { this.pDmgBonusFlat = pDmgBonusFlat; }
+    public double getMDmgBonusFlat() { return mDmgBonusFlat; }
+    public void setMDmgBonusFlat(double mDmgBonusFlat) { this.mDmgBonusFlat = mDmgBonusFlat; }
+    public double getPDmgReductionPercent() { return pDmgReductionPercent; }
+    public void setPDmgReductionPercent(double pDmgReductionPercent) { this.pDmgReductionPercent = pDmgReductionPercent; }
+    public double getMDmgReductionPercent() { return mDmgReductionPercent; }
+    public void setMDmgReductionPercent(double mDmgReductionPercent) { this.mDmgReductionPercent = mDmgReductionPercent; }
+
+    // Melee/Range
+    public double getMeleePDmgPercent() { return meleePDmgPercent; }
+    public void setMeleePDmgPercent(double meleePDmgPercent) { this.meleePDmgPercent = meleePDmgPercent; }
+    public double getRangePDmgPercent() { return rangePDmgPercent; }
+    public void setRangePDmgPercent(double rangePDmgPercent) { this.rangePDmgPercent = rangePDmgPercent; }
+    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
+    public void setMeleePDReductionPercent(double meleePDReductionPercent) { this.meleePDReductionPercent = meleePDReductionPercent; }
+    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
+    public void setRangePDReductionPercent(double rangePDReductionPercent) { this.rangePDReductionPercent = rangePDReductionPercent; }
+
+    // Critical
+    public double getCritRes() { return critRes; }
+    public void setCritRes(double critRes) { this.critRes = critRes; }
+    public double getCritDmgPercent() { return critDmgPercent; }
+    public void setCritDmgPercent(double critDmgPercent) { this.critDmgPercent = critDmgPercent; }
+    public double getCritDmgResPercent() { return critDmgResPercent; }
+    public void setCritDmgResPercent(double critDmgResPercent) { this.critDmgResPercent = critDmgResPercent; }
+
+    // Penetration / Ignore Def
+    public double getPPenFlat() { return pPenFlat; }
+    public void setPPenFlat(double pPenFlat) { this.pPenFlat = pPenFlat; }
+    public double getMPenFlat() { return mPenFlat; }
+    public void setMPenFlat(double mPenFlat) { this.mPenFlat = mPenFlat; }
+    public double getPPenPercent() { return pPenPercent; }
+    public void setPPenPercent(double pPenPercent) { this.pPenPercent = pPenPercent; }
+    public double getMPenPercent() { return mPenPercent; }
+    public void setMPenPercent(double mPenPercent) { this.mPenPercent = mPenPercent; }
+    public double getIgnorePDefFlat() { return ignorePDefFlat; }
+    public void setIgnorePDefFlat(double ignorePDefFlat) { this.ignorePDefFlat = ignorePDefFlat; }
+    public double getIgnoreMDefFlat() { return ignoreMDefFlat; }
+    public void setIgnoreMDefFlat(double ignoreMDefFlat) { this.ignoreMDefFlat = ignoreMDefFlat; }
+    public double getIgnorePDefPercent() { return ignorePDefPercent; }
+    public void setIgnorePDefPercent(double ignorePDefPercent) { this.ignorePDefPercent = ignorePDefPercent; }
+    public double getIgnoreMDefPercent() { return ignoreMDefPercent; }
+    public void setIgnoreMDefPercent(double ignoreMDefPercent) { this.ignoreMDefPercent = ignoreMDefPercent; }
+
+    // Speed / Cast
+    public double getASpdPercent() { return aSpdPercent; }
+    public void setASpdPercent(double aSpdPercent) { this.aSpdPercent = aSpdPercent; }
+    public double getMSpdPercent() { return mSpdPercent; }
+    public void setMSpdPercent(double mSpdPercent) { this.mSpdPercent = mSpdPercent; }
+    public double getBaseMSPD() { return baseMSPD; }
+    public void setBaseMSPD(double baseMSPD) { this.baseMSPD = baseMSPD; }
+    public double getVarCTPercent() { return varCTPercent; }
+    public void setVarCTPercent(double varCTPercent) { this.varCTPercent = varCTPercent; }
+    public double getVarCTFlat() { return varCTFlat; }
+    public void setVarCTFlat(double varCTFlat) { this.varCTFlat = varCTFlat; }
+    public double getFixedCTPercent() { return fixedCTPercent; }
+    public void setFixedCTPercent(double fixedCTPercent) { this.fixedCTPercent = fixedCTPercent; }
+    public double getFixedCTFlat() { return fixedCTFlat; }
+    public void setFixedCTFlat(double fixedCTFlat) { this.fixedCTFlat = fixedCTFlat; }
+
+    // Healing / Lifesteal
+    public double getHealingEffectPercent() { return healingEffectPercent; }
+    public void setHealingEffectPercent(double healingEffectPercent) { this.healingEffectPercent = healingEffectPercent; }
+    public double getHealingReceivedPercent() { return healingReceivedPercent; }
+    public void setHealingReceivedPercent(double healingReceivedPercent) { this.healingReceivedPercent = healingReceivedPercent; }
+    public double getLifestealPPercent() { return lifestealPPercent; }
+    public void setLifestealPPercent(double lifestealPPercent) { this.lifestealPPercent = lifestealPPercent; }
+    public double getLifestealMPercent() { return lifestealMPercent; }
+    public void setLifestealMPercent(double lifestealMPercent) { this.lifestealMPercent = lifestealMPercent; }
+    public double getTrueDamageFlat() { return trueDamageFlat; }
+    public void setTrueDamageFlat(double trueDamageFlat) { this.trueDamageFlat = trueDamageFlat; }
+
+    // Final Damage
+    public double getFinalDmgPercent() { return finalDmgPercent; }
+    public void setFinalDmgPercent(double finalDmgPercent) { this.finalDmgPercent = finalDmgPercent; }
+    public double getFinalDmgResPercent() { return finalDmgResPercent; }
+    public void setFinalDmgResPercent(double finalDmgResPercent) { this.finalDmgResPercent = finalDmgResPercent; }
+    public double getFinalPDmgPercent() { return finalPDmgPercent; }
+    public void setFinalPDmgPercent(double finalPDmgPercent) { this.finalPDmgPercent = finalPDmgPercent; }
+    public double getFinalMDmgPercent() { return finalMDmgPercent; }
+    public void setFinalMDmgPercent(double finalMDmgPercent) { this.finalMDmgPercent = finalMDmgPercent; }
+
+    // PVE/PVP
+    public double getPveDmgBonusPercent() { return pveDmgBonusPercent; }
+    public void setPveDmgBonusPercent(double pveDmgBonusPercent) { this.pveDmgBonusPercent = pveDmgBonusPercent; }
+    public double getPvpDmgBonusPercent() { return pvpDmgBonusPercent; }
+    public void setPvpDmgBonusPercent(double pvpDmgBonusPercent) { this.pvpDmgBonusPercent = pvpDmgBonusPercent; }
+    public double getPveDmgReductionPercent() { return pveDmgReductionPercent; }
+    public void setPveDmgReductionPercent(double pveDmgReductionPercent) { this.pveDmgReductionPercent = pveDmgReductionPercent; }
+    public double getPvpDmgReductionPercent() { return pvpDmgReductionPercent; }
+    public void setPvpDmgReductionPercent(double pvpDmgReductionPercent) { this.pvpDmgReductionPercent = pvpDmgReductionPercent; }
+
+    // Max HP/SP %
+    public double getMaxHPPercent() { return maxHPPercent; }
+    public void setMaxHPPercent(double maxHPPercent) { this.maxHPPercent = maxHPPercent; }
+    public double getMaxSPPercent() { return maxSPPercent; }
+    public void setMaxSPPercent(double maxSPPercent) { this.maxSPPercent = maxSPPercent; }
+
+    // Shield
+    public double getShieldValueFlat() { return shieldValueFlat; }
+    public void setShieldValueFlat(double shieldValueFlat) { this.shieldValueFlat = shieldValueFlat; }
+    public double getShieldRatePercent() { return shieldRatePercent; }
+    public void setShieldRatePercent(double shieldRatePercent) { this.shieldRatePercent = shieldRatePercent; }
+
+    // Hit/Flee
+    public double getHitBonusFlat() { return hitBonusFlat; }
+    public void setHitBonusFlat(double hitBonusFlat) { this.hitBonusFlat = hitBonusFlat; }
+    public double getFleeBonusFlat() { return fleeBonusFlat; }
+    public void setFleeBonusFlat(double fleeBonusFlat) { this.fleeBonusFlat = fleeBonusFlat; }
+
+    // --- Core Methods (Existing logic, shortened for space) ---
 
     // Formula A.1 (Max HP) - Corrected (Updated to include Gear Bonus)
     public double getMaxHP() {
@@ -238,17 +347,76 @@ public class PlayerData {
         stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);
         int totalPoints = 0; for (int i = 1; i < baseLevel; i++) totalPoints += getStatPointsGain(i);
         this.statPoints = totalPoints; clearAllPendingStats(); calculateMaxSP(); this.currentSP = getMaxSP(); }
-    public int getBaseLevel() { return baseLevel; }
-    public void setBaseLevel(int level) { this.baseLevel = level; calculateMaxSP(); }
-    public int getStatPoints() { return statPoints; }
-    public void setStatPoints(int points) { this.statPoints = points; }
-    public double getCurrentSP() { return currentSP; }
-    public void setCurrentSP(double sp) { this.currentSP = sp; }
-    public int getResetCount() { return resetCount; }
-    public void setResetCount(int count) { this.resetCount = count; }
-    public void incrementResetCount() { this.resetCount++; }
 
-    // NEW Helper: Calculate EXP Bonus Multiplier based on Player LV vs World LV
+    public long getBaseExp() { return baseExp; }
+    public void setBaseExp(long baseExp) { this.baseExp = baseExp; }
+    public long getBaseExpReq() { return getBaseExpReq(baseLevel); }
+    public long getJobExpReq() { return getJobExpReq(jobLevel); }
+    private long customRoundExp(double rawExp) {
+        if (rawExp < 1) return 1L; // Minimum EXP required is 1
+
+        long roundedExp;
+        // Calculate number of digits in the integer part (1-99, 100-99999, 100000+)
+        int digits = (int) Math.log10(rawExp) + 1;
+
+        if (digits <= 2) {
+            // 1-2 digits (1-99): Round up the decimal point (ceiling)
+            roundedExp = (long) Math.ceil(rawExp);
+        } else if (digits <= 5) {
+            // 3-5 digits (100-99,999): Round up to the next multiple of 10
+            double divisionFactor = 10.0;
+            roundedExp = (long) (Math.ceil(rawExp / divisionFactor) * divisionFactor);
+        } else {
+            // 6+ digits (100,000+): Round up to the next multiple of 100
+            double divisionFactor = 100.0;
+            roundedExp = (long) (Math.ceil(rawExp / divisionFactor) * divisionFactor);
+        }
+
+        // Ensure minimum of 1
+        return Math.max(1L, roundedExp);
+    }
+
+    // MODIFIED: Base Exp Req (ใช้สูตร A * level^B * (1 + WLF) โดย WLF ถูกตั้งค่าไว้ที่ 0.0)
+    private long getBaseExpReq(int level) {
+        double A = plugin.getConfig().getDouble("exp-formula.base-exp-multiplier", 0.06663935073413368);
+        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707041855905981);
+        double WLF = plugin.getConfig().getDouble("exp-formula.world-level-factor", 0.0);
+
+        // rawExp = A * level^B * (1 + WLF)
+        double rawExp = A * Math.pow(level, B) * (1 + WLF);
+        return customRoundExp(rawExp);
+    }
+
+    // MODIFIED: Job Exp Req (ใช้สูตร A * level^B * (1 + WLF) โดย WLF ถูกตั้งค่าไว้ที่ 0.0)
+    private long getJobExpReq(int level) {
+        double A = plugin.getConfig().getDouble("exp-formula.job-exp-multiplier", 0.06663935073413368); // Use same A for job
+        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707041855905981);
+        double WLF = plugin.getConfig().getDouble("exp-formula.world-level-factor", 0.0);
+
+        // rawExp = A * level^B * (1 + WLF)
+        double rawExp = A * Math.pow(level, B) * (1 + WLF);
+        return customRoundExp(rawExp);
+    }
+
+    // NEW Helper: Get the actual Max Base Level
+    public int getMaxBaseLevel() {
+        int worldLevelBase = plugin.getConfig().getInt("exp-formula.max-level-world-base", 92);
+        return worldLevelBase + 8;
+    }
+
+    // NEW Helper: Get the actual Max Job Level
+    public int getMaxJobLevel() {
+        return plugin.getConfig().getInt("exp-formula.max-job-level", 10);
+    }
+
+
+    // Renamed for clarity, kept functionality for compatibility
+    private int getStatPointsGain(int level) {
+        int threshold = plugin.getConfig().getInt("stat-points-gain.level-50-threshold", 50);
+        int low = plugin.getConfig().getInt("stat-points-gain.points-low-level", 5);
+        int high = plugin.getConfig().getInt("stat-points-gain.points-high-level", 8);
+        return (level <= threshold) ? low : high;
+    }
     private double getExpBonusMultiplier(int baseLevel) {
         int worldLevel = plugin.getConfig().getInt("exp-formula.max-level-world-base", 92);
 
@@ -344,77 +512,5 @@ public class PlayerData {
         if (player != null) {
             plugin.getManaManager().updateJobExpBar(player);
         }
-    }
-
-    public long getBaseExp() { return baseExp; }
-    public void setBaseExp(long baseExp) { this.baseExp = baseExp; }
-    public long getBaseExpReq() { return getBaseExpReq(baseLevel); }
-    public long getJobExpReq() { return getJobExpReq(jobLevel); }
-
-    // NEW Helper: Custom Rounding Logic for EXP
-    private long customRoundExp(double rawExp) {
-        if (rawExp < 1) return 1L; // Minimum EXP required is 1
-
-        long roundedExp;
-        // Calculate number of digits in the integer part (1-99, 100-99999, 100000+)
-        int digits = (int) Math.log10(rawExp) + 1;
-
-        if (digits <= 2) {
-            // 1-2 digits (1-99): Round up the decimal point (ceiling)
-            roundedExp = (long) Math.ceil(rawExp);
-        } else if (digits <= 5) {
-            // 3-5 digits (100-99,999): Round up to the next multiple of 10
-            double divisionFactor = 10.0;
-            roundedExp = (long) (Math.ceil(rawExp / divisionFactor) * divisionFactor);
-        } else {
-            // 6+ digits (100,000+): Round up to the next multiple of 100
-            double divisionFactor = 100.0;
-            roundedExp = (long) (Math.ceil(rawExp / divisionFactor) * divisionFactor);
-        }
-
-        // Ensure minimum of 1
-        return Math.max(1L, roundedExp);
-    }
-
-    // MODIFIED: Base Exp Req (ใช้สูตร A * level^B * (1 + WLF) โดย WLF ถูกตั้งค่าไว้ที่ 0.0)
-    private long getBaseExpReq(int level) {
-        double A = plugin.getConfig().getDouble("exp-formula.base-exp-multiplier", 0.06663935073413368);
-        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707041855905981);
-        double WLF = plugin.getConfig().getDouble("exp-formula.world-level-factor", 0.0);
-
-        // rawExp = A * level^B * (1 + WLF)
-        double rawExp = A * Math.pow(level, B) * (1 + WLF);
-        return customRoundExp(rawExp);
-    }
-
-    // MODIFIED: Job Exp Req (ใช้สูตร A * level^B * (1 + WLF) โดย WLF ถูกตั้งค่าไว้ที่ 0.0)
-    private long getJobExpReq(int level) {
-        double A = plugin.getConfig().getDouble("exp-formula.job-exp-multiplier", 0.06663935073413368); // Use same A for job
-        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707041855905981);
-        double WLF = plugin.getConfig().getDouble("exp-formula.world-level-factor", 0.0);
-
-        // rawExp = A * level^B * (1 + WLF)
-        double rawExp = A * Math.pow(level, B) * (1 + WLF);
-        return customRoundExp(rawExp);
-    }
-
-    // NEW Helper: Get the actual Max Base Level
-    public int getMaxBaseLevel() {
-        int worldLevelBase = plugin.getConfig().getInt("exp-formula.max-level-world-base", 92);
-        return worldLevelBase + 8;
-    }
-
-    // NEW Helper: Get the actual Max Job Level
-    public int getMaxJobLevel() {
-        return plugin.getConfig().getInt("exp-formula.max-job-level", 10);
-    }
-
-
-    // Renamed for clarity, kept functionality for compatibility
-    private int getStatPointsGain(int level) {
-        int threshold = plugin.getConfig().getInt("stat-points-gain.level-50-threshold", 50);
-        int low = plugin.getConfig().getInt("stat-points-gain.points-low-level", 5);
-        int high = plugin.getConfig().getInt("stat-points-gain.points-high-level", 8);
-        return (level <= threshold) ? low : high;
     }
 }

@@ -1,7 +1,7 @@
 package org.rostats.data;
 
 import org.bukkit.entity.Player;
-import org.rostats.ThaiRoCorePlugin;
+import org.rostats.ThaiRoCorePlugin; // <--- FIX: Added missing import
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
