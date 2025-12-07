@@ -1,48 +1,34 @@
 package org.rostats.itemeditor;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.inventory.ItemFlag;
-<<<<<<< HEAD
-<<<<<<< HEAD
-// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
-import org.rostats.ThaiRoCorePlugin;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-public class ItemAttributeManager {
-
-    // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
-    private final ThaiRoCorePlugin plugin;
-    private static final String MAIN_STATS_HEADER = "§f§l--- Main Stats ---";
-    private static final String CUSTOM_LORE_HEADER = "§f§l--- Custom Lore ---";
-
-=======
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-=======
-// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
->>>>>>> parent of ec02f17 (1)
 import org.rostats.ThaiRoCorePlugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ItemAttributeManager {
+
+    private static final PlainTextComponentSerializer PLAIN_TEXT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
     // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
     private final ThaiRoCorePlugin plugin;
     private static final String MAIN_STATS_HEADER = "§f§l--- Main Stats ---";
     private static final String CUSTOM_LORE_HEADER = "§f§l--- Custom Lore ---";
 
->>>>>>> parent of d30d525 (0)
     // แก้ไข: เปลี่ยน Type ใน Constructor เป็น ThaiRoCorePlugin
     public ItemAttributeManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -52,17 +38,11 @@ public class ItemAttributeManager {
         }
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
     // --- Serialization Helper to resolve ambiguity (FIX) ---
     private String serializeComponentToString(Component component) {
         return PLAIN_TEXT_SERIALIZER.serialize(component);
     }
 
->>>>>>> parent of d30d525 (0)
-=======
->>>>>>> parent of ec02f17 (1)
     // --- Data Management ---
 
     public double getAttribute(ItemStack item, ItemAttribute attribute) {
@@ -86,38 +66,6 @@ public class ItemAttributeManager {
         updateLore(item); // Update lore automatically upon setting attribute
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    // --- NEW: Vanilla Attribute Management (Req 1 & 2) ---
-
-    /**
-     * Removes all vanilla Attribute Modifiers (e.g., from Diamond Sword, Armor)
-     * โดยไม่กระทบต่อ Name/Lore/Custom Attributes
-     */
-    public void removeVanillaAttributes(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return;
-        ItemMeta meta = item.getItemMeta();
-
-        // FIX: ใช้ setAttributeModifiers(null) เพื่อลบ Attribute Modifiers ทั้งหมด
-        if (meta.hasAttributeModifiers()) {
-            meta.setAttributeModifiers(null);
-        }
-
-        // NEW: เพิ่ม ItemFlag.HIDE_ATTRIBUTES เพื่อให้มั่นใจว่า Lore ของ Vanilla Attributes จะถูกซ่อน
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-
-        // Apply meta changes
-        item.setItemMeta(meta);
-
-        // Refresh lore to ensure consistency (สำคัญ)
-        updateLore(item);
-    }
-
-    // --- Lore Management (Main Stats + Custom Lore) ---
-
-    public void updateLore(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return;
-=======
     // --- NEW: Template Saving Logic ---
 
     /**
@@ -149,31 +97,8 @@ public class ItemAttributeManager {
         File templateFile = new File(templateFolder, fileName);
 
         YamlConfiguration config = new YamlConfiguration();
->>>>>>> parent of d30d525 (0)
         ItemMeta meta = item.getItemMeta();
-        List<String> currentLore = meta.hasLore() ? Objects.requireNonNull(meta.getLore()) : new ArrayList<>();
 
-<<<<<<< HEAD
-        List<String> newLore = new ArrayList<>();
-
-        // 1. Separate existing lore to preserve CUSTOM LORE
-        List<String> customLore = new ArrayList<>();
-        boolean inCustomLore = false;
-
-        for (String line : currentLore) {
-            String stripped = line.replaceAll("§[0-9a-fk-or]", "");
-            if (stripped.equals("--- Custom Lore ---")) {
-                inCustomLore = true;
-                continue;
-            }
-            if (stripped.equals("--- Main Stats ---")) { // Reset flag if we hit the start of the Main Stats (shouldn't happen if they are at the top)
-                inCustomLore = false;
-                continue;
-            }
-
-            if (inCustomLore) {
-                customLore.add(line);
-=======
         // 2. Extract Core Item Data
         config.set("material", item.getType().name());
 
@@ -207,38 +132,21 @@ public class ItemAttributeManager {
                 // Key: ATTRIBUTE_KEY.toLowerCase()
                 // Value: double
                 config.set("custom-attributes." + attribute.getKey(), value);
->>>>>>> parent of d30d525 (0)
             }
         }
 
-        // 2. Generate new Main Stats Lore
-        List<String> mainStats = new ArrayList<>();
-        for (ItemAttribute attribute : ItemAttribute.values()) {
-            double value = getAttribute(item, attribute);
-            if (value != 0.0) {
-                String formattedValue = String.format(attribute.getFormat(), value);
-                String line = attribute.getDisplayName() + ": §f" + formattedValue;
-                mainStats.add(line);
-            }
+        // 4. Save the file
+        try {
+            config.save(templateFile);
+            plugin.getLogger().info("Successfully saved item template: " + fileName);
+            return true;
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save item template " + fileName + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
+    }
 
-<<<<<<< HEAD
-        // 3. Combine Lore: Main Stats (Auto-generated) + Custom Lore (Preserved)
-        if (!mainStats.isEmpty()) {
-            newLore.add(MAIN_STATS_HEADER);
-            newLore.addAll(mainStats);
-        }
-
-        if (!customLore.isEmpty()) {
-            if (!newLore.isEmpty()) newLore.add(" "); // Add separator if Main Stats exist
-            newLore.add(CUSTOM_LORE_HEADER);
-            newLore.addAll(customLore);
-        }
-
-        // Apply new lore
-=======
-=======
->>>>>>> parent of ec02f17 (1)
     // --- NEW: Vanilla Attribute Management (Req 1 & 2) ---
 
     /**
@@ -269,6 +177,8 @@ public class ItemAttributeManager {
     public void updateLore(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return;
         ItemMeta meta = item.getItemMeta();
+
+        // Use meta.getLore() (List<String>) to read the existing lore lines to preserve custom formatting/color codes.
         List<String> currentLore = meta.hasLore() ? Objects.requireNonNull(meta.getLore()) : new ArrayList<>();
 
         List<String> newLore = new ArrayList<>();
@@ -278,6 +188,7 @@ public class ItemAttributeManager {
         boolean inCustomLore = false;
 
         for (String line : currentLore) {
+            // Assuming currentLore contains Strings with Bukkit color codes ('§').
             String stripped = line.replaceAll("§[0-9a-fk-or]", "");
             if (stripped.equals("--- Custom Lore ---")) {
                 inCustomLore = true;
@@ -317,11 +228,7 @@ public class ItemAttributeManager {
         }
 
         // Apply new lore
-<<<<<<< HEAD
         // Convert String list back to Component list
->>>>>>> parent of d30d525 (0)
-=======
->>>>>>> parent of ec02f17 (1)
         meta.lore(newLore.stream().map(Component::text).toList());
         item.setItemMeta(meta);
     }
