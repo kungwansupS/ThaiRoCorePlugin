@@ -8,24 +8,18 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+// Import the new main plugin class
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.gui.CharacterGUI; // For refreshing the Stat Panel (Req 7)
-
-import java.io.File;
-import java.util.Objects;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 
 public class GUIListener implements Listener {
 
+    // Change type from ItemEditorPlugin to ThaiRoCorePlugin
     private final ThaiRoCorePlugin plugin;
     private final ItemAttributeManager attributeManager;
-    private final CharacterGUI statPanel; // For refreshing the Stat Panel (Req 7)
 
-    public GUIListener(ThaiRoCorePlugin plugin, ItemAttributeManager attributeManager, CharacterGUI statPanel) {
+    public GUIListener(ThaiRoCorePlugin plugin, ItemAttributeManager attributeManager) {
         this.plugin = plugin;
         this.attributeManager = attributeManager;
-        this.statPanel = statPanel;
     }
 
     @EventHandler
@@ -44,96 +38,56 @@ public class GUIListener implements Listener {
         if (editingItem == null || editingItem.getType().isAir()) return;
 
         int slot = event.getSlot();
-        int page;
-        try {
-            // Extract page number from title "§0§lItem Attribute Editor (Page X)"
-            String pageString = title.substring(title.lastIndexOf("Page ") + 5, title.lastIndexOf(")"));
-            page = Integer.parseInt(pageString);
-        } catch (Exception e) {
-            return; // Invalid page title
-        }
 
-        // 1. Prevent clicking on the item being edited (Slot 0)
-        if (slot == 0) return;
+        // --- NEW: Handle Utility Buttons (R0, C5-C7) ---
 
-        // --- Handle Header / Navigation Buttons (Slots 2-8) ---
+        // Slot 8: Close Button
         if (slot == 8 && clickedItem.getType() == Material.BARRIER) {
             player.closeInventory();
+            player.sendMessage("§aItem editing closed. Changes applied automatically.");
             return;
-        } else if (slot == 2 && clickedItem.getType() == Material.ARROW) {
-            new AttributeEditorGUI(plugin, attributeManager).open(player, editingItem, page - 1);
-            return;
-        } else if (slot == 4 && clickedItem.getType() == Material.ARROW) {
-            new AttributeEditorGUI(plugin, attributeManager).open(player, editingItem, page + 1);
-            return;
-        } else if (slot == 6 && clickedItem.getType() == Material.REDSTONE_BLOCK) {
-            // Toggle Remove Vanilla
-            ItemAttribute currentAttr = attributeManager.getAttributesFromItem(editingItem);
-            boolean isEnabled = currentAttr.isRemoveVanillaAttribute();
-            attributeManager.setAttribute(editingItem, "removeVanillaAttribute", isEnabled ? 0.0 : 1.0);
+        }
 
-            // Re-open/refresh the GUI (สำคัญเพื่อให้เห็นการเปลี่ยนแปลงของ Status)
-            new AttributeEditorGUI(plugin, attributeManager).open(player, editingItem, page);
-            plugin.getAttributeHandler().updatePlayerStats(player); // Recalculate stats immediately (Req 7)
+        // Slot 6: Remove Vanilla Attributes (Req 1 & 2)
+        if (slot == 6 && clickedItem.getType() == Material.REDSTONE_BLOCK) {
+            attributeManager.removeVanillaAttributes(editingItem);
+            // Re-open/refresh the GUI (สำคัญเพื่อให้เห็นการเปลี่ยนแปลงของ Item Icon)
+            new AttributeEditorGUI(plugin, attributeManager).open(player, editingItem);
+            player.sendMessage("§aVanilla Minecraft attributes removed (Attack Damage, Armor, etc.).");
             return;
-        } else if (slot == 7 && clickedItem.getType() == Material.ENDER_CHEST) {
-            // Save & Copy
-            attributeManager.saveItemAsTemplate(editingItem, player);
+        }
+
+        // Slot 7: Save & Copy (Req 4 - Placeholder)
+        if (slot == 7 && clickedItem.getType() == Material.ENDER_CHEST) {
+            // In a real implementation: Save item PDC to database/file, then copy and give the item.
             ItemStack finalCopy = editingItem.clone();
             player.getInventory().addItem(finalCopy);
-            player.sendMessage("§d[Editor] Item saved and a copy has been placed in your inventory.");
-            return;
-        } else if (slot == 53 && page == 6 && clickedItem.getType() == Material.WRITABLE_BOOK) {
-            // Export to YAML (Page 6 Utility)
-            if (attributeManager.saveItemAsTemplate(editingItem, player)) {
-                player.sendMessage("§a[Editor] Item exported to YAML template file!");
-            } else {
-                player.sendMessage("§c[Editor] Could not export item to YAML.");
-            }
+            player.sendMessage("§d[Editor] Item attributes saved (Placeholder) and a copy has been placed in your inventory.");
             return;
         }
 
-        // 2. Handle Attribute Modification Clicks (Slots 9+)
+        // Slot 5: Load Template (Req 4 - Placeholder)
+        if (slot == 5 && clickedItem.getType() == Material.BOOK) {
+            // In a real implementation: Open a secondary menu to select a template.
+            player.sendMessage("§b[Editor] Loading templates is not yet implemented. Requires Template Manager system.");
+            return;
+        }
+
+        // ---------------------------------------------------
+
+        // 2. Prevent clicking on the item being edited (Slot 0)
+        if (slot == 0) return;
+
+        // 3. Handle Attribute Modification Clicks (Slots 9+)
         AttributeEditorGUI gui = new AttributeEditorGUI(plugin, attributeManager);
-        String attributeKey = gui.getAttributeKeyBySlot(slot, page);
+        ItemAttribute attribute = gui.getAttributeBySlot(slot);
+        if (attribute == null) return; // Not an attribute slot
 
-        if (attributeKey != null) {
-            handleAttributeModification(player, editingItem, attributeKey, event.getClick(), page, gui);
-        }
-    }
-
-    private void handleAttributeModification(Player player, ItemStack editingItem, String attributeKey, ClickType click, int page, AttributeEditorGUI gui) {
-        AttributeEditorGUI.AttributeMeta meta = AttributeEditorGUI.ATTRIBUTE_METADATA.get(attributeKey);
-
-        // Handle boolean fields (Toggle)
-        if (meta.dataType.equals("boolean")) {
-            ItemAttribute currentAttr = attributeManager.getAttributesFromItem(editingItem);
-            boolean currentValue = currentAttr.isRemoveVanillaAttribute();
-            attributeManager.setAttribute(editingItem, attributeKey, currentValue ? 0.0 : 1.0);
-
-            new AttributeEditorGUI(plugin, attributeManager).open(player, editingItem, page); // Refresh
-            plugin.getAttributeHandler().updatePlayerStats(player); // Recalculate stats immediately (Req 7)
-            return;
-        }
-
-        // Handle numerical fields (Double/Int)
-
-        // Use reflection to get the current value from the ItemAttribute POJO
-        ItemAttribute currentAttr = attributeManager.getAttributesFromItem(editingItem);
-        double currentValue;
-        try {
-            Field field = ItemAttribute.class.getDeclaredField(attributeKey);
-            field.setAccessible(true);
-            Object value = field.get(currentAttr);
-            currentValue = (value instanceof Integer) ? (Integer) value : (Double) value;
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            player.sendMessage("§cError: Could not read attribute value.");
-            return;
-        }
-
+        ClickType click = event.getClick();
+        double currentValue = attributeManager.getAttribute(editingItem, attribute);
         double newValue = currentValue;
-        double step = meta.clickStep;
-        double largeStep = meta.rightClickStep;
+        double step = attribute.getClickStep();
+        double largeStep = attribute.getRightClickStep();
 
         if (click == ClickType.LEFT) {
             newValue += event.isShiftClick() ? largeStep : step;
@@ -144,28 +98,25 @@ public class GUIListener implements Listener {
         }
 
         // Clamp to a sensible range
-        newValue = Math.max(-1000000.0, Math.min(1000000.0, newValue));
+        newValue = Math.max(-1000.0, Math.min(1000.0, newValue));
 
-        // Round to maintain precision to 3 decimal places
+        // Round to maintain precision to 3 decimal places (based on the steps defined in enum)
         newValue = Math.round(newValue * 1000.0) / 1000.0;
-
-        // Ensure integer fields remain integers
-        if (meta.dataType.equals("int")) {
-            newValue = (double) Math.round(newValue);
-        }
 
         // 4. Apply changes and refresh
         if (newValue != currentValue) {
-            attributeManager.setAttribute(editingItem, attributeKey, newValue);
+            attributeManager.setAttribute(editingItem, attribute, newValue);
 
             // Update the item in the GUI slot 0
             event.getInventory().setItem(0, editingItem.clone());
 
             // Update the clicked attribute icon
-            event.getInventory().setItem(slot, gui.createAttributeIcon(editingItem, attributeKey));
+            event.getInventory().setItem(slot, gui.createAttributeIcon(editingItem, attribute));
 
-            // Trigger recalculation of player stats if it affects gear
-            plugin.getAttributeHandler().updatePlayerStats(player); // Recalculate stats immediately (Req 7)
+            // Trigger recalculation of player stats if a gear bonus was changed
+            if (attribute.getKey().contains("BonusGear")) {
+                plugin.getAttributeHandler().updatePlayerStats(player);
+            }
         }
     }
 }

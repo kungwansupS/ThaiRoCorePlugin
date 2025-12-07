@@ -32,17 +32,6 @@ public class CharacterGUI {
         this.plugin = plugin;
     }
 
-    // NEW: Refresh method for Requirement 7
-    public void refresh(Player player) {
-        if (player.getOpenInventory().title() instanceof Component titleComponent) {
-            String title = titleComponent.toString(); // Simple check for title match
-            if (title.contains("Character Status (ROO)")) {
-                // Re-open/refresh to the default tab (Basic Info)
-                open(player, Tab.BASIC_INFO);
-            }
-        }
-    }
-
     public void open(Player player, Tab tab) {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("§0§lCharacter Status (ROO)"));
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());

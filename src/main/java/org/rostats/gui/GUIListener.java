@@ -34,12 +34,12 @@ public class GUIListener implements Listener {
         int slot = event.getSlot();
 
         // 1. Handle Tab Clicks (R0 C2, C3, C4, C5)
-        if (slot == 2) plugin.getStatPanel().open(player, Tab.BASIC_INFO); // Use StatPanel getter
-        else if (slot == 3) plugin.getStatPanel().open(player, Tab.GENERAL); // Use StatPanel getter
-        else if (slot == 4) plugin.getStatPanel().open(player, Tab.ADVANCED); // Use StatPanel getter
-        else if (slot == 5) plugin.getStatPanel().open(player, Tab.SPECIAL); // Use StatPanel getter
-        else if (slot == 34) plugin.getStatPanel().open(player, Tab.RESET_CONFIRM); // Reset Point button
-        else if (slot == 44) plugin.getStatPanel().open(player, Tab.RESET_CONFIRM); // Reset All Button
+        if (slot == 2) new CharacterGUI(plugin).open(player, Tab.BASIC_INFO);
+        else if (slot == 3) new CharacterGUI(plugin).open(player, Tab.GENERAL); // FIX: Changed from MORE_INFO
+        else if (slot == 4) new CharacterGUI(plugin).open(player, Tab.ADVANCED); // NEW: Advanced Tab
+        else if (slot == 5) new CharacterGUI(plugin).open(player, Tab.SPECIAL); // NEW: Special Tab
+        else if (slot == 34) new CharacterGUI(plugin).open(player, Tab.RESET_CONFIRM); // Reset Point button
+        else if (slot == 44) new CharacterGUI(plugin).open(player, Tab.RESET_CONFIRM); // Reset All Button
 
             // 2. Handle Close/Exit Button (Slot 8)
         else if (slot == 8) { // R0 C8: Exit
@@ -53,20 +53,20 @@ public class GUIListener implements Listener {
             player.closeInventory();
         }
         else if (slot == 31 && name.contains("[ยกเลิก]")) {
-            plugin.getStatPanel().open(player, Tab.BASIC_INFO); // Use StatPanel getter
+            new CharacterGUI(plugin).open(player, Tab.BASIC_INFO);
         }
 
         // 4. Handle Allocate (Slot 52)
         else if (slot == 52 && name.contains("Allocate")) {
             plugin.getStatManager().allocateStats(player); // Apply all pending changes
-            plugin.getStatPanel().open(player, Tab.BASIC_INFO); // Use StatPanel getter
+            new CharacterGUI(plugin).open(player, Tab.BASIC_INFO);
         }
 
         // 5. Handle Reset Select (Slot 42)
         else if (slot == 42 && name.contains("Reset Select")) {
             plugin.getStatManager().getData(player.getUniqueId()).clearAllPendingStats();
             player.sendMessage("§e[System] Pending Stat Changes have been cleared.");
-            plugin.getStatPanel().open(player, Tab.BASIC_INFO); // Use StatPanel getter
+            new CharacterGUI(plugin).open(player, Tab.BASIC_INFO);
         }
 
         // 6. Handle Stat Allocation (+ and - Buttons)
@@ -113,7 +113,7 @@ public class GUIListener implements Listener {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
             plugin.getAttributeHandler().updatePlayerStats(player);
             plugin.getManaManager().updateBar(player);
-            plugin.getStatPanel().open(player, Tab.BASIC_INFO); // Refresh GUI
+            new CharacterGUI(plugin).open(player, Tab.BASIC_INFO); // Refresh GUI
         } else {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
             player.sendMessage("§cNot enough points to reserve this upgrade!");
@@ -136,7 +136,7 @@ public class GUIListener implements Listener {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
             plugin.getAttributeHandler().updatePlayerStats(player);
             plugin.getManaManager().updateBar(player);
-            plugin.getStatPanel().open(player, Tab.BASIC_INFO); // Refresh GUI
+            new CharacterGUI(plugin).open(player, Tab.BASIC_INFO); // Refresh GUI
         } else {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1f, 0.5f);
             player.sendMessage("§cCannot reduce stat below base value (1) or pending points are 0!");
