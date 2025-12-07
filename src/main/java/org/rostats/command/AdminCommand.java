@@ -13,7 +13,6 @@ import org.rostats.data.PlayerData;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,7 +22,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
     // Define all top-level sub-commands
     private static final List<String> MAIN_COMMANDS = Arrays.asList(
-            "check", "reset", "set", "add", "save"
+            "check", "reset", "set", "add", "save", "reload" // Added reload
     );
 
     // Define all reset sub-sub-commands
@@ -60,10 +59,16 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[0].toLowerCase();
 
-        // 1. Handle Global Commands (save)
+        // 1. Handle Global Commands (save, reload)
         if (sub.equals("save")) {
             for (Player p : Bukkit.getOnlinePlayers()) plugin.getDataManager().savePlayerData(p);
             sender.sendMessage("§aSaved data.");
+            return true;
+        }
+
+        if (sub.equals("reload")) {
+            plugin.reload();
+            sender.sendMessage("§aConfiguration reloaded.");
             return true;
         }
 
@@ -196,6 +201,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(CommandSender s) {
         s.sendMessage("§6--- ROAdmin Help ---");
         s.sendMessage("§c/roadmin save");
+        s.sendMessage("§c/roadmin reload");
         s.sendMessage("§c/roadmin check <player>");
         s.sendMessage("§c/roadmin reset (blevel|jlevel|stat) <player>");
         s.sendMessage("§c/roadmin set (blevel|jlevel|points) <player> <val>");
@@ -214,7 +220,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         }
         // Arg 2: Player Names (for all player-based commands)
         else if (args.length == 2 && MAIN_COMMANDS.contains(args[0].toLowerCase())) {
-            if (!args[0].equalsIgnoreCase("save")) {
+            if (!args[0].equalsIgnoreCase("save") && !args[0].equalsIgnoreCase("reload")) {
                 List<String> playerNames = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
                         .collect(Collectors.toList());

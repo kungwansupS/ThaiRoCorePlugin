@@ -113,6 +113,13 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getLogger().info("❌ ThaiRoCorePlugin Disabled");
     }
 
+    // NEW: Reload Method
+    public void reload() {
+        reloadConfig();
+        if (combatHandler != null) combatHandler.loadValues();
+        getLogger().info("Configuration Reloaded.");
+    }
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         dataManager.loadPlayerData(event.getPlayer());
@@ -204,6 +211,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public StatManager getStatManager() { return statManager; }
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
+    public CombatHandler getCombatHandler() { return combatHandler; } // Added Getter
     public DataManager getDataManager() { return dataManager; }
     public ItemAttributeManager getItemAttributeManager() { return itemAttributeManager; }
     public ItemManager getItemManager() { return itemManager; }
