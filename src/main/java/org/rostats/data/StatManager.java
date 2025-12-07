@@ -1,7 +1,7 @@
 package org.rostats.data;
 
 import org.bukkit.entity.Player;
-import org.rostats.ROStatsPlugin;
+import org.rostats.ThaiRoCorePlugin;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -187,7 +187,7 @@ public class StatManager {
     // SoftMDEF - Corrected
     public double getSoftMDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int intel = getStat(player.getUniqueId(), "INT");
+        int intel = data.getStat(player.getUniqueId(), "INT");
         int vit = getStat(player.getUniqueId(), "VIT");
         // SoftMDEF = INT × 1 + VIT × 0.2
         return (intel * 1.0) + (vit * 0.2); // Proxy for BaseMDef

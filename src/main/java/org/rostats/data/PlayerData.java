@@ -2,7 +2,7 @@ package org.rostats.data;
 
 import org.bukkit.Bukkit; // เพิ่ม import สำหรับ Bukkit
 import org.bukkit.entity.Player; // เพิ่ม import สำหรับ Player
-import org.rostats.ROStatsPlugin; // Import ถูกต้อง
+import org.rostats.ThaiRoCorePlugin; // แก้ไข: เปลี่ยนเป็น ThaiRoCorePlugin
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -76,9 +76,9 @@ public class PlayerData {
     private double fleeBonusFlat = 0.0;
     private double baseMSPD = 0.1;
 
-    private final ThaiRoCorePlugin plugin;
+    private final ThaiRoCorePlugin plugin; // แก้ไข: เปลี่ยน Type
 
-    public PlayerData(ThaiRoCorePlugin plugin) {
+    public PlayerData(ThaiRoCorePlugin plugin) { // แก้ไข: เปลี่ยน Type
         this.plugin = plugin;
         stats.put("STR", 1); stats.put("AGI", 1); stats.put("VIT", 1);
         stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);

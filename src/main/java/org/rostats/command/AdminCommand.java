@@ -8,7 +8,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
-import org.rostats.ROStatsPlugin;
+import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 
 import java.util.ArrayList;
