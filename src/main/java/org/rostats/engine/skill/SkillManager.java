@@ -15,13 +15,13 @@ import org.rostats.engine.trigger.TriggerType;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList; // เพิ่ม
-import java.util.Arrays;    // เพิ่ม
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import java.util.stream.Collectors; // เพิ่ม
+import java.util.stream.Collectors;
 
 public class SkillManager {
 
@@ -97,7 +97,7 @@ public class SkillManager {
             config.set(id + ".conditions.cooldown", 1.0);
 
             config.save(file);
-            loadSkills(); // Reload to register new skill
+            loadSkills();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -111,14 +111,14 @@ public class SkillManager {
             }
         }
         file.delete();
-        loadSkills(); // Reload
+        loadSkills();
     }
 
     public void renameFile(File file, String newName) {
         String finalName = file.isDirectory() ? newName : (newName.endsWith(".yml") ? newName : newName + ".yml");
         File dest = new File(file.getParentFile(), finalName);
         file.renameTo(dest);
-        loadSkills(); // Reload
+        loadSkills();
     }
 
     // --- Save Skill Logic ---
@@ -143,7 +143,6 @@ public class SkillManager {
         config.set(key + ".conditions.sp-cost-per-level", skill.getSpCostPerLevel());
         config.set(key + ".conditions.cast-time", skill.getCastTime());
 
-        // Save Actions
         List<Map<String, Object>> serializedActions = new ArrayList<>();
         for (SkillAction action : skill.getActions()) {
             serializedActions.add(action.serialize());
@@ -176,7 +175,6 @@ public class SkillManager {
         }
         return null;
     }
-    // -----------------------------
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target) {
         SkillData skill = skillMap.get(skillId);
@@ -195,7 +193,7 @@ public class SkillManager {
     @SuppressWarnings("unchecked")
     public void loadSkills() {
         skillMap.clear();
-        loadSkillsRecursive(skillFolder); // Recursive Load
+        loadSkillsRecursive(skillFolder);
         plugin.getLogger().info("Loaded " + skillMap.size() + " skills.");
     }
 
@@ -279,10 +277,12 @@ public class SkillManager {
                 String formula = (String) map.getOrDefault("formula", "ATK");
                 String element = (String) map.getOrDefault("element", "NEUTRAL");
                 return new DamageAction(plugin, formula, element);
+
             case HEAL:
                 String healFormula = (String) map.getOrDefault("formula", "10");
                 boolean isMana = (boolean) map.getOrDefault("is-mana", false);
                 return new HealAction(plugin, healFormula, isMana);
+
             case APPLY_EFFECT:
                 String effectId = (String) map.getOrDefault("effect-id", "unknown");
                 String effTypeStr = (String) map.getOrDefault("effect-type", "STAT_MODIFIER");
@@ -295,6 +295,7 @@ public class SkillManager {
                 String statKey = (String) map.getOrDefault("stat-key", null);
 
                 return new EffectAction(plugin, effectId, effType, level, power, duration, chance, statKey);
+
             default:
                 return null;
         }
@@ -325,6 +326,7 @@ public class SkillManager {
             config.set(key + ".conditions.sp-cost", 20);
 
             List<Map<String, Object>> actions = new ArrayList<>();
+
             Map<String, Object> damage = new HashMap<>();
             damage.put("type", "DAMAGE");
             damage.put("formula", "(MATK * 1.5) + (INT * 5)");

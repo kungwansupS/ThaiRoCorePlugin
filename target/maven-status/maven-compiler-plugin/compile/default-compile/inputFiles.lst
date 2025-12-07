@@ -17,6 +17,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\skill\SkillManager.j
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\trigger\TriggerType.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\CharacterGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\GUIListener.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillActionPropertyGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillActionSelectorGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillEditorGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillLibraryGUI.java

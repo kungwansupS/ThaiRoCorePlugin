@@ -155,7 +155,7 @@ public class SkillEditorGUI {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
         meta.setLore(Arrays.asList(lore));
-        // FIX: Removed ItemFlag.HIDE_POTION_EFFECTS to prevent compilation error
+        // Removed HIDE_POTION_EFFECTS to fix compatibility
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
