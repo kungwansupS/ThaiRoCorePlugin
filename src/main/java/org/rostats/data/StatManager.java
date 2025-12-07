@@ -16,7 +16,6 @@ public class StatManager {
     }
 
     public PlayerData getData(UUID uuid) {
-        // Fix: Pass plugin instance to PlayerData constructor
         return playerDataMap.computeIfAbsent(uuid, k -> new PlayerData(plugin));
     }
 
@@ -106,69 +105,104 @@ public class StatManager {
         return ((currentVal - 1) / costDivisor) + costBase;
     }
 
+    // --- UPDATED FORMULAS (Total = Base + Pending + Gear Bonus) ---
+
+    private int getTotalStat(PlayerData data, String statKey) {
+        int base = data.getStat(statKey);
+        int pending = data.getPendingStat(statKey);
+        int gear = switch (statKey) {
+            case "STR" -> data.getSTRBonusGear();
+            case "AGI" -> data.getAGIBonusGear();
+            case "VIT" -> data.getVITBonusGear();
+            case "INT" -> data.getINTBonusGear();
+            case "DEX" -> data.getDEXBonusGear();
+            case "LUK" -> data.getLUKBonusGear();
+            default -> 0;
+        };
+        return base + pending + gear;
+    }
+
     public double getPhysicalAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int str = data.getStat("STR") + data.getPendingStat("STR") + data.getSTRBonusGear();
-        int dex = data.getStat("DEX") + data.getPendingStat("DEX") + data.getDEXBonusGear();
-        int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
+        int str = getTotalStat(data, "STR");
+        int dex = getTotalStat(data, "DEX");
+        int luk = getTotalStat(data, "LUK");
+
+        // Formula: STR + (DEX * 0.2) + (LUK * 0.2) + WeaponATK + FlatBonus
         return (str * 1.0) + (dex * 0.2) + (luk * 0.2) + data.getWeaponPAtk() + data.getPAtkBonusFlat();
     }
 
     public double getMagicAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int intel = data.getStat("INT") + data.getPendingStat("INT") + data.getINTBonusGear();
-        int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
+        int intel = getTotalStat(data, "INT");
+        int luk = getTotalStat(data, "LUK"); // Some variants use DEX or LUK
+
+        // Formula: (INT * 1.5) + (LUK * 0.3) + WeaponMATK + FlatBonus
         return (intel * 1.5) + (luk * 0.3) + data.getWeaponMAtk() + data.getMAtkBonusFlat();
     }
 
     public int getHit(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int dex = data.getStat("DEX") + data.getPendingStat("DEX") + data.getDEXBonusGear();
-        return (int) (dex + data.getHitBonusFlat());
+        int dex = getTotalStat(data, "DEX");
+        int luk = getTotalStat(data, "LUK");
+
+        // Formula: DEX + LUK + BaseLevel + HitBonus
+        return (int) (dex + luk + data.getBaseLevel() + data.getHitBonusFlat());
     }
 
     public int getFlee(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int agi = data.getStat("AGI") + data.getPendingStat("AGI") + data.getAGIBonusGear();
-        return (int) (agi + data.getFleeBonusFlat());
+        int agi = getTotalStat(data, "AGI");
+        int luk = getTotalStat(data, "LUK"); // Often LUK adds small flee
+
+        // Formula: AGI + (LUK * 0.2) + BaseLevel + FleeBonus
+        return (int) (agi + (luk * 0.2) + data.getBaseLevel() + data.getFleeBonusFlat());
     }
 
     public double getAspdBonus(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int agi = data.getStat("AGI") + data.getPendingStat("AGI") + data.getAGIBonusGear();
-        int dex = data.getStat("DEX") + data.getPendingStat("DEX") + data.getDEXBonusGear();
-        double statBonus = (agi * 0.01) + (dex * 0.002);
+        int agi = getTotalStat(data, "AGI");
+        int dex = getTotalStat(data, "DEX");
+
+        // Formula based on AGI and DEX
+        double statBonus = (agi * 0.02) + (dex * 0.005); // Adjusted multiplier
         return 1.0 + statBonus + (data.getASpdPercent() / 100.0);
     }
 
     public double getSoftDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int vit = data.getStat("VIT") + data.getVITBonusGear();
-        int agi = data.getStat("AGI") + data.getAGIBonusGear();
-        return (vit * 0.5) + (agi * 0.2);
+        int vit = getTotalStat(data, "VIT");
+        int agi = getTotalStat(data, "AGI"); // Sometimes AGI adds def
+
+        // Soft DEF
+        return (vit * 0.5) + (agi * 0.1); // Adjusted formula
     }
 
     public double getSoftMDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int intel = data.getStat("INT") + data.getINTBonusGear();
-        int vit = data.getStat("VIT") + data.getVITBonusGear();
-        return (intel * 1.0) + (vit * 0.2);
+        int intel = getTotalStat(data, "INT");
+        int vit = getTotalStat(data, "VIT");
+
+        // Soft MDEF
+        return (intel * 1.0) + (vit * 0.5);
     }
 
     public double getCritChance(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
+        int luk = getTotalStat(data, "LUK");
+
+        // Formula: LUK * 0.3
         return luk * 0.3;
     }
 
     public double calculatePower(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        double str = data.getStat("STR") + data.getSTRBonusGear();
-        double intel = data.getStat("INT") + data.getINTBonusGear();
-        double agi = data.getStat("AGI") + data.getAGIBonusGear();
-        double vit = data.getStat("VIT") + data.getVITBonusGear();
-        double dex = data.getStat("DEX") + data.getDEXBonusGear();
-        double luk = data.getStat("LUK") + data.getLUKBonusGear();
+        double str = getTotalStat(data, "STR");
+        double intel = getTotalStat(data, "INT");
+        double agi = getTotalStat(data, "AGI");
+        double vit = getTotalStat(data, "VIT");
+        double dex = getTotalStat(data, "DEX");
+        double luk = getTotalStat(data, "LUK");
         int baseLevel = data.getBaseLevel();
 
         double coreStatPower = (str + intel) * 5.0;

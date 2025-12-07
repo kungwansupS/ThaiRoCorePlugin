@@ -25,7 +25,9 @@ public class ItemLibraryGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Library: " + currentDir.getName()));
+        // ใช้ Relative Path เพื่อให้ Title ไม่ยาวเกินไปและ GUIListener อ่านค่ากลับได้ถูกต้อง
+        String pathDisplay = plugin.getItemManager().getRelativePath(currentDir);
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Library: " + pathDisplay));
 
         // 1. Navigation Row (Top)
         if (!currentDir.equals(plugin.getItemManager().getRootDir())) {
@@ -50,8 +52,15 @@ public class ItemLibraryGUI {
                         "§cSHIFT+LEFT §7to Delete",
                         "§bSHIFT+RIGHT §7to Rename"));
             } else {
-                // Determine material from file content if possible, or generic
-                Material mat = getMaterialFromFile(file);
+                // พยายามอ่าน Material จากไฟล์ ถ้าอ่านไม่ได้ให้ใช้ PAPER
+                Material mat = Material.PAPER;
+                try {
+                    ItemStack temp = plugin.getItemManager().loadItemStack(file);
+                    if (temp != null) mat = temp.getType();
+                } catch (Exception e) {
+                    // Ignore load error for icon
+                }
+
                 inv.setItem(slot, createGuiItem(mat, "§f" + file.getName().replace(".yml", ""),
                         "§eLEFT CLICK §7to Edit",
                         "§aSHIFT+RIGHT §7to Give",
@@ -61,18 +70,13 @@ public class ItemLibraryGUI {
             slot++;
         }
 
-        // Fill empty
+        // Fill empty slots
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
         }
 
         player.openInventory(inv);
-    }
-
-    private Material getMaterialFromFile(File file) {
-        // Quick peek logic or default
-        return Material.PAPER; // Simplified for GUI speed, or load from ItemManager
     }
 
     private ItemStack createGuiItem(Material mat, String name, String... lore) {

@@ -25,7 +25,32 @@ public class ItemManager {
         return rootDir;
     }
 
-    // List contents (folders and .yml files)
+    // --- Path Helpers (สำคัญมากสำหรับการแก้บัค File not found) ---
+
+    public String getRelativePath(File file) {
+        String rootPath = rootDir.getAbsolutePath();
+        String filePath = file.getAbsolutePath();
+
+        if (filePath.equals(rootPath)) return "/";
+
+        if (filePath.startsWith(rootPath)) {
+            // ตัดส่วน root ออก และเปลี่ยน \ เป็น / เพื่อให้เหมือนกันทุก OS
+            String rel = filePath.substring(rootPath.length()).replace("\\", "/");
+            if (rel.startsWith("/")) return rel;
+            return "/" + rel;
+        }
+        return "/" + file.getName(); // Fallback
+    }
+
+    public File getFileFromRelative(String relativePath) {
+        if (relativePath == null || relativePath.equals("/") || relativePath.isEmpty()) return rootDir;
+        // ป้องกัน double slash
+        if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+        return new File(rootDir, relativePath);
+    }
+
+    // --- File Operations ---
+
     public List<File> listContents(File directory) {
         File[] files = directory.listFiles();
         if (files == null) return new ArrayList<>();
@@ -51,7 +76,7 @@ public class ItemManager {
             file.createNewFile();
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             config.set("material", material.name());
-            config.set("folder", parent.getName()); // Meta info
+            config.set("folder", parent.getName());
             config.save(file);
         } catch (IOException e) {
             e.printStackTrace();
@@ -61,11 +86,10 @@ public class ItemManager {
     public void saveItem(File file, ItemAttribute attr, ItemStack itemStack) {
         YamlConfiguration config = new YamlConfiguration();
 
-        // Basic Info
         config.set("material", itemStack.getType().name());
         if (itemStack.hasItemMeta()) {
             if (itemStack.getItemMeta().hasDisplayName()) {
-                config.set("name", itemStack.getItemMeta().getDisplayName()); // Stored with color codes
+                config.set("name", itemStack.getItemMeta().getDisplayName());
             }
             if (itemStack.getItemMeta().hasLore()) {
                 config.set("lore", itemStack.getItemMeta().getLore());
@@ -73,8 +97,6 @@ public class ItemManager {
         }
 
         config.set("remove-vanilla", attr.isRemoveVanillaAttribute());
-
-        // Attributes Map
         attr.saveToConfig(config.createSection("attributes"));
 
         try {
@@ -98,10 +120,7 @@ public class ItemManager {
         ItemStack item = new ItemStack(mat);
         ItemAttribute attr = loadAttribute(file);
 
-        // Apply Name & Lore if exists in file
         plugin.getItemAttributeManager().applyMetaFromConfig(item, config);
-
-        // Apply attributes to PDC
         plugin.getItemAttributeManager().applyAttributesToItem(item, attr);
 
         return item;
@@ -109,7 +128,10 @@ public class ItemManager {
 
     public void deleteFile(File file) {
         if (file.isDirectory()) {
-            for (File sub : file.listFiles()) deleteFile(sub);
+            File[] contents = file.listFiles();
+            if (contents != null) {
+                for (File sub : contents) deleteFile(sub);
+            }
         }
         file.delete();
     }
@@ -123,8 +145,8 @@ public class ItemManager {
     public void duplicateItem(File file) {
         if (file.isDirectory()) return;
         String name = file.getName().replace(".yml", "");
-        String newName = name + "_copy.yml";
-        File dest = new File(file.getParentFile(), newName);
+
+        File dest = new File(file.getParentFile(), name + "_copy.yml");
         int i = 1;
         while(dest.exists()) {
             dest = new File(file.getParentFile(), name + "_copy_" + i + ".yml");
