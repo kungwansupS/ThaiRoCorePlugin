@@ -7,7 +7,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.rostats.ROStatsPlugin;
+// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
 import org.bukkit.enchantments.Enchantment;
@@ -23,9 +24,11 @@ public class CharacterGUI {
         BASIC_INFO, GENERAL, ADVANCED, SPECIAL, RESET_CONFIRM
     }
 
-    private final ROStatsPlugin plugin;
+    // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
+    private final ThaiRoCorePlugin plugin;
 
-    public CharacterGUI(ROStatsPlugin plugin) {
+    // แก้ไข: เปลี่ยน Type ใน Constructor เป็น ThaiRoCorePlugin
+    public CharacterGUI(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

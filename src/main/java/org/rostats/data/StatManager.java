@@ -141,30 +141,33 @@ public class StatManager {
         return 0.0;
     }
 
-    // Formula A.5 (HIT) - Corrected
+    // Formula A.5 (HIT) - Corrected (Includes pending stat for live preview)
     public int getHit(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int dex = getStat(player.getUniqueId(), "DEX") + data.getPendingStat("DEX");
+        // แก้ไข: เปลี่ยนการเรียก getStat ภายในเป็น data.getStat(String) และเพิ่ม Pending Stat
+        int dex = data.getStat("DEX") + data.getPendingStat("DEX");
 
         // Hit = DEX × 1 + BaseHit (BaseHit assumed to be data.getHitBonusFlat())
         return (int) (dex + data.getHitBonusFlat());
     }
 
-    // Formula A.6 (FLEE) - Corrected
+    // Formula A.6 (FLEE) - Corrected (Includes pending stat for live preview)
     public int getFlee(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int agi = getStat(player.getUniqueId(), "AGI") + data.getPendingStat("AGI");
+        // แก้ไข: เปลี่ยนการเรียก getStat ภายในเป็น data.getStat(String) และเพิ่ม Pending Stat
+        int agi = data.getStat("AGI") + data.getPendingStat("AGI");
 
         // Flee = AGI × 1 + BaseFlee (BaseFlee assumed to be data.getFleeBonusFlat())
         return (int) (agi + data.getFleeBonusFlat());
     }
 
-    // ASPD - New logic for consistency with AttributeHandler and GearBonus%
+    // ASPD - New logic for consistency with AttributeHandler and GearBonus% (Includes pending stat for live preview)
     // Returns the total multiplier to be applied (e.g. 1.20 for 120%)
     public double getAspdBonus(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int agi = getStat(player.getUniqueId(), "AGI");
-        int dex = getStat(player.getUniqueId(), "DEX");
+        // แก้ไข: ใช้ data.getStat(String) และรวม Pending Stat
+        int agi = data.getStat("AGI") + data.getPendingStat("AGI");
+        int dex = data.getStat("DEX") + data.getPendingStat("DEX");
 
         // ASPD Stat Bonus: AGI * 1% (0.01) + DEX * 0.2% (0.002) - based on original AttributeHandler coefficients
         double statBonus = (agi * 0.01) + (dex * 0.002);
@@ -175,39 +178,47 @@ public class StatManager {
 
     // Helper Methods (for display/combat compatibility)
 
-    // SoftPDEF - Corrected
+    // SoftPDEF - Corrected (Uses current applied stat value)
     public double getSoftDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int vit = getStat(player.getUniqueId(), "VIT");
-        int agi = getStat(player.getUniqueId(), "AGI");
+        // แก้ไข: ใช้ data.getStat(String)
+        int vit = data.getStat("VIT");
+        int agi = data.getStat("AGI");
         // SoftPDEF = VIT × 0.5 + AGI × 0.2
         return (vit * 0.5) + (agi * 0.2); // Proxy for BasePDef
     }
 
-    // SoftMDEF - Corrected
+    // SoftMDEF - Corrected (Uses current applied stat value)
     public double getSoftMDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        int intel = data.getStat(player.getUniqueId(), "INT");
-        int vit = getStat(player.getUniqueId(), "VIT");
+        // แก้ไข BUG: data.getStat(UUID, String) ทำให้เกิด Error. ใช้ data.getStat(String) แทน
+        int intel = data.getStat("INT");
+        int vit = data.getStat("VIT");
         // SoftMDEF = INT × 1 + VIT × 0.2
         return (intel * 1.0) + (vit * 0.2); // Proxy for BaseMDef
     }
 
-    // CritChance - Adjusted to return raw value (LUK * 0.3)
+    // CritChance - Adjusted to return raw value (LUK * 0.3) (Includes pending stat for live preview)
     public double getCritChance(Player player) {
-        int luk = getStat(player.getUniqueId(), "LUK");
+        PlayerData data = getData(player.getUniqueId());
+        // แก้ไข: ใช้ data.getStat(String) และรวม Pending Stat
+        int luk = data.getStat("LUK") + data.getPendingStat("LUK");
         // CriticalChance = max(0, LUK × 0.3 - TargetCritRes)
         return luk * 0.3; // Raw CRIT value
     }
 
     public double getPhysicalPenetration(Player player) {
-        int luk = getStat(player.getUniqueId(), "LUK");
+        PlayerData data = getData(player.getUniqueId());
+        // แก้ไข: ใช้ data.getStat(String) และรวม Pending Stat
+        int luk = data.getStat("LUK") + data.getPendingStat("LUK");
         return (luk * 0.1) / 100.0; // Proxy P.PEN% (Keeping existing LUK derived stat)
     }
 
-    // Keeping this method as it's not explicitly contradicted by a new formula, and may be used elsewhere.
+    // Keeping this method as it's not explicitly contradicted by a new formula, and may be used elsewhere. (Includes pending stat for live preview)
     public double getCriticalDamage(Player player) {
-        int str = getStat(player.getUniqueId(), "STR");
+        PlayerData data = getData(player.getUniqueId());
+        // แก้ไข: ใช้ data.getStat(String) และรวม Pending Stat
+        int str = data.getStat("STR") + data.getPendingStat("STR");
         return 1.4 + ((str * 0.2) / 100.0); // Old formula kept as proxy
     }
 

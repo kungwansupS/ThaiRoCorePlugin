@@ -4,7 +4,8 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import org.rostats.ROStatsPlugin;
+// import org.rostats.ROStatsPlugin; // แก้ไข: ลบการ Import ที่ไม่ถูกต้อง
+import org.rostats.ThaiRoCorePlugin; // เพิ่ม Import ที่ถูกต้อง
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
 

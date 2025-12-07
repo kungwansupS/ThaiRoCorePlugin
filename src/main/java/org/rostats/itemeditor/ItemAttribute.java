@@ -2,7 +2,8 @@ package org.rostats.itemeditor;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.rostats.ROStatsPlugin;
+// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+import org.rostats.ThaiRoCorePlugin;
 
 public enum ItemAttribute {
     // Core Flat Bonuses
@@ -86,7 +87,8 @@ public enum ItemAttribute {
         this.rightClickStep = rightClickStep;
     }
 
-    public void initialize(ROStatsPlugin plugin) {
+    // แก้ไข: เปลี่ยน Type ของ plugin เป็น ThaiRoCorePlugin
+    public void initialize(ThaiRoCorePlugin plugin) {
         // ใช้ชื่อปลั๊กอินหลักสำหรับ NamespacedKey
         this.namespacedKey = new NamespacedKey(plugin, "RO_BONUS_" + this.key.toUpperCase());
     }

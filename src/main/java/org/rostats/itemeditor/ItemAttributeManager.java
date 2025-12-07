@@ -6,7 +6,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.rostats.ROStatsPlugin;
+// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+import org.rostats.ThaiRoCorePlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,11 +15,13 @@ import java.util.Objects;
 
 public class ItemAttributeManager {
 
-    private final ROStatsPlugin plugin;
+    // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
+    private final ThaiRoCorePlugin plugin;
     private static final String MAIN_STATS_HEADER = "§f§l--- Main Stats ---";
     private static final String CUSTOM_LORE_HEADER = "§f§l--- Custom Lore ---";
 
-    public ItemAttributeManager(ROStatsPlugin plugin) {
+    // แก้ไข: เปลี่ยน Type ใน Constructor เป็น ThaiRoCorePlugin
+    public ItemAttributeManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         // Initialize NamespacedKeys once
         for (ItemAttribute attribute : ItemAttribute.values()) {

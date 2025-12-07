@@ -4,7 +4,8 @@ import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.rostats.ROStatsPlugin;
+// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 
 import java.util.HashMap;
@@ -86,5 +87,7 @@ public class DeathHandler implements Listener {
 
         // 4. Add Base EXP to PlayerData (addBaseExp handles level up logic)
         playerData.addBaseExp(calculatedBaseExp, killer.getUniqueId());
+        // แก้ไข: เพิ่ม Job EXP ที่ขาดหายไป
+        playerData.addJobExp(calculatedJobExp, killer.getUniqueId());
     }
 }
