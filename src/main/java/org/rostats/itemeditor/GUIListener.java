@@ -107,7 +107,7 @@ public class GUIListener implements Listener {
                 manager.setAttribute(item, type, newVal);
 
                 // Refresh Icon
-                AttributeEditorGUI gui = new AttributeEditorGUI(plugin, manager); // Hacky way to access createStatIcon if private, assuming accessible or copied logic
+                AttributeEditorGUI gui = new AttributeEditorGUI(plugin, manager);
                 // Ideally refresh page. For now, reopen page:
                 String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
                 new AttributeEditorGUI(plugin, manager).open(player, item, getPageFromTitle(title));

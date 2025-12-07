@@ -6,12 +6,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
-// Import the new main plugin class
 import org.rostats.ThaiRoCorePlugin;
 
 public class ItemEditorCommand implements CommandExecutor {
 
-    // Change type from ItemEditorPlugin to ThaiRoCorePlugin
     private final ThaiRoCorePlugin plugin;
     private final ItemAttributeManager attributeManager;
 
@@ -41,7 +39,8 @@ public class ItemEditorCommand implements CommandExecutor {
         // Update lore structure before opening (ensures the item can be edited safely)
         attributeManager.updateLore(item);
 
-        new AttributeEditorGUI(plugin, attributeManager).open(player, item);
+        // FIX: Pass the starting page (GENERAL) as the 3rd argument
+        new AttributeEditorGUI(plugin, attributeManager).open(player, item, AttributeEditorGUI.Page.GENERAL);
 
         return true;
     }

@@ -96,9 +96,6 @@ public class ItemAttributeManager {
         attr.setPDmgReductionPercent(getDouble(pdc, ItemAttributeType.PDMG_REDUCTION_PERCENT));
         attr.setMDmgReductionPercent(getDouble(pdc, ItemAttributeType.MDMG_REDUCTION_PERCENT));
 
-        // Handle boolean for vanilla via tag? For now, we assume if it was processed, it's done.
-        // We can use a specific tag for the boolean if needed.
-
         return attr;
     }
 
@@ -135,7 +132,6 @@ public class ItemAttributeManager {
         ItemMeta meta = item.getItemMeta();
         List<String> lore = new ArrayList<>();
 
-        // Preserve custom lore logic omitted for brevity, adding stats:
         lore.add("§f§l--- Item Stats ---");
         for (ItemAttributeType type : ItemAttributeType.values()) {
             double val = getAttributeValue(item, type);

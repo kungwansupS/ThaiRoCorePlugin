@@ -103,6 +103,15 @@ public class PlayerData {
         calculateMaxSP();
     }
 
+    // Fix: Added missing 0-arg methods that were causing errors in ManaManager
+    public long getBaseExpReq() {
+        return getBaseExpReq(this.baseLevel);
+    }
+
+    public long getJobExpReq() {
+        return getJobExpReq(this.jobLevel);
+    }
+
     public void resetGearBonuses() {
         this.strBonusGear = 0; this.agiBonusGear = 0; this.vitBonusGear = 0;
         this.intBonusGear = 0; this.dexBonusGear = 0; this.lukBonusGear = 0;
@@ -127,7 +136,7 @@ public class PlayerData {
         this.lifestealPPercent = 0; this.lifestealMPercent = 0;
         this.hitBonusFlat = 0; this.fleeBonusFlat = 0;
         this.pDmgReductionPercent = 0; this.mDmgReductionPercent = 0;
-        // Resetting others not in ItemAttribute directly but good to have
+
         this.ignorePDefFlat = 0; this.ignoreMDefFlat = 0;
         this.ignorePDefPercent = 0; this.ignoreMDefPercent = 0;
         this.meleePDmgPercent = 0; this.rangePDmgPercent = 0;
@@ -135,7 +144,7 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // Getters and Setters for all fields
+    // Getters and Setters
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -257,7 +266,6 @@ public class PlayerData {
     public double getRangePDReductionPercent() { return rangePDReductionPercent; }
     public double getTrueDamageFlat() { return trueDamageFlat; }
 
-    // Standard methods (getStat, setStat, levels, etc. remain the same)
     public int getStat(String key) { return stats.getOrDefault(key.toUpperCase(), 1); }
     public void setStat(String key, int val) { stats.put(key.toUpperCase(), val); calculateMaxSP(); }
     public Set<String> getStatKeys() { return stats.keySet(); }
@@ -310,7 +318,6 @@ public class PlayerData {
         this.currentSP = getMaxSP();
     }
 
-    // EXP and Leveling Methods
     public void addBaseExp(long amount, UUID uuid) {
         int maxBaseLevel = getMaxBaseLevel();
         double multiplier = getExpBonusMultiplier(this.baseLevel);
@@ -342,7 +349,6 @@ public class PlayerData {
         if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateJobExpBar(Bukkit.getPlayer(uuid));
     }
 
-    // Helper math methods
     private double getExpBonusMultiplier(int baseLevel) {
         int worldLevel = plugin.getConfig().getInt("exp-formula.max-level-world-base", 92);
         int diff = worldLevel - baseLevel;
