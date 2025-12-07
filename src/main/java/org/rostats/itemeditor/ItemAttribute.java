@@ -1,10 +1,5 @@
 package org.rostats.itemeditor;
 
-import org.bukkit.NamespacedKey;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.configuration.ConfigurationSection;
 
 public class ItemAttribute {
@@ -37,6 +32,8 @@ public class ItemAttribute {
     private double finalDmgResPercent;
     private double finalPDmgPercent;
     private double finalMDmgPercent;
+
+    // PvP / PvE
     private double pveDmgPercent;
     private double pvpDmgPercent;
     private double pveDmgReductionPercent;
@@ -63,18 +60,29 @@ public class ItemAttribute {
     private double pDmgReductionPercent;
     private double mDmgReductionPercent;
 
+    // Ignore Def
+    private double ignorePDefFlat;
+    private double ignoreMDefFlat;
+    private double ignorePDefPercent;
+    private double ignoreMDefPercent;
+
+    // Melee / Range
+    private double meleePDmgPercent;
+    private double rangePDmgPercent;
+
+    // True Damage
+    private double trueDamageFlat;
+
     private boolean removeVanillaAttribute;
 
-    public ItemAttribute() {
-    }
+    public ItemAttribute() {}
 
-    // --- 2) LOAD FROM YAML ---
-    public static ItemAttribute fromConfig(ConfigurationSection section) {
+    public static ItemAttribute fromConfig(ConfigurationSection root) {
         ItemAttribute attr = new ItemAttribute();
-        if (section == null) return attr;
+        if (root == null) return attr;
 
-        attr.removeVanillaAttribute = section.getBoolean("remove-vanilla", false);
-        ConfigurationSection att = section.getConfigurationSection("attributes");
+        attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
+        ConfigurationSection att = root.getConfigurationSection("attributes");
         if (att == null) return attr;
 
         attr.strGear = att.getInt("str", 0);
@@ -88,6 +96,7 @@ public class ItemAttribute {
         attr.weaponMAtk = att.getDouble("weapon-m-atk", 0);
         attr.pAtkFlat = att.getDouble("p-atk-flat", 0);
         attr.mAtkFlat = att.getDouble("m-atk-flat", 0);
+
         attr.pDmgPercent = att.getDouble("p-dmg-%", 0);
         attr.mDmgPercent = att.getDouble("m-dmg-%", 0);
         attr.pDmgFlat = att.getDouble("p-dmg-flat", 0);
@@ -137,7 +146,90 @@ public class ItemAttribute {
         attr.pDmgReductionPercent = att.getDouble("p-dmg-reduce-%", 0);
         attr.mDmgReductionPercent = att.getDouble("m-dmg-reduce-%", 0);
 
+        attr.ignorePDefFlat = att.getDouble("ignore-p-def-flat", 0);
+        attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
+        attr.ignorePDefPercent = att.getDouble("ignore-p-def-%", 0);
+        attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
+
+        attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
+        attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
+
+        attr.trueDamageFlat = att.getDouble("true-damage", 0);
+
         return attr;
+    }
+
+    public void saveToConfig(ConfigurationSection section) {
+        if (strGear != 0) section.set("str", strGear);
+        if (agiGear != 0) section.set("agi", agiGear);
+        if (vitGear != 0) section.set("vit", vitGear);
+        if (intGear != 0) section.set("int", intGear);
+        if (dexGear != 0) section.set("dex", dexGear);
+        if (lukGear != 0) section.set("luk", lukGear);
+
+        if (weaponPAtk != 0) section.set("weapon-p-atk", weaponPAtk);
+        if (weaponMAtk != 0) section.set("weapon-m-atk", weaponMAtk);
+        if (pAtkFlat != 0) section.set("p-atk-flat", pAtkFlat);
+        if (mAtkFlat != 0) section.set("m-atk-flat", mAtkFlat);
+
+        if (pDmgPercent != 0) section.set("p-dmg-%", pDmgPercent);
+        if (mDmgPercent != 0) section.set("m-dmg-%", mDmgPercent);
+        if (pDmgFlat != 0) section.set("p-dmg-flat", pDmgFlat);
+        if (mDmgFlat != 0) section.set("m-dmg-flat", mDmgFlat);
+
+        if (critDmgPercent != 0) section.set("crit-dmg-%", critDmgPercent);
+        if (critDmgResPercent != 0) section.set("crit-dmg-res-%", critDmgResPercent);
+        if (critRes != 0) section.set("crit-res", critRes);
+
+        if (pPenFlat != 0) section.set("p-pen-flat", pPenFlat);
+        if (mPenFlat != 0) section.set("m-pen-flat", mPenFlat);
+        if (pPenPercent != 0) section.set("p-pen-%", pPenPercent);
+        if (mPenPercent != 0) section.set("m-pen-%", mPenPercent);
+
+        if (finalDmgPercent != 0) section.set("final-dmg-%", finalDmgPercent);
+        if (finalDmgResPercent != 0) section.set("final-dmg-res-%", finalDmgResPercent);
+        if (finalPDmgPercent != 0) section.set("final-p-dmg-%", finalPDmgPercent);
+        if (finalMDmgPercent != 0) section.set("final-m-dmg-%", finalMDmgPercent);
+
+        if (pveDmgPercent != 0) section.set("pve-dmg-%", pveDmgPercent);
+        if (pvpDmgPercent != 0) section.set("pvp-dmg-%", pvpDmgPercent);
+        if (pveDmgReductionPercent != 0) section.set("pve-reduce-%", pveDmgReductionPercent);
+        if (pvpDmgReductionPercent != 0) section.set("pvp-reduce-%", pvpDmgReductionPercent);
+
+        if (maxHPPercent != 0) section.set("max-hp-%", maxHPPercent);
+        if (maxSPPercent != 0) section.set("max-sp-%", maxSPPercent);
+        if (shieldValueFlat != 0) section.set("shield-flat", shieldValueFlat);
+        if (shieldRatePercent != 0) section.set("shield-rate-%", shieldRatePercent);
+
+        if (aSpdPercent != 0) section.set("aspd-%", aSpdPercent);
+        if (mSpdPercent != 0) section.set("mspd-%", mSpdPercent);
+        if (baseMSPD != 0) section.set("base-mspd", baseMSPD);
+
+        if (varCTPercent != 0) section.set("var-ct-%", varCTPercent);
+        if (varCTFlat != 0) section.set("var-ct-flat", varCTFlat);
+        if (fixedCTPercent != 0) section.set("fixed-ct-%", fixedCTPercent);
+        if (fixedCTFlat != 0) section.set("fixed-ct-flat", fixedCTFlat);
+
+        if (healingEffectPercent != 0) section.set("heal-effect-%", healingEffectPercent);
+        if (healingReceivedPercent != 0) section.set("heal-received-%", healingReceivedPercent);
+        if (lifestealPPercent != 0) section.set("lifesteal-p-%", lifestealPPercent);
+        if (lifestealMPercent != 0) section.set("lifesteal-m-%", lifestealMPercent);
+
+        if (hitFlat != 0) section.set("hit-flat", hitFlat);
+        if (fleeFlat != 0) section.set("flee-flat", fleeFlat);
+
+        if (pDmgReductionPercent != 0) section.set("p-dmg-reduce-%", pDmgReductionPercent);
+        if (mDmgReductionPercent != 0) section.set("m-dmg-reduce-%", mDmgReductionPercent);
+
+        if (ignorePDefFlat != 0) section.set("ignore-p-def-flat", ignorePDefFlat);
+        if (ignoreMDefFlat != 0) section.set("ignore-m-def-flat", ignoreMDefFlat);
+        if (ignorePDefPercent != 0) section.set("ignore-p-def-%", ignorePDefPercent);
+        if (ignoreMDefPercent != 0) section.set("ignore-m-def-%", ignoreMDefPercent);
+
+        if (meleePDmgPercent != 0) section.set("melee-p-dmg-%", meleePDmgPercent);
+        if (rangePDmgPercent != 0) section.set("range-p-dmg-%", rangePDmgPercent);
+
+        if (trueDamageFlat != 0) section.set("true-damage", trueDamageFlat);
     }
 
     // Getters and Setters
@@ -251,6 +343,23 @@ public class ItemAttribute {
     public void setPDmgReductionPercent(double pDmgReductionPercent) { this.pDmgReductionPercent = pDmgReductionPercent; }
     public double getMDmgReductionPercent() { return mDmgReductionPercent; }
     public void setMDmgReductionPercent(double mDmgReductionPercent) { this.mDmgReductionPercent = mDmgReductionPercent; }
+
+    public double getIgnorePDefPercent() { return ignorePDefPercent; }
+    public void setIgnorePDefPercent(double ignorePDefPercent) { this.ignorePDefPercent = ignorePDefPercent; }
+    public double getIgnoreMDefPercent() { return ignoreMDefPercent; }
+    public void setIgnoreMDefPercent(double ignoreMDefPercent) { this.ignoreMDefPercent = ignoreMDefPercent; }
+    public double getIgnorePDefFlat() { return ignorePDefFlat; }
+    public void setIgnorePDefFlat(double ignorePDefFlat) { this.ignorePDefFlat = ignorePDefFlat; }
+    public double getIgnoreMDefFlat() { return ignoreMDefFlat; }
+    public void setIgnoreMDefFlat(double ignoreMDefFlat) { this.ignoreMDefFlat = ignoreMDefFlat; }
+
+    public double getMeleePDmgPercent() { return meleePDmgPercent; }
+    public void setMeleePDmgPercent(double v) { this.meleePDmgPercent = v; }
+    public double getRangePDmgPercent() { return rangePDmgPercent; }
+    public void setRangePDmgPercent(double v) { this.rangePDmgPercent = v; }
+
+    public double getTrueDamageFlat() { return trueDamageFlat; }
+    public void setTrueDamageFlat(double v) { this.trueDamageFlat = v; }
 
     public boolean isRemoveVanillaAttribute() { return removeVanillaAttribute; }
     public void setRemoveVanillaAttribute(boolean removeVanillaAttribute) { this.removeVanillaAttribute = removeVanillaAttribute; }

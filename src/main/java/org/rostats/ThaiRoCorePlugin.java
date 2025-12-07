@@ -22,12 +22,13 @@ import org.rostats.handler.CombatHandler;
 import org.rostats.handler.ManaManager;
 import org.rostats.hook.PAPIHook;
 // NEW IMPORTS for Item Editor
+import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
 import org.rostats.itemeditor.ItemEditorCommand;
+import org.rostats.itemeditor.ItemManager;
 
 import java.util.UUID;
 
-// Renamed from ROStatsPlugin
 public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     private StatManager statManager;
@@ -37,6 +38,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private DataManager dataManager;
     // NEW FIELDS for Item Editor
     private ItemAttributeManager itemAttributeManager;
+    private ItemManager itemManager;
+    private ChatInputHandler chatInputHandler;
 
     @Override
     public void onEnable() {
@@ -49,8 +52,11 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
-        // NEW: Initialize ItemAttributeManager
+
+        // NEW: Initialize ItemAttributeManager & Utils
         this.itemAttributeManager = new ItemAttributeManager(this);
+        this.itemManager = new ItemManager(this);
+        this.chatInputHandler = new ChatInputHandler(this);
 
         // 2. Register Events
         getServer().getPluginManager().registerEvents(attributeHandler, this);
@@ -59,8 +65,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(this, this);
 
-        // NEW: Register Item Editor Listener (from ItemEditorPlugin.java)
-        getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this, itemAttributeManager), this);
+        // NEW: Register Item Editor Listener & Chat Input
+        getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this), this);
+        getServer().getPluginManager().registerEvents(chatInputHandler, this);
 
         // 3. Register Commands
         PluginCommand statusCmd = getCommand("status");
@@ -73,10 +80,10 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             adminCmd.setTabCompleter(adminExecutor);
         }
 
-        // NEW: Register Item Editor Command (from ItemEditorPlugin.java)
+        // NEW: Register Item Editor Command
         PluginCommand itemEditCmd = getCommand("roitemedit");
         if (itemEditCmd != null) {
-            itemEditCmd.setExecutor(new ItemEditorCommand(this, itemAttributeManager));
+            itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
         // 4. PAPI Hook
@@ -91,7 +98,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             }
             getLogger().info("💾 Auto-Saved all player data.");
         }, 6000L, 6000L);
-
 
         getLogger().info("✅ ThaiRoCorePlugin Enabled!");
     }
@@ -117,14 +123,12 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         dataManager.savePlayerData(event.getPlayer());
     }
 
-    // MODIFIED: Helper method for Floating Text (Hologram) with animation and offset (For EXP/Level Up Stacking)
+    // MODIFIED: Helper method for Floating Text
     public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
 
-        // Start location: 2.0 blocks above head + offset
         Location startLoc = player.getLocation().add(0, 2.0 + verticalOffset, 0);
-
         showAnimatedText(startLoc, text);
     }
 
@@ -132,15 +136,15 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         showFloatingText(playerUUID, text, 0.25);
     }
 
-    // NEW: Centralized method for Location-based FCT (Damage/Heal/Status)
     public void showCombatFloatingText(Location loc, String text) {
-        showAnimatedText(loc.add(0, 1.5, 0), text); // Default combat/miss position is +1.5 to +2.0
+        showAnimatedText(loc.add(0, 1.5, 0), text);
     }
 
-    // NEW: Core Animation Logic (Moved from CombatHandler.java and adapted)
+    // NEW: Core Animation Logic
     private void showAnimatedText(Location startLoc, String text) {
         getServer().getScheduler().runTask(this, () -> {
-            ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
+            // *** FIX: Declare as FINAL to be safely used in the inner anonymous class ***
+            final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
             stand.setVisible(false);
             stand.setGravity(false);
             stand.setMarker(true);
@@ -148,13 +152,13 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.customName(Component.text(text));
             stand.setSmall(true);
 
-            // Animation Task: Move upwards constantly for 1 second (20 ticks)
+            // Animation Task
             BukkitTask[] task = new BukkitTask[1];
             task[0] = getServer().getScheduler().runTaskTimer(this, new Runnable() {
                 private int ticks = 0;
                 private final Location currentLocation = stand.getLocation();
-                private final double distance = 0.5; // Total distance to move up
-                private final double step = distance / 20.0; // Distance per tick (over 20 ticks)
+                private final double distance = 0.5;
+                private final double step = distance / 20.0;
 
                 @Override
                 public void run() {
@@ -163,7 +167,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
                         if (task[0] != null) task[0].cancel();
                         return;
                     }
-                    currentLocation.add(0, step, 0); // Move up
+                    currentLocation.add(0, step, 0);
                     stand.teleport(currentLocation);
                     ticks++;
                 }
@@ -171,35 +175,28 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         });
     }
 
-    // NEW: FCT Helper Methods exposed by the plugin (for external calls, e.g., skill handlers)
-
-    // 7) Normal Damage
     public void showDamageFCT(Location loc, double damage) {
         showCombatFloatingText(loc, "§f" + String.format("%.0f", damage));
     }
 
-    // 8) True Damage
     public void showTrueDamageFCT(Location loc, double damage) {
         showCombatFloatingText(loc, "§6" + String.format("%.0f", damage));
     }
 
-    // 10) Heal HP
     public void showHealHPFCT(Location loc, double value) {
         showCombatFloatingText(loc, "§a+" + String.format("%.0f", value) + " HP");
     }
 
-    // 11) Heal SP
     public void showHealSPFCT(Location loc, double value) {
         showCombatFloatingText(loc, "§b+" + String.format("%.0f", value) + " SP");
     }
 
-    // 12) Status Damage (Poison/Burn/Bleed)
     public void showStatusDamageFCT(Location loc, String status, double value) {
         String color = switch (status.toLowerCase()) {
             case "poison" -> "§2";
             case "burn" -> "§c";
             case "bleed" -> "§4";
-            default -> "§7"; // Default to grey if status is unknown
+            default -> "§7";
         };
         showCombatFloatingText(loc, color + "-" + String.format("%.0f", value));
     }
@@ -208,7 +205,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
     public DataManager getDataManager() { return dataManager; }
-
-    // *** NEW GETTER FOR ItemAttributeManager (REQ 1.1 FIX) ***
     public ItemAttributeManager getItemAttributeManager() { return itemAttributeManager; }
+    public ItemManager getItemManager() { return itemManager; }
+    public ChatInputHandler getChatInputHandler() { return chatInputHandler; }
 }
