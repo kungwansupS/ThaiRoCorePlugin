@@ -84,7 +84,25 @@ public class ItemManager {
                 config.set("name", itemStack.getItemMeta().getDisplayName());
             }
             if (itemStack.getItemMeta().hasLore()) {
-                config.set("lore", itemStack.getItemMeta().getLore());
+                List<String> fullLore = itemStack.getItemMeta().getLore();
+                List<String> manualLore = new ArrayList<>();
+                String header = "§f§l--- Item Stats ---";
+
+                // Save only manual lore (strip generated stats)
+                for (String line : fullLore) {
+                    if (line.equals(header)) break;
+                    manualLore.add(line);
+                }
+
+                // Cleanup trailing empty lines if they were spacers
+                if (!manualLore.isEmpty()) {
+                    String last = manualLore.get(manualLore.size() - 1);
+                    if (last.trim().isEmpty()) {
+                        manualLore.remove(manualLore.size() - 1);
+                    }
+                }
+
+                config.set("lore", manualLore);
             }
         }
 

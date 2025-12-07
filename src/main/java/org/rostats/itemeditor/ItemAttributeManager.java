@@ -10,6 +10,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.rostats.ThaiRoCorePlugin;
 
+import java.util.ArrayList; // Added
 import java.util.List;
 
 public class ItemAttributeManager {
@@ -157,10 +158,8 @@ public class ItemAttributeManager {
             case IGNORE_MDEF_PERCENT: attr.setIgnoreMDefPercent(val); break;
             case MELEE_PDMG_PERCENT: attr.setMeleePDmgPercent(val); break;
             case RANGE_PDMG_PERCENT: attr.setRangePDmgPercent(val); break;
-            // ** FIXED: Added missing cases **
             case MELEE_PDMG_REDUCTION_PERCENT: attr.setMeleePDReductionPercent(val); break;
             case RANGE_PDMG_REDUCTION_PERCENT: attr.setRangePDReductionPercent(val); break;
-
             case TRUE_DMG: attr.setTrueDamageFlat(val); break;
         }
     }
@@ -221,10 +220,8 @@ public class ItemAttributeManager {
             case IGNORE_MDEF_PERCENT: return attr.getIgnoreMDefPercent();
             case MELEE_PDMG_PERCENT: return attr.getMeleePDmgPercent();
             case RANGE_PDMG_PERCENT: return attr.getRangePDmgPercent();
-            // ** FIXED: Added missing cases **
             case MELEE_PDMG_REDUCTION_PERCENT: return attr.getMeleePDReductionPercent();
             case RANGE_PDMG_REDUCTION_PERCENT: return attr.getRangePDReductionPercent();
-
             case TRUE_DMG: return attr.getTrueDamageFlat();
             default: return 0.0;
         }
@@ -252,16 +249,43 @@ public class ItemAttributeManager {
     public void updateLore(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return;
         ItemMeta meta = item.getItemMeta();
-        java.util.List<String> lore = new java.util.ArrayList<>();
+        List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+        List<String> newLore = new ArrayList<>();
 
-        lore.add("§f§l--- Item Stats ---");
+        String header = "§f§l--- Item Stats ---";
+
+        // 1. Keep manual lore (Everything before stats)
+        for (String line : lore) {
+            if (line.equals(header)) break;
+            newLore.add(line);
+        }
+
+        // 2. Check if we have stats to add
+        boolean hasStats = false;
         for (ItemAttributeType type : ItemAttributeType.values()) {
-            double val = getAttributeValue(item, type);
-            if (val != 0) {
-                lore.add(type.getDisplayName() + ": §f" + String.format(type.getFormat(), val));
+            if (getAttributeValue(item, type) != 0) {
+                hasStats = true;
+                break;
             }
         }
-        meta.setLore(lore);
+
+        // 3. Append Stats
+        if (hasStats) {
+            // Add a spacer if there isn't one already and lore is not empty
+            if (!newLore.isEmpty() && !newLore.get(newLore.size() - 1).trim().isEmpty()) {
+                newLore.add(" ");
+            }
+
+            newLore.add(header);
+            for (ItemAttributeType type : ItemAttributeType.values()) {
+                double val = getAttributeValue(item, type);
+                if (val != 0) {
+                    newLore.add(type.getDisplayName() + ": §f" + String.format(type.getFormat(), val));
+                }
+            }
+        }
+
+        meta.setLore(newLore);
         item.setItemMeta(meta);
     }
 }
