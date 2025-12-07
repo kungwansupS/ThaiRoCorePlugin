@@ -9,9 +9,9 @@ import java.util.Set;
 
 public class StatManager {
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public StatManager(ROStatsPlugin plugin) {
+    public StatManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

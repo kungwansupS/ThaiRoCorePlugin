@@ -14,9 +14,9 @@ import org.rostats.gui.CharacterGUI.Tab;
 
 public class GUIListener implements Listener {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public GUIListener(ROStatsPlugin plugin) {
+    public GUIListener(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

@@ -10,9 +10,9 @@ import org.rostats.data.StatManager;
 
 public class PAPIHook extends PlaceholderExpansion {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public PAPIHook(ROStatsPlugin plugin) {
+    public PAPIHook(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

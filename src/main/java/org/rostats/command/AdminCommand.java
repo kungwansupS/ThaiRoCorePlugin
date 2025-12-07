@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 public class AdminCommand implements CommandExecutor, TabCompleter {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
     // Define all top-level sub-commands
     private static final List<String> MAIN_COMMANDS = Arrays.asList(
@@ -42,7 +42,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
     );
 
 
-    public AdminCommand(ROStatsPlugin plugin) {
+    public AdminCommand(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

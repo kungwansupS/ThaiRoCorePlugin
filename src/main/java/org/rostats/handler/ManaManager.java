@@ -18,12 +18,12 @@ import java.util.UUID;
 
 public class ManaManager implements Listener {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
     private final Map<UUID, BossBar> playerSpBars = new HashMap<>(); // Renamed SP bar map
     private final Map<UUID, BossBar> playerBaseExpBars = new HashMap<>(); // NEW Base EXP Bar Map
     private final Map<UUID, BossBar> playerJobExpBars = new HashMap<>();  // NEW Job EXP Bar Map
 
-    public ManaManager(ROStatsPlugin plugin) {
+    public ManaManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::regenTask, 40L, 40L);
     }

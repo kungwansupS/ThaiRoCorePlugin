@@ -2,7 +2,7 @@ package org.rostats.data;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.rostats.ROStatsPlugin;
+import org.rostats.ThaiRoCorePlugin; // CHANGED
 
 import java.io.File;
 import java.io.IOException;
@@ -10,9 +10,9 @@ import java.util.UUID;
 
 public class DataManager {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin; // CHANGED
 
-    public DataManager(ROStatsPlugin plugin) {
+    public DataManager(ThaiRoCorePlugin plugin) { // CHANGED
         this.plugin = plugin;
         File folder = new File(plugin.getDataFolder(), "userdata");
         if (!folder.exists()) folder.mkdirs();

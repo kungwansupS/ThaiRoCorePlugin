@@ -24,14 +24,14 @@ import java.util.UUID;
 
 public class CombatHandler implements Listener {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
     private final Random random = new Random();
     private final double SKILL_POWER = 1.0; // Default skill power for basic attacks
     private final double BASE_CRIT = 1.5; // Keeping old BASE_CRIT as constant, but unused in new formula
     private final int K_DEFENSE = 400; // Constant K for defense formula (Section G)
     private final double JOB_EXP_RATIO; // New field
 
-    public CombatHandler(ROStatsPlugin plugin) {
+    public CombatHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         this.JOB_EXP_RATIO = plugin.getConfig().getDouble("exp-formula.job-exp-ratio", 0.75); // Initialize ratio
     }

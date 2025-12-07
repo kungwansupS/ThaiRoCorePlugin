@@ -15,9 +15,9 @@ import java.util.List;
 
 public class MainMenu {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public MainMenu(ROStatsPlugin plugin) {
+    public MainMenu(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

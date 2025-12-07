@@ -12,9 +12,9 @@ import org.rostats.data.StatManager;
 
 public class AttributeHandler implements Listener {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public AttributeHandler(ROStatsPlugin plugin) {
+    public AttributeHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

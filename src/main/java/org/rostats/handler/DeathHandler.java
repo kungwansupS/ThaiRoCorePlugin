@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class DeathHandler implements Listener {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
     private static final Map<EntityType, Integer> VANILLA_EXP_MAP = new HashMap<>();
 
     static {
@@ -37,7 +37,7 @@ public class DeathHandler implements Listener {
         VANILLA_EXP_MAP.put(EntityType.ENDER_DRAGON, 12000);
     }
 
-    public DeathHandler(ROStatsPlugin plugin) {
+    public DeathHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 

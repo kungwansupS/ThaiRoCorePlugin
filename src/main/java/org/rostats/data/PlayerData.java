@@ -76,9 +76,9 @@ public class PlayerData {
     private double fleeBonusFlat = 0.0;
     private double baseMSPD = 0.1;
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public PlayerData(ROStatsPlugin plugin) {
+    public PlayerData(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         stats.put("STR", 1); stats.put("AGI", 1); stats.put("VIT", 1);
         stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);

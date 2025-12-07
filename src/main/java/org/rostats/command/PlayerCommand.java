@@ -10,9 +10,9 @@ import org.rostats.gui.CharacterGUI;
 
 public class PlayerCommand implements CommandExecutor {
 
-    private final ROStatsPlugin plugin;
+    private final ThaiRoCorePlugin plugin;
 
-    public PlayerCommand(ROStatsPlugin plugin) {
+    public PlayerCommand(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 
