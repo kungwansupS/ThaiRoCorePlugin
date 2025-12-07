@@ -1,7 +1,9 @@
 org\rostats\data\StatManager.class
 org\rostats\itemeditor\AttributeEditorGUI$Page.class
 org\rostats\gui\GUIListener.class
+org\rostats\itemeditor\EffectEnchantGUI$Mode.class
 org\rostats\itemeditor\ItemEditorCommand.class
+org\rostats\itemeditor\EffectEnchantGUI.class
 org\rostats\itemeditor\ItemManager.class
 org\rostats\handler\CombatHandler.class
 org\rostats\input\ChatInputHandler$2.class

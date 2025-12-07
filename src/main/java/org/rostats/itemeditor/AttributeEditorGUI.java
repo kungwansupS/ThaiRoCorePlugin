@@ -23,13 +23,12 @@ public class AttributeEditorGUI {
 
     private final ThaiRoCorePlugin plugin;
     private final File itemFile;
-    private final ItemStack currentItem; // The visual representation being edited
+    private final ItemStack currentItem;
     private final ItemAttribute currentAttr;
 
     public AttributeEditorGUI(ThaiRoCorePlugin plugin, File itemFile) {
         this.plugin = plugin;
         this.itemFile = itemFile;
-        // Load data fresh from file
         this.currentItem = plugin.getItemManager().loadItemStack(itemFile);
         this.currentAttr = plugin.getItemManager().loadAttribute(itemFile);
     }
@@ -37,13 +36,9 @@ public class AttributeEditorGUI {
     public void open(Player player, Page page) {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("Editor: " + itemFile.getName() + " [" + page.name() + "]"));
 
-        // Slot 4: Preview Item (Visual only)
         inv.setItem(4, currentItem);
-
-        // Navigation (Row 6)
         setupNavigation(inv, page);
 
-        // Page Content
         switch (page) {
             case GENERAL: renderGeneral(inv); break;
             case CORE_STATS: renderCoreStats(inv); break;
@@ -57,11 +52,15 @@ public class AttributeEditorGUI {
     }
 
     private void renderGeneral(Inventory inv) {
-        inv.setItem(20, createIcon(Material.NAME_TAG, "§eRename Item", "§7Click to rename via Chat"));
-        inv.setItem(22, createIcon(Material.WRITABLE_BOOK, "§eEdit Lore", "§7Click to edit lore via Chat"));
+        inv.setItem(19, createIcon(Material.NAME_TAG, "§eRename Item", "§7Click to rename via Chat"));
+        inv.setItem(20, createIcon(Material.WRITABLE_BOOK, "§eEdit Lore", "§7Click to edit lore via Chat"));
+
+        // New Buttons for Effects and Enchants
+        inv.setItem(22, createIcon(Material.POTION, "§dEdit Effects", "§7Click to manage Potion Effects"));
+        inv.setItem(23, createIcon(Material.ENCHANTED_BOOK, "§bEdit Enchantments", "§7Click to manage Enchantments"));
 
         boolean removeVanilla = currentAttr.isRemoveVanillaAttribute();
-        inv.setItem(24, createIcon(removeVanilla ? Material.REDSTONE_BLOCK : Material.REDSTONE,
+        inv.setItem(25, createIcon(removeVanilla ? Material.REDSTONE_BLOCK : Material.REDSTONE,
                 "§cRemove Vanilla: " + removeVanilla, "§7Click to toggle"));
     }
 
@@ -77,7 +76,6 @@ public class AttributeEditorGUI {
     }
 
     private void renderOffensive(Inventory inv) {
-        // Layout for offensive stats
         ItemAttributeType[] types = {
                 ItemAttributeType.WEAPON_PATK, ItemAttributeType.WEAPON_MATK,
                 ItemAttributeType.PDMG_PERCENT, ItemAttributeType.MDMG_PERCENT,
@@ -91,7 +89,6 @@ public class AttributeEditorGUI {
     }
 
     private void renderDefensive(Inventory inv) {
-        // Layout including PVP/PVE Reduction
         ItemAttributeType[] types = {
                 ItemAttributeType.MAXHP_PERCENT, ItemAttributeType.MAXSP_PERCENT,
                 ItemAttributeType.PDMG_REDUCTION_PERCENT, ItemAttributeType.MDMG_REDUCTION_PERCENT,
@@ -135,22 +132,17 @@ public class AttributeEditorGUI {
     }
 
     private ItemStack createStatIcon(ItemAttributeType type) {
-        // Get value using the specific getter logic or reflection (simplified here using manager helper)
         double val = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(currentAttr, type);
-
         ItemStack icon = new ItemStack(type.getMaterial());
         ItemMeta meta = icon.getItemMeta();
         meta.setDisplayName(type.getDisplayName());
         List<String> lore = new ArrayList<>();
         lore.add("§7Current: §e" + String.format(type.getFormat(), val));
         lore.add(" ");
-        // FIX: Display exact values defined in ItemAttributeType
         lore.add("§eLeft: §7+" + type.getClickStep());
         lore.add("§eRight: §7-" + type.getClickStep());
-        // FIX: Display RightClickStep for Shift clicks (Corrected Logic)
         lore.add("§eShift+Left: §7+" + type.getRightClickStep());
         lore.add("§eShift+Right: §7-" + type.getRightClickStep());
-        // REMOVED: Middle Click Lore
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         icon.setItemMeta(meta);

@@ -1,6 +1,7 @@
 package org.rostats.itemeditor;
 
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemFlag;
@@ -8,10 +9,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 
-import java.util.ArrayList; // Added
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ItemAttributeManager {
 
@@ -46,6 +49,26 @@ public class ItemAttributeManager {
             attr.setCustomModelData(meta.getCustomModelData());
         }
 
+        // Read Potion Effects from PDC
+        NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
+        if (pdc.has(effectKey, PersistentDataType.STRING)) {
+            String encoded = pdc.get(effectKey, PersistentDataType.STRING);
+            // Format: EFFECT:LEVEL,EFFECT:LEVEL
+            if (encoded != null && !encoded.isEmpty()) {
+                String[] parts = encoded.split(",");
+                for (String part : parts) {
+                    String[] pair = part.split(":");
+                    if (pair.length == 2) {
+                        PotionEffectType type = PotionEffectType.getByName(pair[0]);
+                        try {
+                            int lvl = Integer.parseInt(pair[1]);
+                            if (type != null) attr.getPotionEffects().put(type, lvl);
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
+        }
+
         return attr;
     }
 
@@ -71,6 +94,19 @@ public class ItemAttributeManager {
             } else {
                 pdc.remove(type.getNamespacedKey());
             }
+        }
+
+        // Apply Potion Effects to PDC
+        NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
+        if (!attr.getPotionEffects().isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
+                if (sb.length() > 0) sb.append(",");
+                sb.append(entry.getKey().getName()).append(":").append(entry.getValue());
+            }
+            pdc.set(effectKey, PersistentDataType.STRING, sb.toString());
+        } else {
+            pdc.remove(effectKey);
         }
 
         if (attr.isRemoveVanillaAttribute()) {
@@ -254,13 +290,11 @@ public class ItemAttributeManager {
 
         String header = "§f§l--- Item Stats ---";
 
-        // 1. Keep manual lore (Everything before stats)
         for (String line : lore) {
             if (line.equals(header)) break;
             newLore.add(line);
         }
 
-        // 2. Check if we have stats to add
         boolean hasStats = false;
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (getAttributeValue(item, type) != 0) {
@@ -269,9 +303,14 @@ public class ItemAttributeManager {
             }
         }
 
-        // 3. Append Stats
+        // Check for effects
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
+        if (pdc.has(effectKey, PersistentDataType.STRING)) {
+            hasStats = true;
+        }
+
         if (hasStats) {
-            // Add a spacer if there isn't one already and lore is not empty
             if (!newLore.isEmpty() && !newLore.get(newLore.size() - 1).trim().isEmpty()) {
                 newLore.add(" ");
             }
@@ -281,6 +320,20 @@ public class ItemAttributeManager {
                 double val = getAttributeValue(item, type);
                 if (val != 0) {
                     newLore.add(type.getDisplayName() + ": §f" + String.format(type.getFormat(), val));
+                }
+            }
+
+            // Add Potion Effects to Lore
+            if (pdc.has(effectKey, PersistentDataType.STRING)) {
+                String encoded = pdc.get(effectKey, PersistentDataType.STRING);
+                if (encoded != null && !encoded.isEmpty()) {
+                    String[] parts = encoded.split(",");
+                    for (String part : parts) {
+                        String[] pair = part.split(":");
+                        if (pair.length == 2) {
+                            newLore.add("§aEffect: " + pair[0] + " Lv." + pair[1]);
+                        }
+                    }
                 }
             }
         }

@@ -1,8 +1,11 @@
 package org.rostats.itemeditor;
 
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
 
 import java.io.File;
@@ -80,21 +83,20 @@ public class ItemManager {
 
         config.set("material", itemStack.getType().name());
         if (itemStack.hasItemMeta()) {
-            if (itemStack.getItemMeta().hasDisplayName()) {
-                config.set("name", itemStack.getItemMeta().getDisplayName());
+            ItemMeta meta = itemStack.getItemMeta();
+            if (meta.hasDisplayName()) {
+                config.set("name", meta.getDisplayName());
             }
-            if (itemStack.getItemMeta().hasLore()) {
-                List<String> fullLore = itemStack.getItemMeta().getLore();
+            if (meta.hasLore()) {
+                List<String> fullLore = meta.getLore();
                 List<String> manualLore = new ArrayList<>();
                 String header = "§f§l--- Item Stats ---";
 
-                // Save only manual lore (strip generated stats)
                 for (String line : fullLore) {
                     if (line.equals(header)) break;
                     manualLore.add(line);
                 }
 
-                // Cleanup trailing empty lines if they were spacers
                 if (!manualLore.isEmpty()) {
                     String last = manualLore.get(manualLore.size() - 1);
                     if (last.trim().isEmpty()) {
@@ -104,9 +106,16 @@ public class ItemManager {
 
                 config.set("lore", manualLore);
             }
+
+            // Save Enchantments
+            if (meta.hasEnchants()) {
+                ConfigurationSection enchSec = config.createSection("enchantments");
+                for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+                    enchSec.set(entry.getKey().getName(), entry.getValue());
+                }
+            }
         }
 
-        // NEW: Save CustomModelData to Root
         if (attr.getCustomModelData() != null && attr.getCustomModelData() != 0) {
             config.set("custom-model-data", attr.getCustomModelData());
         }
@@ -136,6 +145,20 @@ public class ItemManager {
         ItemAttribute attr = loadAttribute(file);
 
         plugin.getItemAttributeManager().applyMetaFromConfig(item, config);
+
+        // Load Enchantments manually here as they are part of Meta/Item logic
+        if (config.contains("enchantments")) {
+            ItemMeta meta = item.getItemMeta();
+            ConfigurationSection enchSec = config.getConfigurationSection("enchantments");
+            for (String key : enchSec.getKeys(false)) {
+                Enchantment ench = Enchantment.getByName(key);
+                if (ench != null) {
+                    meta.addEnchant(ench, enchSec.getInt(key), true);
+                }
+            }
+            item.setItemMeta(meta);
+        }
+
         plugin.getItemAttributeManager().applyAttributesToItem(item, attr);
 
         return item;

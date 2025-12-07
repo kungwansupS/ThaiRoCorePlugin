@@ -1,6 +1,10 @@
 package org.rostats.itemeditor;
 
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.potion.PotionEffectType;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ItemAttribute {
 
@@ -77,7 +81,10 @@ public class ItemAttribute {
 
     // Cosmetic / System
     private boolean removeVanillaAttribute;
-    private Integer customModelData; // NEW: รองรับ Custom Model Data
+    private Integer customModelData;
+
+    // NEW: Potion Effects (Type -> Amplifier/Level)
+    private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
 
     public ItemAttribute() {}
 
@@ -85,11 +92,10 @@ public class ItemAttribute {
         ItemAttribute attr = new ItemAttribute();
         if (root == null) return attr;
 
-        // Load Root Level Configs
         attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
         if (root.contains("custom-model-data")) {
             attr.customModelData = root.getInt("custom-model-data");
-        } else if (root.contains("CustomModelData")) { // Support both casings
+        } else if (root.contains("CustomModelData")) {
             attr.customModelData = root.getInt("CustomModelData");
         }
 
@@ -170,6 +176,17 @@ public class ItemAttribute {
 
         attr.trueDamageFlat = att.getDouble("true-damage", 0);
 
+        // Load Potion Effects
+        if (att.contains("effects")) {
+            ConfigurationSection effectsSec = att.getConfigurationSection("effects");
+            for (String key : effectsSec.getKeys(false)) {
+                PotionEffectType type = PotionEffectType.getByName(key);
+                if (type != null) {
+                    attr.potionEffects.put(type, effectsSec.getInt(key));
+                }
+            }
+        }
+
         return attr;
     }
 
@@ -246,6 +263,14 @@ public class ItemAttribute {
         if (rangePDReductionPercent != 0) section.set("range-p-reduce-%", rangePDReductionPercent);
 
         if (trueDamageFlat != 0) section.set("true-damage", trueDamageFlat);
+
+        // Save Potion Effects
+        if (!potionEffects.isEmpty()) {
+            ConfigurationSection effectsSec = section.createSection("effects");
+            for (Map.Entry<PotionEffectType, Integer> entry : potionEffects.entrySet()) {
+                effectsSec.set(entry.getKey().getName(), entry.getValue());
+            }
+        }
     }
 
     // Getters and Setters
@@ -384,7 +409,9 @@ public class ItemAttribute {
     public boolean isRemoveVanillaAttribute() { return removeVanillaAttribute; }
     public void setRemoveVanillaAttribute(boolean removeVanillaAttribute) { this.removeVanillaAttribute = removeVanillaAttribute; }
 
-    // NEW: Getters/Setters for CustomModelData
     public Integer getCustomModelData() { return customModelData; }
     public void setCustomModelData(Integer customModelData) { this.customModelData = customModelData; }
+
+    public Map<PotionEffectType, Integer> getPotionEffects() { return potionEffects; }
+    public void setPotionEffects(Map<PotionEffectType, Integer> potionEffects) { this.potionEffects = potionEffects; }
 }
