@@ -1,5 +1,6 @@
 package org.rostats.handler;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -11,6 +12,8 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.itemeditor.ItemAttribute;
@@ -18,6 +21,7 @@ import org.rostats.itemeditor.ItemAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class AttributeHandler implements Listener {
 
@@ -48,6 +52,42 @@ public class AttributeHandler implements Listener {
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
+
+    // --- NEW: Passive Effect Logic ---
+    public void runPassiveEffectsTask() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            // Collect all equipment
+            List<ItemStack> items = new ArrayList<>();
+            if (player.getEquipment() != null) {
+                items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
+                items.add(player.getEquipment().getItemInMainHand());
+                items.add(player.getEquipment().getItemInOffHand());
+            }
+
+            for (ItemStack item : items) {
+                if (item != null && item.getType() != Material.AIR) {
+                    // Read attributes from item
+                    ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+
+                    // Apply Potion Effects if present
+                    if (attr != null && !attr.getPotionEffects().isEmpty()) {
+                        for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
+                            PotionEffectType type = entry.getKey();
+                            int level = entry.getValue(); // This is the level (e.g. 1)
+
+                            if (level > 0 && type != null) {
+                                // Apply for 60 ticks (3 seconds) to ensure it stays active without flickering
+                                // Amplifier = Level - 1 (e.g. Lv 1 = Amp 0)
+                                // boolean ambient=true (makes particles less visible), particles=false (hide bubbles), icon=true
+                                player.addPotionEffect(new PotionEffect(type, 60, level - 1, true, false, true));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // ---------------------------------
 
     public void applyAllEquipmentAttributes(Player player) {
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());

@@ -99,6 +99,15 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             getLogger().info("💾 Auto-Saved all player data.");
         }, 6000L, 6000L);
 
+        // --- NEW: Passive Effect Task (Every 20 ticks = 1 second) ---
+        // เช็คไอเทมที่สวมใส่และยัด Effect ให้ผู้เล่น
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            if (attributeHandler != null) {
+                attributeHandler.runPassiveEffectsTask();
+            }
+        }, 20L, 20L);
+        // -----------------------------------------------------------
+
         getLogger().info("✅ ThaiRoCorePlugin Enabled!");
     }
 
@@ -130,7 +139,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         dataManager.savePlayerData(event.getPlayer());
     }
 
-    // MODIFIED: Helper method for Floating Text
     public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
@@ -147,10 +155,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         showAnimatedText(loc.add(0, 1.5, 0), text);
     }
 
-    // NEW: Core Animation Logic
     private void showAnimatedText(Location startLoc, String text) {
         getServer().getScheduler().runTask(this, () -> {
-            // *** FIX: Declare as FINAL to be safely used in the inner anonymous class ***
             final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
             stand.setVisible(false);
             stand.setGravity(false);
@@ -159,7 +165,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.customName(Component.text(text));
             stand.setSmall(true);
 
-            // Animation Task
             BukkitTask[] task = new BukkitTask[1];
             task[0] = getServer().getScheduler().runTaskTimer(this, new Runnable() {
                 private int ticks = 0;
@@ -211,7 +216,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public StatManager getStatManager() { return statManager; }
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
-    public CombatHandler getCombatHandler() { return combatHandler; } // Added Getter
+    public CombatHandler getCombatHandler() { return combatHandler; }
     public DataManager getDataManager() { return dataManager; }
     public ItemAttributeManager getItemAttributeManager() { return itemAttributeManager; }
     public ItemManager getItemManager() { return itemManager; }

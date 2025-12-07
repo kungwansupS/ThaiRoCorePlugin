@@ -3,6 +3,7 @@ package org.rostats.itemeditor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -10,18 +11,17 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
+import org.rostats.itemeditor.EffectEnchantGUI.Mode;
 
 import java.io.File;
 
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
-    // Simple state tracking for the Effect/Enchant GUI active session
-    // In a real plugin, use a proper GUI Manager. Here we instantiate on fly.
-    // However, to handle clicks in EffectEnchantGUI, we need to know context.
-    // We will parse the Title.
 
     public GUIListener(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -49,7 +49,7 @@ public class GUIListener implements Listener {
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
             // Handle Effect/Enchant GUI
-            if (title.contains("EFFECT Select") || title.contains("ENCHANT Select")) {
+            if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
                 handleEffectEnchantClick(event, player, title);
                 return;
             }
@@ -63,9 +63,116 @@ public class GUIListener implements Listener {
         }
     }
 
-    // ... (Keep existing handleConfirmDeleteClick, handleImportItem, handleLibraryClick methods same as provided file) ...
-    // Note: I will only output the NEW/Modified methods to save space if allowed, but instruction says "full code only".
-    // I will include the full file content for GUIListener with the new logic merged.
+    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
+        int lastBracket = title.lastIndexOf(" [");
+        if (lastBracket == -1) return;
+        String fileName = title.substring(8, lastBracket);
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        Mode mode = title.contains("EFFECT") ? Mode.EFFECT : Mode.ENCHANT;
+        String metaKey = "RO_EDITOR_SEL_" + mode.name();
+        String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+        int slot = event.getSlot();
+
+        // 1. Selection (Slots 0-44)
+        if (slot < 45) {
+            if (clicked.getType() == Material.AIR) return;
+            // Name format: "§aName" or "§7Name". Substring(2) removes color code.
+            String dp = clicked.getItemMeta().getDisplayName();
+            String key = dp.length() > 2 ? dp.substring(2) : dp;
+
+            player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+
+            // Refresh GUI
+            new EffectEnchantGUI(plugin, itemFile, mode).open(player);
+        }
+
+        // 2. Actions (Slots 49-53)
+        else if (slot == 50 && selected != null) { // Set Level
+            plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + selected + ":", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
+                } catch (NumberFormatException e) {
+                    player.sendMessage("§cInvalid Number");
+                    new BukkitRunnableWrapper(plugin, () -> new EffectEnchantGUI(plugin, itemFile, mode).open(player));
+                }
+            });
+        }
+        else if (slot == 51 && selected != null) { // Add/Update (Use default 1 or prompt? Let's prompt if not set, or set 1)
+            // For simplicity, Button 51 will imply adding Level 1 if not used via Anvil, OR confirms input.
+            // Let's make it just apply Level 1 for quick add
+            applyEffectEnchant(player, itemFile, mode, selected, 1, true);
+        }
+        else if (slot == 52 && selected != null) { // Remove
+            applyEffectEnchant(player, itemFile, mode, selected, 0, false);
+        }
+        else if (slot == 53) { // Back
+            player.removeMetadata(metaKey, plugin);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+        }
+    }
+
+    private void applyEffectEnchant(Player player, File file, Mode mode, String key, int level, boolean add) {
+        // Helper wrapper to run on main thread if coming from async chat
+        new BukkitRunnableWrapper(plugin, () -> {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
+            ItemStack stack = plugin.getItemManager().loadItemStack(file);
+            boolean changed = false;
+
+            if (mode == Mode.EFFECT) {
+                PotionEffectType type = PotionEffectType.getByName(key);
+                if (type != null) {
+                    if (add) {
+                        attr.getPotionEffects().put(type, level);
+                        player.sendMessage("§aSet Effect: " + type.getName() + " Lv." + level);
+                    } else {
+                        attr.getPotionEffects().remove(type);
+                        player.sendMessage("§cRemoved Effect: " + type.getName());
+                    }
+                    plugin.getItemManager().saveItem(file, attr, stack);
+                    changed = true;
+                }
+            } else {
+                Enchantment ench = null;
+                for (Enchantment e : Enchantment.values()) {
+                    if (e.getKey().getKey().equalsIgnoreCase(key)) {
+                        ench = e;
+                        break;
+                    }
+                }
+                if (ench != null) {
+                    ItemMeta meta = stack.getItemMeta();
+                    if (add) {
+                        meta.addEnchant(ench, level, true);
+                        player.sendMessage("§aSet Enchant: " + key + " Lv." + level);
+                    } else {
+                        meta.removeEnchant(ench);
+                        player.sendMessage("§cRemoved Enchant: " + key);
+                    }
+                    stack.setItemMeta(meta);
+                    plugin.getItemManager().saveItem(file, attr, stack);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+                new EffectEnchantGUI(plugin, file, mode).open(player);
+            }
+        });
+    }
+
+    // ... (Keep existing handleConfirmDeleteClick, handleImportItem, handleLibraryClick, handleEditorClick, findFileByName, getPageFromTitle, BukkitRunnableWrapper) ...
+    // DO NOT REMOVE the other methods from the previous GUIListener file.
+    // Ensure you paste the FULL GUIListener file content combining the above method with the old ones.
+
+    // For completeness of this answer, here is the REST of GUIListener methods to ensure you have the full file structure:
 
     private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
         String fileName = title.substring("Confirm Delete: ".length());
@@ -187,173 +294,6 @@ public class GUIListener implements Listener {
         }
     }
 
-    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
-        // Recover file name from Title? Hard.
-        // We need the file to process.
-        // Assuming file name is not in title "Editor: EFFECT Select".
-        // Problem: Title changed.
-        // Solution: In EffectEnchantGUI, title should be "Editor: <FileName> [EFFECT Select]"
-        // Let's assume title format: "Editor: FileName [EFFECT Select]"
-
-        int lastBracket = title.lastIndexOf(" [");
-        if (lastBracket == -1) return;
-        String fileName = title.substring(8, lastBracket);
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null) return;
-
-        EffectEnchantGUI.Mode mode = title.contains("EFFECT") ? EffectEnchantGUI.Mode.EFFECT : EffectEnchantGUI.Mode.ENCHANT;
-        EffectEnchantGUI gui = new EffectEnchantGUI(plugin, itemFile, mode);
-
-        // Pass click to GUI class to handle logic
-        // We need to sync the GUI state (selected item) with what the user sees.
-        // Since we create a new GUI instance here, we lose the previous 'selectedKey' state unless we recover it.
-        // For this task, we will handle basic clicks.
-        // If complex state needed, we'd need a Session Manager.
-        // However, the GUI redraws itself on every click in `handleClick`, so checking the slot implies action on *that* GUI's visual state.
-        // But `selectedKey` is private in the new instance.
-        // FIX: We can't easily maintain state across clicks with `new GUI()`.
-        // BUT, looking at `AttributeEditorGUI`, it re-reads from file every click.
-        // `EffectEnchantGUI` needs to store `selectedKey`.
-        // Workaround: We can't fully implement a stateful GUI in one Listener method without a Session/Holder map.
-        // Given constraints, I'll rely on the fact that `EffectEnchantGUI` opens a NEW inventory.
-        // So `event.getInventory().getHolder()` might be useful if we implemented InventoryHolder.
-        // But we passed `null` as owner.
-        // HACK: We will assume the user clicks "Select" then "Anvil" in one go? No.
-        // The `handleClick` logic inside `EffectEnchantGUI` assumes persistent instance.
-        // Since I cannot modify `EffectEnchantGUI` to be an InventoryHolder easily (requires more classes),
-        // I will implement the logic *here* inside `handleEffectEnchantClick` for simplicity, replicating `EffectEnchantGUI` logic.
-
-        // Wait, I can't put all logic here easily.
-        // Best approach: Use `player.getMetadata` to store the active selection session.
-
-        // Let's implement the logic directly here for robust single-file change.
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-
-        // Use a session key in metadata
-        String metaKey = "RO_EDITOR_SEL_" + mode.name();
-
-        if (event.getSlot() < 45) {
-            // Selected an item
-            if (clicked.getType() == Material.AIR) return;
-            String dp = clicked.getItemMeta().getDisplayName();
-            String key = dp.substring(2);
-            player.setMetadata(metaKey, new org.bukkit.metadata.FixedMetadataValue(plugin, key));
-
-            // Refresh GUI
-            new EffectEnchantGUI(plugin, itemFile, mode).open(player);
-            // We need to inject the selected key back into the GUI visual.
-            // EffectEnchantGUI.open() needs to check metadata?
-            // Ideally, modify EffectEnchantGUI to take selectedKey in constructor or setter.
-            // I will modify EffectEnchantGUI code above to read metadata or pass param?
-            // No, I'll just rely on `GUIListener` re-opening with the selected key visual.
-            // Actually, `EffectEnchantGUI.open()` constructs the inventory.
-            // I will modify `EffectEnchantGUI` to allow setting selectedKey.
-            // But I can't change the previous file block easily.
-
-            // ALREADY SUBMITTED `EffectEnchantGUI` above. I'll stick to it.
-            // The `EffectEnchantGUI` provided above DOES NOT persist state across `open`.
-            // I will make `GUIListener` pass the state via a custom constructor or method if I could.
-            // Since I provided `EffectEnchantGUI` code, I should update it to support state restoration from Metadata or similar.
-
-            // RE-WRITING `EffectEnchantGUI` logic in my head:
-            // I will update the `EffectEnchantGUI` block to include a way to highlight the selected item based on a passed parameter or metadata.
-
-            // *Self-Correction*: I can't edit the block above now. I will treat the `EffectEnchantGUI` class as a helper and instantiate it with state.
-            // I will update `EffectEnchantGUI` in the code block to include `setSelectedKey`.
-        }
-
-        // Let's assume I updated `EffectEnchantGUI` to have `setSelectedKey`.
-        EffectEnchantGUI guiInstance = new EffectEnchantGUI(plugin, itemFile, mode);
-        if (player.hasMetadata(metaKey)) {
-            // guiInstance.setSelectedKey(player.getMetadata(metaKey).get(0).asString());
-            // Need to add this method to the class.
-        }
-
-        // Re-implement `handleClick` logic here using the helper.
-        // It's getting messy.
-
-        // Simplest: The listener handles the clicks and re-opens the GUI.
-        String sel = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
-
-        if (event.getSlot() == 50 && sel != null) {
-            plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + sel, (str) -> {
-                // Logic to save level... need to store level too?
-                // We can store pending level in metadata too.
-            });
-        }
-
-        // ... This is too complex for "Just code".
-        // I will rely on `EffectEnchantGUI` being a self-contained handler if I could register it as a Listener.
-        // But I registered `GUIListener`.
-
-        // CLEAN SOLUTION:
-        // `GUIListener` delegates to `EffectEnchantGUI` static handler or similar?
-        // No. I will put the logic in `GUIListener` properly.
-
-        // Let's rewrite `handleEffectEnchantClick` properly.
-
-        if (event.getSlot() < 45) {
-            String dp = clicked.getItemMeta().getDisplayName();
-            String key = dp.substring(2);
-            player.setMetadata(metaKey, new org.bukkit.metadata.FixedMetadataValue(plugin, key));
-            // Open GUI with selection
-            openEffectEnchantGUI(player, itemFile, mode, key);
-        } else if (event.getSlot() == 50 && sel != null) {
-            // Anvil
-            plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + sel, (str) -> {
-                try {
-                    int lvl = Integer.parseInt(str);
-                    applyEffectEnchant(itemFile, mode, sel, lvl, true);
-                    openEffectEnchantGUI(player, itemFile, mode, sel);
-                } catch (NumberFormatException e) {
-                    player.sendMessage("§cInvalid");
-                    openEffectEnchantGUI(player, itemFile, mode, sel);
-                }
-            });
-        } else if (event.getSlot() == 51 && sel != null) {
-            // Add/Update (Actually Anvil input already applies it in my logic above to save steps)
-            // But if we want explicit confirm:
-            // "Anvil just sets input level var".
-            // Let's stick to: Anvil -> Input -> Apply immediately for ease.
-            player.sendMessage("§eUse the Anvil button to set level and apply.");
-        } else if (event.getSlot() == 52 && sel != null) {
-            // Remove
-            applyEffectEnchant(itemFile, mode, sel, 0, false);
-            player.removeMetadata(metaKey, plugin); // Clear selection
-            openEffectEnchantGUI(player, itemFile, mode, null);
-        } else if (event.getSlot() == 53) {
-            // Back
-            player.removeMetadata(metaKey, plugin);
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-        }
-    }
-
-    private void openEffectEnchantGUI(Player player, File file, org.rostats.itemeditor.EffectEnchantGUI.Mode mode, String selected) {
-        // We need to modify EffectEnchantGUI to accept 'selected' in constructor or setter.
-        // Since I define the class, I will add it.
-        EffectEnchantGUI gui = new EffectEnchantGUI(plugin, file, mode);
-        // gui.setSelectedKey(selected); // I will add this to the class definition below.
-        // gui.open(player);
-
-        // WAIT: I can't modify the class definition in a previous block AFTER I wrote it?
-        // I am generating the text now. I will Update `EffectEnchantGUI` code block to include this method.
-        // DONE. (I will ensure the EffectEnchantGUI code block above has setSelectedKey).
-
-        // Actually, I can't go back and edit the previous code block in this thought process.
-        // I must ensure the final output contains the correct code.
-        // The user prompt is "Tell file path... code full only".
-        // I will provide the FULL code for `EffectEnchantGUI` with the necessary setter.
-    }
-
-    private void applyEffectEnchant(File file, org.rostats.itemeditor.EffectEnchantGUI.Mode mode, String key, int level, boolean add) {
-        // Logic from EffectEnchantGUI applyChange
-        // ... (Copied logic)
-        // Since I'm implementing logic in Listener to handle state, I might not need logic in EffectEnchantGUI class.
-        // EffectEnchantGUI can just be a "Renderer".
-    }
-
     private void handleEditorClick(InventoryClickEvent event, Player player, String title) {
         int lastSpaceIndex = title.lastIndexOf(" [");
         if (lastSpaceIndex == -1) return;
@@ -372,13 +312,12 @@ public class GUIListener implements Listener {
 
         String dp = clicked.getItemMeta().getDisplayName();
 
-        // New Logic for Effects/Enchants Buttons
         if (dp.contains("Edit Effects")) {
-            new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.EFFECT).open(player);
+            new EffectEnchantGUI(plugin, finalItemFile, Mode.EFFECT).open(player);
             return;
         }
         if (dp.contains("Edit Enchantments")) {
-            new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.ENCHANT).open(player);
+            new EffectEnchantGUI(plugin, finalItemFile, Mode.ENCHANT).open(player);
             return;
         }
 
@@ -405,8 +344,6 @@ public class GUIListener implements Listener {
             });
             return;
         }
-
-        // ... (Rest of existing logic for Lore, Remove Vanilla, Save, Attributes) ...
         if (dp.contains("Edit Lore")) {
             plugin.getChatInputHandler().awaitMultiLineInput(player, "แก้ไข Lore:", (lines) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
@@ -419,7 +356,6 @@ public class GUIListener implements Listener {
             });
             return;
         }
-
         if (dp.contains("Remove Vanilla")) {
             ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
             attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
@@ -427,13 +363,13 @@ public class GUIListener implements Listener {
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
             return;
         }
-
         if (dp.contains("Save to File")) {
             player.sendMessage("§aSaved!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
             return;
         }
 
+        // Handle normal attribute clicks
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
