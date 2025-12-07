@@ -33,7 +33,7 @@ public class ItemAttribute {
     private double finalPDmgPercent;
     private double finalMDmgPercent;
 
-    // PvP / PvE
+    // PvP / PvE Bonus & Reduction
     private double pveDmgPercent;
     private double pvpDmgPercent;
     private double pveDmgReductionPercent;
@@ -61,19 +61,23 @@ public class ItemAttribute {
     private double mDmgReductionPercent;
 
     // Ignore Def
-    private double ignorePDefFlat;
-    private double ignoreMDefFlat;
     private double ignorePDefPercent;
     private double ignoreMDefPercent;
+    private double ignorePDefFlat;
+    private double ignoreMDefFlat;
 
     // Melee / Range
     private double meleePDmgPercent;
     private double rangePDmgPercent;
+    private double meleePDReductionPercent;
+    private double rangePDReductionPercent;
 
     // True Damage
     private double trueDamageFlat;
 
+    // Cosmetic / System
     private boolean removeVanillaAttribute;
+    private Integer customModelData; // NEW: รองรับ Custom Model Data
 
     public ItemAttribute() {}
 
@@ -81,10 +85,18 @@ public class ItemAttribute {
         ItemAttribute attr = new ItemAttribute();
         if (root == null) return attr;
 
+        // Load Root Level Configs
         attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
+        if (root.contains("custom-model-data")) {
+            attr.customModelData = root.getInt("custom-model-data");
+        } else if (root.contains("CustomModelData")) { // Support both casings
+            attr.customModelData = root.getInt("CustomModelData");
+        }
+
         ConfigurationSection att = root.getConfigurationSection("attributes");
         if (att == null) return attr;
 
+        // Load Attributes
         attr.strGear = att.getInt("str", 0);
         attr.agiGear = att.getInt("agi", 0);
         attr.vitGear = att.getInt("vit", 0);
@@ -153,6 +165,8 @@ public class ItemAttribute {
 
         attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
         attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
+        attr.meleePDReductionPercent = att.getDouble("melee-p-reduce-%", 0);
+        attr.rangePDReductionPercent = att.getDouble("range-p-reduce-%", 0);
 
         attr.trueDamageFlat = att.getDouble("true-damage", 0);
 
@@ -228,6 +242,8 @@ public class ItemAttribute {
 
         if (meleePDmgPercent != 0) section.set("melee-p-dmg-%", meleePDmgPercent);
         if (rangePDmgPercent != 0) section.set("range-p-dmg-%", rangePDmgPercent);
+        if (meleePDReductionPercent != 0) section.set("melee-p-reduce-%", meleePDReductionPercent);
+        if (rangePDReductionPercent != 0) section.set("range-p-reduce-%", rangePDReductionPercent);
 
         if (trueDamageFlat != 0) section.set("true-damage", trueDamageFlat);
     }
@@ -357,10 +373,18 @@ public class ItemAttribute {
     public void setMeleePDmgPercent(double v) { this.meleePDmgPercent = v; }
     public double getRangePDmgPercent() { return rangePDmgPercent; }
     public void setRangePDmgPercent(double v) { this.rangePDmgPercent = v; }
+    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
+    public void setMeleePDReductionPercent(double v) { this.meleePDReductionPercent = v; }
+    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
+    public void setRangePDReductionPercent(double v) { this.rangePDReductionPercent = v; }
 
     public double getTrueDamageFlat() { return trueDamageFlat; }
     public void setTrueDamageFlat(double v) { this.trueDamageFlat = v; }
 
     public boolean isRemoveVanillaAttribute() { return removeVanillaAttribute; }
     public void setRemoveVanillaAttribute(boolean removeVanillaAttribute) { this.removeVanillaAttribute = removeVanillaAttribute; }
+
+    // NEW: Getters/Setters for CustomModelData
+    public Integer getCustomModelData() { return customModelData; }
+    public void setCustomModelData(Integer customModelData) { this.customModelData = customModelData; }
 }

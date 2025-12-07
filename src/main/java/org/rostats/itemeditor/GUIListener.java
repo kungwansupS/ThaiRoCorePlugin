@@ -8,7 +8,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
@@ -33,12 +32,13 @@ public class GUIListener implements Listener {
         if (title.startsWith("Library: ")) {
             event.setCancelled(true);
 
-            // FIX: เช็คว่าคลิกที่ไหน?
+            // FIX: เช็คว่าคลิกที่ Inventory ของผู้เล่นหรือไม่?
             if (event.getClickedInventory() == event.getView().getBottomInventory()) {
-                // คลิกที่ช่องเก็บของตัวเอง -> ต้องการ Import/Create File จากไอเทมนี้
-                handleImportItem(event, player, title.substring(9));
+                // คลิกของในตัว -> เข้าสู่โหมด Import Item
+                String relativePath = title.substring(9);
+                handleImportItem(event, player, relativePath);
             } else {
-                // คลิกที่ GUI -> ต้องการเปิด Folder/File
+                // คลิกใน Library GUI
                 String relativePath = title.substring(9);
                 handleLibraryClick(event, player, relativePath);
             }
@@ -46,26 +46,24 @@ public class GUIListener implements Listener {
         // 2. Editor Logic
         else if (title.startsWith("Editor: ")) {
             event.setCancelled(true);
+            // คลิกเฉพาะใน Editor ด้านบน
             if (event.getClickedInventory() == event.getView().getTopInventory()) {
                 handleEditorClick(event, player, title);
             }
         }
     }
 
-    // --- NEW: Handle creating file from inventory item ---
+    // --- NEW: Import Logic ---
     private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
 
-        // ตรวจสอบตำแหน่งปัจจุบัน
         File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
         if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
         final File finalCurrentDir = currentDir;
 
-        // ปิด GUI และถามชื่อไฟล์
         player.closeInventory();
-        plugin.getChatInputHandler().awaitInput(player, "§eตั้งชื่อไฟล์สำหรับไอเทมชิ้นนี้:", (name) -> {
-            // สร้างไฟล์ใหม่
+        plugin.getChatInputHandler().awaitInput(player, "§eตั้งชื่อไฟล์สำหรับไอเทมนี้ (ไม่ต้องใส่ .yml):", (name) -> {
             String fileName = name.endsWith(".yml") ? name : name + ".yml";
             File newFile = new File(finalCurrentDir, fileName);
 
@@ -74,30 +72,24 @@ public class GUIListener implements Listener {
                 return;
             }
 
-            // อ่าน Attribute ปัจจุบัน (ถ้ามี) หรือสร้างใหม่
+            // อ่าน Attribute จากไอเทมจริง
             ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
             plugin.getItemManager().saveItem(newFile, attr, item);
 
-            player.sendMessage("§aบันทึกไอเทมลงใน " + fileName + " เรียบร้อยแล้ว!");
+            player.sendMessage("§aนำเข้าไอเทมเรียบร้อย!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
 
-            // เปิดหน้านั้นใหม่
             new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
         });
     }
 
     private void handleLibraryClick(InventoryClickEvent event, Player player, String relativePath) {
         File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
-
-        if (!currentDir.exists()) {
-            currentDir = plugin.getItemManager().getRootDir();
-        }
-
+        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
         final File finalCurrentDir = currentDir;
+
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-
-        // ป้องกัน Error กรณีคลิกที่ว่างๆ
         if (!clicked.hasItemMeta() || !clicked.getItemMeta().hasDisplayName()) return;
 
         String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
@@ -117,7 +109,7 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // New Item (Empty)
+        // New Item
         if (clicked.getType() == Material.EMERALD && clicked.getItemMeta().getDisplayName().contains("New Item")) {
             plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อ Item ใหม่:", (str) -> {
                 plugin.getItemManager().createItem(finalCurrentDir, str, Material.STONE);
@@ -126,19 +118,14 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Handle File/Folder Click
+        // Handle File/Folder
         File target = new File(currentDir, name + (clicked.getType() == Material.CHEST ? "" : ".yml"));
         final File finalTarget = target;
 
-        // ป้องกัน Error: File not found ถ้าชื่อไฟล์ไม่ตรงหรือหาไม่เจอ
+        // Fallback search if name mismatch
         if (!target.exists() && clicked.getType() != Material.CHEST) {
-            // พยายามหาแบบ Case Insensitive หรือลองเติม .yml
             target = new File(currentDir, name + ".yml");
-            if (!target.exists()) {
-                // ถ้ายังไม่เจอ อาจเป็นเพราะสีในชื่อ
-                // ข้ามไปก่อนเพื่อป้องกัน Error
-                return;
-            }
+            if (!target.exists()) return;
         }
 
         if (target.isDirectory()) {
@@ -200,7 +187,6 @@ public class GUIListener implements Listener {
             }
         }
 
-        // Actions
         if (dp.contains("Rename Item")) {
             plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ (รองรับสี &#RRGGBB):", (str) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
@@ -238,7 +224,6 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Stat Logic (+/- and Middle Click)
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
@@ -264,13 +249,13 @@ public class GUIListener implements Listener {
                 double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
                 double change = 0;
 
-                // *** FIX: Shift +/- 10 Logic ***
+                // *** FIX: Correct Shift Click Logic ***
                 if (event.getClick() == ClickType.LEFT) {
                     change = type.getClickStep(); // +1
                 } else if (event.getClick() == ClickType.RIGHT) {
                     change = -type.getClickStep(); // -1
                 } else if (event.getClick() == ClickType.SHIFT_LEFT) {
-                    change = type.getClickStep() * 10; // +10
+                    change = type.getClickStep() * 10; // +10 (or use RightClickStep if defined as 10)
                 } else if (event.getClick() == ClickType.SHIFT_RIGHT) {
                     change = -type.getClickStep() * 10; // -10
                 }

@@ -25,31 +25,23 @@ public class ItemManager {
         return rootDir;
     }
 
-    // --- Path Helpers (สำคัญมากสำหรับการแก้บัค File not found) ---
-
     public String getRelativePath(File file) {
         String rootPath = rootDir.getAbsolutePath();
         String filePath = file.getAbsolutePath();
-
         if (filePath.equals(rootPath)) return "/";
-
         if (filePath.startsWith(rootPath)) {
-            // ตัดส่วน root ออก และเปลี่ยน \ เป็น / เพื่อให้เหมือนกันทุก OS
             String rel = filePath.substring(rootPath.length()).replace("\\", "/");
             if (rel.startsWith("/")) return rel;
             return "/" + rel;
         }
-        return "/" + file.getName(); // Fallback
+        return "/" + file.getName();
     }
 
     public File getFileFromRelative(String relativePath) {
         if (relativePath == null || relativePath.equals("/") || relativePath.isEmpty()) return rootDir;
-        // ป้องกัน double slash
         if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
         return new File(rootDir, relativePath);
     }
-
-    // --- File Operations ---
 
     public List<File> listContents(File directory) {
         File[] files = directory.listFiles();
@@ -94,6 +86,11 @@ public class ItemManager {
             if (itemStack.getItemMeta().hasLore()) {
                 config.set("lore", itemStack.getItemMeta().getLore());
             }
+        }
+
+        // NEW: Save CustomModelData to Root
+        if (attr.getCustomModelData() != null && attr.getCustomModelData() != 0) {
+            config.set("custom-model-data", attr.getCustomModelData());
         }
 
         config.set("remove-vanilla", attr.isRemoveVanillaAttribute());

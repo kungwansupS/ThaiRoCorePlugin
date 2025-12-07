@@ -105,12 +105,11 @@ public class StatManager {
         return ((currentVal - 1) / costDivisor) + costBase;
     }
 
-    // --- UPDATED FORMULAS (Total = Base + Pending + Gear Bonus) ---
-
+    // --- FIX: Helper Method to get Base + Pending + Gear Bonus ---
     private int getTotalStat(PlayerData data, String statKey) {
         int base = data.getStat(statKey);
         int pending = data.getPendingStat(statKey);
-        int gear = switch (statKey) {
+        int gear = switch (statKey.toUpperCase()) {
             case "STR" -> data.getSTRBonusGear();
             case "AGI" -> data.getAGIBonusGear();
             case "VIT" -> data.getVITBonusGear();
@@ -122,22 +121,20 @@ public class StatManager {
         return base + pending + gear;
     }
 
+    // --- UPDATED CALCULATIONS USING TOTAL STATS ---
+
     public double getPhysicalAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int str = getTotalStat(data, "STR");
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
-
-        // Formula: STR + (DEX * 0.2) + (LUK * 0.2) + WeaponATK + FlatBonus
         return (str * 1.0) + (dex * 0.2) + (luk * 0.2) + data.getWeaponPAtk() + data.getPAtkBonusFlat();
     }
 
     public double getMagicAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int intel = getTotalStat(data, "INT");
-        int luk = getTotalStat(data, "LUK"); // Some variants use DEX or LUK
-
-        // Formula: (INT * 1.5) + (LUK * 0.3) + WeaponMATK + FlatBonus
+        int luk = getTotalStat(data, "LUK");
         return (intel * 1.5) + (luk * 0.3) + data.getWeaponMAtk() + data.getMAtkBonusFlat();
     }
 
@@ -145,17 +142,13 @@ public class StatManager {
         PlayerData data = getData(player.getUniqueId());
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
-
-        // Formula: DEX + LUK + BaseLevel + HitBonus
         return (int) (dex + luk + data.getBaseLevel() + data.getHitBonusFlat());
     }
 
     public int getFlee(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int agi = getTotalStat(data, "AGI");
-        int luk = getTotalStat(data, "LUK"); // Often LUK adds small flee
-
-        // Formula: AGI + (LUK * 0.2) + BaseLevel + FleeBonus
+        int luk = getTotalStat(data, "LUK");
         return (int) (agi + (luk * 0.2) + data.getBaseLevel() + data.getFleeBonusFlat());
     }
 
@@ -163,35 +156,27 @@ public class StatManager {
         PlayerData data = getData(player.getUniqueId());
         int agi = getTotalStat(data, "AGI");
         int dex = getTotalStat(data, "DEX");
-
-        // Formula based on AGI and DEX
-        double statBonus = (agi * 0.02) + (dex * 0.005); // Adjusted multiplier
+        double statBonus = (agi * 0.02) + (dex * 0.005); // Increased multiplier slightly
         return 1.0 + statBonus + (data.getASpdPercent() / 100.0);
     }
 
     public double getSoftDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int vit = getTotalStat(data, "VIT");
-        int agi = getTotalStat(data, "AGI"); // Sometimes AGI adds def
-
-        // Soft DEF
-        return (vit * 0.5) + (agi * 0.1); // Adjusted formula
+        int agi = getTotalStat(data, "AGI");
+        return (vit * 0.5) + (agi * 0.1);
     }
 
     public double getSoftMDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int intel = getTotalStat(data, "INT");
         int vit = getTotalStat(data, "VIT");
-
-        // Soft MDEF
         return (intel * 1.0) + (vit * 0.5);
     }
 
     public double getCritChance(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int luk = getTotalStat(data, "LUK");
-
-        // Formula: LUK * 0.3
         return luk * 0.3;
     }
 
