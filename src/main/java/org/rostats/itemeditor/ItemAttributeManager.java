@@ -1,20 +1,28 @@
 package org.rostats.itemeditor;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.inventory.ItemFlag;
-// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ItemAttributeManager {
+
+    private static final PlainTextComponentSerializer PLAIN_TEXT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
     // แก้ไข: เปลี่ยน Type เป็น ThaiRoCorePlugin
     private final ThaiRoCorePlugin plugin;
@@ -28,6 +36,11 @@ public class ItemAttributeManager {
         for (ItemAttribute attribute : ItemAttribute.values()) {
             attribute.initialize(plugin);
         }
+    }
+
+    // --- Serialization Helper to resolve ambiguity (FIX) ---
+    private String serializeComponentToString(Component component) {
+        return PLAIN_TEXT_SERIALIZER.serialize(component);
     }
 
     // --- Data Management ---
@@ -51,6 +64,87 @@ public class ItemAttributeManager {
         }
         item.setItemMeta(meta);
         updateLore(item); // Update lore automatically upon setting attribute
+    }
+
+    // --- NEW: Template Saving Logic ---
+
+    /**
+     * Saves the ItemStack and its custom attributes to a YAML file, creating a template.
+     * @param item The item to save.
+     * @param player The player performing the save (for logging/feedback).
+     * @return true if save was successful.
+     */
+    public boolean saveItemAsTemplate(ItemStack item, Player player) {
+        if (item == null || item.getType() == Material.AIR) {
+            return false;
+        }
+
+        // 1. Setup file structure
+        File templateFolder = new File(plugin.getDataFolder(), "item_templates");
+        if (!templateFolder.exists()) {
+            templateFolder.mkdirs();
+        }
+
+        // Generate a unique file name (e.g., PLAYERNAME_ITEMTYPE_RANDOMID.yml)
+        String itemName = item.getItemMeta().hasDisplayName() ?
+                serializeComponentToString(item.getItemMeta().displayName()).replaceAll("[^a-zA-Z0-9_]", "") :
+                item.getType().name();
+
+        // Use a short random integer instead of UUID for simplicity
+        String randomId = String.valueOf(ThreadLocalRandom.current().nextInt(1000, 9999));
+
+        String fileName = player.getName() + "_" + itemName + "_" + randomId + ".yml";
+        File templateFile = new File(templateFolder, fileName);
+
+        YamlConfiguration config = new YamlConfiguration();
+        ItemMeta meta = item.getItemMeta();
+
+        // 2. Extract Core Item Data
+        config.set("material", item.getType().name());
+
+        // Set Name (Converted to plain text/string for YAML)
+        if (meta.hasDisplayName()) {
+            config.set("name", serializeComponentToString(meta.displayName())); // Use helper function
+        } else {
+            config.set("name", "<reset>" + item.getType().name());
+        }
+
+        // Set Lore (Converted to string list)
+        if (meta.hasLore()) {
+            // Convert Component list to String list for YAML
+            List<String> stringLore = Objects.requireNonNull(meta.lore()).stream()
+                    .map(this::serializeComponentToString) // Use helper function to resolve ambiguity
+                    .collect(Collectors.toList());
+            config.set("lore", stringLore);
+        } else {
+            config.set("lore", new ArrayList<String>());
+        }
+
+        // Set basic Minecraft attributes (unbreakable, etc.)
+        config.set("unbreakable", meta.isUnbreakable());
+
+        // 3. Extract Custom Attributes (from PDC)
+        config.set("custom-attributes", null); // Clear old map if exists
+
+        for (ItemAttribute attribute : ItemAttribute.values()) {
+            double value = getAttribute(item, attribute);
+            if (value != 0.0) {
+                // Key: ATTRIBUTE_KEY.toLowerCase()
+                // Value: double
+                config.set("custom-attributes." + attribute.getKey(), value);
+            }
+        }
+
+        // 4. Save the file
+        try {
+            config.save(templateFile);
+            plugin.getLogger().info("Successfully saved item template: " + fileName);
+            return true;
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save item template " + fileName + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     // --- NEW: Vanilla Attribute Management (Req 1 & 2) ---
@@ -83,6 +177,8 @@ public class ItemAttributeManager {
     public void updateLore(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return;
         ItemMeta meta = item.getItemMeta();
+
+        // Use meta.getLore() (List<String>) to read the existing lore lines to preserve custom formatting/color codes.
         List<String> currentLore = meta.hasLore() ? Objects.requireNonNull(meta.getLore()) : new ArrayList<>();
 
         List<String> newLore = new ArrayList<>();
@@ -92,6 +188,7 @@ public class ItemAttributeManager {
         boolean inCustomLore = false;
 
         for (String line : currentLore) {
+            // Assuming currentLore contains Strings with Bukkit color codes ('§').
             String stripped = line.replaceAll("§[0-9a-fk-or]", "");
             if (stripped.equals("--- Custom Lore ---")) {
                 inCustomLore = true;
@@ -131,6 +228,7 @@ public class ItemAttributeManager {
         }
 
         // Apply new lore
+        // Convert String list back to Component list
         meta.lore(newLore.stream().map(Component::text).toList());
         item.setItemMeta(meta);
     }
