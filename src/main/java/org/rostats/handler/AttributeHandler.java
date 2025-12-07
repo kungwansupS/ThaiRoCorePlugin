@@ -1,20 +1,23 @@
 package org.rostats.handler;
 
+import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.Material; // Import Material
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
-import org.rostats.data.StatManager;
 import org.rostats.itemeditor.ItemAttribute;
-import java.util.List; // Import List
-import java.util.ArrayList; // Import ArrayList
-import java.util.Arrays; // Import Arrays
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class AttributeHandler implements Listener {
 
@@ -29,79 +32,135 @@ public class AttributeHandler implements Listener {
         updatePlayerStats(event.getPlayer());
     }
 
-    public void updatePlayerStats(Player player) {
-        StatManager stats = plugin.getStatManager();
-        PlayerData data = stats.getData(player.getUniqueId());
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
+        }
+    }
 
-        // --- NEW: Implement Aggregation of Core Stat Bonuses from Equipment (Fix for 'ค่าไม่เพิ่ม') ---
+    @EventHandler
+    public void onItemHeld(PlayerItemHeldEvent event) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
+    }
 
-        int strBonus = 0;
-        int agiBonus = 0;
-        int vitBonus = 0;
-        int intBonus = 0;
-        int dexBonus = 0;
-        int lukBonus = 0;
+    @EventHandler
+    public void onSwapHand(PlayerSwapHandItemsEvent event) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
+    }
 
-        // 1. Collect all worn equipment items (Armor + Hands)
-        List<ItemStack> wornItems = new ArrayList<>();
+    public void applyAllEquipmentAttributes(Player player) {
+        PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+
+        // 1. Reset old gear bonuses
+        data.resetGearBonuses();
+
+        // 2. Collect items
+        List<ItemStack> items = new ArrayList<>();
         if (player.getEquipment() != null) {
-            // Add armor contents (Helmet, Chestplate, Leggings, Boots)
-            wornItems.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
-            // Add items in hands (MainHand and OffHand)
-            wornItems.add(player.getEquipment().getItemInMainHand());
-            wornItems.add(player.getEquipment().getItemInOffHand());
+            items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
+            items.add(player.getEquipment().getItemInMainHand());
+            items.add(player.getEquipment().getItemInOffHand());
         }
 
-        // Loop through collected items
-        for (ItemStack item : wornItems) {
-            if (item != null && item.getType() != Material.AIR) { // Check for null and air explicitly
-                // Sum bonuses from Persistent Data Container (PDC)
-                // Note: The attribute manager is accessed via the plugin instance
-                strBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.STR_BONUS_GEAR);
-                agiBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.AGI_BONUS_GEAR);
-                vitBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.VIT_BONUS_GEAR);
-                intBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.INT_BONUS_GEAR);
-                dexBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.DEX_BONUS_GEAR);
-                lukBonus += (int) plugin.getItemAttributeManager().getAttribute(item, ItemAttribute.LUK_BONUS_GEAR);
+        // 3. Loop and apply
+        for (ItemStack item : items) {
+            if (item != null && item.getType() != Material.AIR) {
+                // Read attribute object from item PDC via Manager
+                ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+                applyItemAttributes(player, attr);
             }
         }
+    }
 
-        // Set the aggregated bonuses into PlayerData
-        data.setSTRBonusGear(strBonus);
-        data.setAGIBonusGear(agiBonus);
-        data.setVITBonusGear(vitBonus);
-        data.setINTBonusGear(intBonus);
-        data.setDEXBonusGear(dexBonus);
-        data.setLUKBonusGear(lukBonus);
-        // -------------------------------------------------------------------------------------
+    public void applyItemAttributes(Player player, ItemAttribute attr) {
+        PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
-        int vit = data.getStat("VIT");
-        int agi = data.getStat("AGI");
-        int dex = data.getStat("DEX");
-        int baseLevel = data.getBaseLevel();
+        data.setSTRBonusGear(data.getSTRBonusGear() + attr.getStrGear());
+        data.setAGIBonusGear(data.getAGIBonusGear() + attr.getAgiGear());
+        data.setVITBonusGear(data.getVITBonusGear() + attr.getVitGear());
+        data.setINTBonusGear(data.getINTBonusGear() + attr.getIntGear());
+        data.setDEXBonusGear(data.getDEXBonusGear() + attr.getDexGear());
+        data.setLUKBonusGear(data.getLUKBonusGear() + attr.getLukGear());
 
-        // 1. VIT -> Max HP
-        // ใช้สูตร MaxHP ที่ถูกแก้ไขใน PlayerData.java (ซึ่งรวม Gear Bonus แล้ว)
+        data.setWeaponPAtk(data.getWeaponPAtk() + attr.getWeaponPAtk());
+        data.setWeaponMAtk(data.getWeaponMAtk() + attr.getWeaponMAtk());
+
+        data.setPAtkBonusFlat(data.getPAtkBonusFlat() + attr.getPAtkFlat());
+        data.setMAtkBonusFlat(data.getMAtkBonusFlat() + attr.getMAtkFlat());
+
+        data.setPDmgBonusPercent(data.getPDmgBonusPercent() + attr.getPDmgPercent());
+        data.setMDmgBonusPercent(data.getMDmgBonusPercent() + attr.getMDmgPercent());
+        data.setPDmgBonusFlat(data.getPDmgBonusFlat() + attr.getPDmgFlat());
+        data.setMDmgBonusFlat(data.getMDmgBonusFlat() + attr.getMDmgFlat());
+
+        data.setCritDmgPercent(data.getCritDmgPercent() + attr.getCritDmgPercent());
+        data.setCritDmgResPercent(data.getCritDmgResPercent() + attr.getCritDmgResPercent());
+        data.setCritRes(data.getCritRes() + attr.getCritRes());
+
+        data.setPPenFlat(data.getPPenFlat() + attr.getPPenFlat());
+        data.setMPenFlat(data.getMPenFlat() + attr.getMPenFlat());
+        data.setPPenPercent(data.getPPenPercent() + attr.getPPenPercent());
+        data.setMPenPercent(data.getMPenPercent() + attr.getMPenPercent());
+
+        data.setFinalDmgPercent(data.getFinalDmgPercent() + attr.getFinalDmgPercent());
+        data.setFinalDmgResPercent(data.getFinalDmgResPercent() + attr.getFinalDmgResPercent());
+        data.setFinalPDmgPercent(data.getFinalPDmgPercent() + attr.getFinalPDmgPercent());
+        data.setFinalMDmgPercent(data.getFinalMDmgPercent() + attr.getFinalMDmgPercent());
+
+        data.setPveDmgBonusPercent(data.getPveDmgBonusPercent() + attr.getPveDmgPercent());
+        data.setPvpDmgBonusPercent(data.getPvpDmgBonusPercent() + attr.getPvpDmgPercent());
+        data.setPveDmgReductionPercent(data.getPveDmgReductionPercent() + attr.getPveDmgReductionPercent());
+        data.setPvpDmgReductionPercent(data.getPvpDmgReductionPercent() + attr.getPvpDmgReductionPercent());
+
+        data.setMaxHPPercent(data.getMaxHPPercent() + attr.getMaxHPPercent());
+        data.setMaxSPPercent(data.getMaxSPPercent() + attr.getMaxSPPercent());
+
+        data.setShieldValueFlat(data.getShieldValueFlat() + attr.getShieldValueFlat());
+        data.setShieldRatePercent(data.getShieldRatePercent() + attr.getShieldRatePercent());
+
+        data.setASpdPercent(data.getASpdPercent() + attr.getASpdPercent());
+        data.setMSpdPercent(data.getMSpdPercent() + attr.getMSpdPercent());
+        data.setBaseMSPD(data.getBaseMSPD() + attr.getBaseMSPD());
+
+        data.setVarCTPercent(data.getVarCTPercent() + attr.getVarCTPercent());
+        data.setVarCTFlat(data.getVarCTFlat() + attr.getVarCTFlat());
+        data.setFixedCTPercent(data.getFixedCTPercent() + attr.getFixedCTPercent());
+        data.setFixedCTFlat(data.getFixedCTFlat() + attr.getFixedCTFlat());
+
+        data.setHealingEffectPercent(data.getHealingEffectPercent() + attr.getHealingEffectPercent());
+        data.setHealingReceivedPercent(data.getHealingReceivedPercent() + attr.getHealingReceivedPercent());
+
+        data.setLifestealPPercent(data.getLifestealPPercent() + attr.getLifestealPPercent());
+        data.setLifestealMPercent(data.getLifestealMPercent() + attr.getLifestealMPercent());
+
+        data.setHitBonusFlat(data.getHitBonusFlat() + attr.getHitFlat());
+        data.setFleeBonusFlat(data.getFleeBonusFlat() + attr.getFleeFlat());
+
+        data.setPDmgReductionPercent(data.getPDmgReductionPercent() + attr.getPDmgReductionPercent());
+        data.setMDmgReductionPercent(data.getMDmgReductionPercent() + attr.getMDmgReductionPercent());
+    }
+
+    public void updatePlayerStats(Player player) {
+        // 1. Recalculate gear bonuses
+        applyAllEquipmentAttributes(player);
+
+        // 2. Fetch data
+        PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+
+        // 3. Update Vanilla Attributes
         double finalMaxHealth = data.getMaxHP();
-
         if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0;
         setAttribute(player, Attribute.GENERIC_MAX_HEALTH, finalMaxHealth);
 
-        // 2. AGI -> Movement Speed
-        // ใช้ BaseMSPD + MSpdPercent
         double speedBonus = data.getBaseMSPD() + (data.getMSpdPercent() / 100.0);
-        double finalSpeed = speedBonus;
-        if (finalSpeed > 1.0) finalSpeed = 1.0;
+        double finalSpeed = Math.min(1.0, speedBonus);
         setAttribute(player, Attribute.GENERIC_MOVEMENT_SPEED, finalSpeed);
 
-        // 3. ASPD
-        // ใช้ค่า ASPD Multiplier ที่ถูกแก้ไขใน StatManager.java
-        double aspdMultiplier = stats.getAspdBonus(player);
+        double aspdMultiplier = plugin.getStatManager().getAspdBonus(player);
         setAttribute(player, Attribute.GENERIC_ATTACK_SPEED, 4.0 * aspdMultiplier);
 
-        // 4. Soft DEF
-        // ใช้สูตร SoftPDEF ที่ถูกแก้ไขใน StatManager.java (VIT * 0.5 + AGI * 0.2)
-        double softDef = stats.getSoftDef(player);
+        double softDef = plugin.getStatManager().getSoftDef(player);
         setAttribute(player, Attribute.GENERIC_ARMOR, softDef);
 
         if (player.getHealth() > finalMaxHealth) {

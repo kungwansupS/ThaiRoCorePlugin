@@ -16,6 +16,7 @@ public class StatManager {
     }
 
     public PlayerData getData(UUID uuid) {
+        // Fix: Pass plugin instance to PlayerData constructor
         return playerDataMap.computeIfAbsent(uuid, k -> new PlayerData(plugin));
     }
 
@@ -27,7 +28,6 @@ public class StatManager {
         getData(uuid).setStat(statName, value);
     }
 
-    // Helper method to get the total cost of pending points for one stat
     public int getPendingCost(PlayerData data, String statName) {
         int pendingCount = data.getPendingStat(statName);
         if (pendingCount == 0) return 0;
@@ -41,7 +41,6 @@ public class StatManager {
         return totalCost;
     }
 
-    // Helper method to get the total cost of ALL pending points
     public int getTotalPendingCost(PlayerData data) {
         int totalCost = 0;
         for (String stat : data.getStatKeys()) {
@@ -98,7 +97,6 @@ public class StatManager {
         }
     }
 
-
     public int getStatCost(int currentVal) {
         int costBase = plugin.getConfig().getInt("stat-cost.base", 2);
         int costDivisor = plugin.getConfig().getInt("stat-cost.divisor", 10);
@@ -108,123 +106,61 @@ public class StatManager {
         return ((currentVal - 1) / costDivisor) + costBase;
     }
 
-    // === FORMULAS (SECTION A: DERIVED STATS) ===
-
-    // Formula A.3 (P.ATK) - Corrected (Updated to include Gear Bonus)
     public double getPhysicalAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int str = data.getStat("STR") + data.getPendingStat("STR") + data.getSTRBonusGear();
         int dex = data.getStat("DEX") + data.getPendingStat("DEX") + data.getDEXBonusGear();
         int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
-
-        // Physical Attack = STR × 1 + DEX × 0.2 + LUK × 0.2 + WeaponATK + PhysicalBonus
         return (str * 1.0) + (dex * 0.2) + (luk * 0.2) + data.getWeaponPAtk() + data.getPAtkBonusFlat();
     }
 
-    // Formula A.4 (M.ATK) - Corrected (Updated to include Gear Bonus)
     public double getMagicAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int intel = data.getStat("INT") + data.getPendingStat("INT") + data.getINTBonusGear();
         int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
-
-        // Magic Attack = INT × 1.5 + LUK × 0.3 + MagicBonus
         return (intel * 1.5) + (luk * 0.3) + data.getWeaponMAtk() + data.getMAtkBonusFlat();
     }
 
-    // Setting to 0.0 as it's no longer derived from STR based on new formulas (Used in CombatHandler)
-    public double getPhysicalDamageBonus(Player player) {
-        return 0.0;
-    }
-
-    // Setting to 0.0 as it's no longer derived from INT based on new formulas (Used in CombatHandler)
-    public double getMagicDamageBonus(Player player) {
-        return 0.0;
-    }
-
-    // Formula A.5 (HIT) - Corrected (Updated to include Gear Bonus)
     public int getHit(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int dex = data.getStat("DEX") + data.getPendingStat("DEX") + data.getDEXBonusGear();
-
-        // Hit = DEX × 1 + BaseHit (BaseHit assumed to be data.getHitBonusFlat())
         return (int) (dex + data.getHitBonusFlat());
     }
 
-    // Formula A.6 (FLEE) - Corrected (Updated to include Gear Bonus)
     public int getFlee(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int agi = data.getStat("AGI") + data.getPendingStat("AGI") + data.getAGIBonusGear();
-
-        // Flee = AGI × 1 + BaseFlee (BaseFlee assumed to be data.getFleeBonusFlat())
         return (int) (agi + data.getFleeBonusFlat());
     }
 
-    // ASPD - New logic for consistency with AttributeHandler and GearBonus% (Updated to include Gear Bonus)
-    // Returns the total multiplier to be applied (e.g. 1.20 for 120%)
     public double getAspdBonus(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int agi = data.getStat("AGI") + data.getPendingStat("AGI") + data.getAGIBonusGear();
         int dex = data.getStat("DEX") + data.getPendingStat("DEX") + data.getDEXBonusGear();
-
-        // ASPD Stat Bonus: AGI * 1% (0.01) + DEX * 0.2% (0.002) - based on original AttributeHandler coefficients
         double statBonus = (agi * 0.01) + (dex * 0.002);
-
-        // Value is 1.0 (base) + statBonus + GearBonus
         return 1.0 + statBonus + (data.getASpdPercent() / 100.0);
     }
 
-    // Helper Methods (for display/combat compatibility)
-
-    // SoftPDEF - Corrected (Updated to include Gear Bonus)
     public double getSoftDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int vit = data.getStat("VIT") + data.getVITBonusGear();
         int agi = data.getStat("AGI") + data.getAGIBonusGear();
-        // SoftPDEF = VIT × 0.5 + AGI × 0.2
-        return (vit * 0.5) + (agi * 0.2); // Proxy for BasePDef
+        return (vit * 0.5) + (agi * 0.2);
     }
 
-    // SoftMDEF - Corrected (Updated to include Gear Bonus)
     public double getSoftMDef(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int intel = data.getStat("INT") + data.getINTBonusGear();
         int vit = data.getStat("VIT") + data.getVITBonusGear();
-        // SoftMDEF = INT × 1 + VIT × 0.2
-        return (intel * 1.0) + (vit * 0.2); // Proxy for BaseMDef
+        return (intel * 1.0) + (vit * 0.2);
     }
 
-    // CritChance - Adjusted to return raw value (LUK * 0.3) (Updated to include Gear Bonus)
     public double getCritChance(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
         int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
-        // CriticalChance = max(0, LUK × 0.3 - TargetCritRes)
-        return luk * 0.3; // Raw CRIT value
+        return luk * 0.3;
     }
 
-    public double getPhysicalPenetration(Player player) {
-        PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
-        int luk = data.getStat("LUK") + data.getPendingStat("LUK") + data.getLUKBonusGear();
-        return (luk * 0.1) / 100.0; // Proxy P.PEN% (Keeping existing LUK derived stat)
-    }
-
-    // Keeping this method as it's not explicitly contradicted by a new formula, and may be used elsewhere. (Updated to include Gear Bonus)
-    public double getCriticalDamage(Player player) {
-        PlayerData data = getData(player.getUniqueId());
-        // Change: Add Gear Bonuses
-        int str = data.getStat("STR") + data.getPendingStat("STR") + data.getSTRBonusGear();
-        return 1.4 + ((str * 0.2) / 100.0); // Old formula kept as proxy
-    }
-
-    // Power calculation (Updated to include Gear Bonus, excluding pending stat)
     public double calculatePower(Player player) {
         PlayerData data = getData(player.getUniqueId());
         double str = data.getStat("STR") + data.getSTRBonusGear();
