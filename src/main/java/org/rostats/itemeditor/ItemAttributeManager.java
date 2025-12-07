@@ -11,6 +11,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.rostats.ThaiRoCorePlugin;
 
 import java.util.List;
+import java.util.ArrayList;
 
 public class ItemAttributeManager {
 
@@ -41,8 +42,14 @@ public class ItemAttributeManager {
             attr.setRemoveVanillaAttribute(true);
         }
 
+        // FIX: Read CustomModelData
         if (meta.hasCustomModelData()) {
             attr.setCustomModelData(meta.getCustomModelData());
+        }
+
+        // FIX: Read Lore (to preserve it)
+        if (meta.hasLore()) {
+            attr.setLore(meta.getLore());
         }
 
         return attr;
@@ -82,8 +89,15 @@ public class ItemAttributeManager {
             meta.removeItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         }
 
+        // FIX: Apply CustomModelData
         if (attr.getCustomModelData() != null && attr.getCustomModelData() != 0) {
             meta.setCustomModelData(attr.getCustomModelData());
+        }
+
+        // FIX: Apply Lore from Attribute (if saved) OR use item's current lore + stats
+        // Note: The stats lore is appended by `updateLore`
+        if (attr.getLore() != null && !attr.getLore().isEmpty()) {
+            meta.setLore(attr.getLore());
         }
 
         item.setItemMeta(meta);
@@ -98,6 +112,11 @@ public class ItemAttributeManager {
             lore.replaceAll(s -> s.replace("&", "§"));
             meta.setLore(lore);
         }
+
+        // Fix: Also load CustomModelData from config if present (Root level)
+        if (config.contains("customModelData")) meta.setCustomModelData(config.getInt("customModelData"));
+        else if (config.contains("custom-model-data")) meta.setCustomModelData(config.getInt("custom-model-data"));
+
         item.setItemMeta(meta);
     }
 
@@ -157,10 +176,8 @@ public class ItemAttributeManager {
             case IGNORE_MDEF_PERCENT: attr.setIgnoreMDefPercent(val); break;
             case MELEE_PDMG_PERCENT: attr.setMeleePDmgPercent(val); break;
             case RANGE_PDMG_PERCENT: attr.setRangePDmgPercent(val); break;
-            // ** FIXED: Added missing cases **
             case MELEE_PDMG_REDUCTION_PERCENT: attr.setMeleePDReductionPercent(val); break;
             case RANGE_PDMG_REDUCTION_PERCENT: attr.setRangePDReductionPercent(val); break;
-
             case TRUE_DMG: attr.setTrueDamageFlat(val); break;
         }
     }
@@ -221,10 +238,8 @@ public class ItemAttributeManager {
             case IGNORE_MDEF_PERCENT: return attr.getIgnoreMDefPercent();
             case MELEE_PDMG_PERCENT: return attr.getMeleePDmgPercent();
             case RANGE_PDMG_PERCENT: return attr.getRangePDmgPercent();
-            // ** FIXED: Added missing cases **
             case MELEE_PDMG_REDUCTION_PERCENT: return attr.getMeleePDReductionPercent();
             case RANGE_PDMG_REDUCTION_PERCENT: return attr.getRangePDReductionPercent();
-
             case TRUE_DMG: return attr.getTrueDamageFlat();
             default: return 0.0;
         }
@@ -252,7 +267,17 @@ public class ItemAttributeManager {
     public void updateLore(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return;
         ItemMeta meta = item.getItemMeta();
-        java.util.List<String> lore = new java.util.ArrayList<>();
+
+        // FIX: Retrieve existing lore first
+        List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+
+        // Remove old stats section if exists to prevent duplication
+        // Simple strategy: Remove lines starting with specific header or clear and rebuild if we manage all lore
+        // For mixed lore (Description + Stats), we need a separator.
+        // Assuming we append stats at the end.
+
+        // Filter out old stats lines (Naive approach: remove lines matching Stat patterns)
+        lore.removeIf(line -> line.contains("§f§l--- Item Stats ---") || line.contains("Bonus") || line.contains("P.ATK") || line.contains("M.ATK"));
 
         lore.add("§f§l--- Item Stats ---");
         for (ItemAttributeType type : ItemAttributeType.values()) {

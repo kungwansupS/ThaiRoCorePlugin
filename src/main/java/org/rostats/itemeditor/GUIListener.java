@@ -14,6 +14,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
 
 import java.io.File;
+import java.util.ArrayList;
 
 public class GUIListener implements Listener {
 
@@ -211,6 +212,23 @@ public class GUIListener implements Listener {
             });
             return;
         }
+
+        // FIX: Clear Lore Button
+        if (dp.contains("Clear Lore")) {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
+            attr.setLore(new ArrayList<>()); // Clear Attribute Lore
+
+            ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
+            ItemMeta meta = stack.getItemMeta();
+            meta.setLore(new ArrayList<>()); // Clear Item Lore
+            stack.setItemMeta(meta);
+
+            plugin.getItemManager().saveItem(finalItemFile, attr, stack);
+            player.sendMessage("§aLore cleared.");
+            new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
+            return;
+        }
+
         if (dp.contains("Remove Vanilla")) {
             ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
             attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
@@ -255,7 +273,7 @@ public class GUIListener implements Listener {
                 } else if (event.getClick() == ClickType.RIGHT) {
                     change = -type.getClickStep(); // -1
                 } else if (event.getClick() == ClickType.SHIFT_LEFT) {
-                    change = type.getClickStep() * 10; // +10 (or use RightClickStep if defined as 10)
+                    change = type.getClickStep() * 10; // +10
                 } else if (event.getClick() == ClickType.SHIFT_RIGHT) {
                     change = -type.getClickStep() * 10; // -10
                 }

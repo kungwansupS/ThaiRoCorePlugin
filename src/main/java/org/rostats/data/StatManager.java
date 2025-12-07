@@ -156,7 +156,7 @@ public class StatManager {
         PlayerData data = getData(player.getUniqueId());
         int agi = getTotalStat(data, "AGI");
         int dex = getTotalStat(data, "DEX");
-        double statBonus = (agi * 0.02) + (dex * 0.005); // Increased multiplier slightly
+        double statBonus = (agi * 0.02) + (dex * 0.005);
         return 1.0 + statBonus + (data.getASpdPercent() / 100.0);
     }
 

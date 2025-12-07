@@ -1,8 +1,18 @@
 package org.rostats.itemeditor;
 
 import org.bukkit.configuration.ConfigurationSection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 
 public class ItemAttribute {
+
+    // --- Preservation Data (For other plugins like ExecutableItems) ---
+    private Map<String, Object> extraData = new HashMap<>(); // Store unknown keys here
+    private Integer customModelData = null;
+    private String itemModel = null;
+    private List<String> lore = new ArrayList<>();
 
     // Gear Stats
     private int strGear;
@@ -33,7 +43,7 @@ public class ItemAttribute {
     private double finalPDmgPercent;
     private double finalMDmgPercent;
 
-    // PvP / PvE Bonus & Reduction
+    // PvP / PvE (RAW)
     private double pveDmgPercent;
     private double pvpDmgPercent;
     private double pveDmgReductionPercent;
@@ -75,9 +85,7 @@ public class ItemAttribute {
     // True Damage
     private double trueDamageFlat;
 
-    // Cosmetic / System
     private boolean removeVanillaAttribute;
-    private Integer customModelData; // NEW: รองรับ Custom Model Data
 
     public ItemAttribute() {}
 
@@ -85,95 +93,124 @@ public class ItemAttribute {
         ItemAttribute attr = new ItemAttribute();
         if (root == null) return attr;
 
-        // Load Root Level Configs
-        attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
-        if (root.contains("custom-model-data")) {
-            attr.customModelData = root.getInt("custom-model-data");
-        } else if (root.contains("CustomModelData")) { // Support both casings
-            attr.customModelData = root.getInt("CustomModelData");
+        // 1. Load Root Level Configs & Preserve Extra Data
+        for (String key : root.getKeys(false)) {
+            if (key.equalsIgnoreCase("attributes")) continue; // Handled separately
+            if (key.equalsIgnoreCase("material")) continue; // Handled by Manager
+            if (key.equalsIgnoreCase("name")) continue; // Handled by Manager
+
+            // Capture specific known cosmetic/system fields
+            if (key.equalsIgnoreCase("remove-vanilla")) {
+                attr.removeVanillaAttribute = root.getBoolean(key);
+            } else if (key.equalsIgnoreCase("custommodeldata") || key.equalsIgnoreCase("custom-model-data")) {
+                attr.customModelData = root.getInt(key);
+            } else if (key.equalsIgnoreCase("itemmodel") || key.equalsIgnoreCase("item-model")) {
+                attr.itemModel = root.getString(key);
+            } else if (key.equalsIgnoreCase("lore")) {
+                attr.lore = root.getStringList(key);
+            } else {
+                // Unknown keys (e.g., activators, hiders, config_5) -> Store in Map to save back later
+                attr.extraData.put(key, root.get(key));
+            }
         }
 
+        // 2. Load Attributes
         ConfigurationSection att = root.getConfigurationSection("attributes");
-        if (att == null) return attr;
+        if (att != null) {
+            attr.strGear = att.getInt("str", 0);
+            attr.agiGear = att.getInt("agi", 0);
+            attr.vitGear = att.getInt("vit", 0);
+            attr.intGear = att.getInt("int", 0);
+            attr.dexGear = att.getInt("dex", 0);
+            attr.lukGear = att.getInt("luk", 0);
 
-        // Load Attributes
-        attr.strGear = att.getInt("str", 0);
-        attr.agiGear = att.getInt("agi", 0);
-        attr.vitGear = att.getInt("vit", 0);
-        attr.intGear = att.getInt("int", 0);
-        attr.dexGear = att.getInt("dex", 0);
-        attr.lukGear = att.getInt("luk", 0);
+            attr.weaponPAtk = att.getDouble("weapon-p-atk", 0);
+            attr.weaponMAtk = att.getDouble("weapon-m-atk", 0);
+            attr.pAtkFlat = att.getDouble("p-atk-flat", 0);
+            attr.mAtkFlat = att.getDouble("m-atk-flat", 0);
 
-        attr.weaponPAtk = att.getDouble("weapon-p-atk", 0);
-        attr.weaponMAtk = att.getDouble("weapon-m-atk", 0);
-        attr.pAtkFlat = att.getDouble("p-atk-flat", 0);
-        attr.mAtkFlat = att.getDouble("m-atk-flat", 0);
+            attr.pDmgPercent = att.getDouble("p-dmg-%", 0);
+            attr.mDmgPercent = att.getDouble("m-dmg-%", 0);
+            attr.pDmgFlat = att.getDouble("p-dmg-flat", 0);
+            attr.mDmgFlat = att.getDouble("m-dmg-flat", 0);
 
-        attr.pDmgPercent = att.getDouble("p-dmg-%", 0);
-        attr.mDmgPercent = att.getDouble("m-dmg-%", 0);
-        attr.pDmgFlat = att.getDouble("p-dmg-flat", 0);
-        attr.mDmgFlat = att.getDouble("m-dmg-flat", 0);
+            attr.critDmgPercent = att.getDouble("crit-dmg-%", 0);
+            attr.critDmgResPercent = att.getDouble("crit-dmg-res-%", 0);
+            attr.critRes = att.getDouble("crit-res", 0);
 
-        attr.critDmgPercent = att.getDouble("crit-dmg-%", 0);
-        attr.critDmgResPercent = att.getDouble("crit-dmg-res-%", 0);
-        attr.critRes = att.getDouble("crit-res", 0);
+            attr.pPenFlat = att.getDouble("p-pen-flat", 0);
+            attr.mPenFlat = att.getDouble("m-pen-flat", 0);
+            attr.pPenPercent = att.getDouble("p-pen-%", 0);
+            attr.mPenPercent = att.getDouble("m-pen-%", 0);
 
-        attr.pPenFlat = att.getDouble("p-pen-flat", 0);
-        attr.mPenFlat = att.getDouble("m-pen-flat", 0);
-        attr.pPenPercent = att.getDouble("p-pen-%", 0);
-        attr.mPenPercent = att.getDouble("m-pen-%", 0);
+            attr.finalDmgPercent = att.getDouble("final-dmg-%", 0);
+            attr.finalDmgResPercent = att.getDouble("final-dmg-res-%", 0);
+            attr.finalPDmgPercent = att.getDouble("final-p-dmg-%", 0);
+            attr.finalMDmgPercent = att.getDouble("final-m-dmg-%", 0);
 
-        attr.finalDmgPercent = att.getDouble("final-dmg-%", 0);
-        attr.finalDmgResPercent = att.getDouble("final-dmg-res-%", 0);
-        attr.finalPDmgPercent = att.getDouble("final-p-dmg-%", 0);
-        attr.finalMDmgPercent = att.getDouble("final-m-dmg-%", 0);
+            attr.pveDmgPercent = att.getDouble("pve-dmg-%", 0);
+            attr.pvpDmgPercent = att.getDouble("pvp-dmg-%", 0);
+            attr.pveDmgReductionPercent = att.getDouble("pve-reduce-%", 0);
+            attr.pvpDmgReductionPercent = att.getDouble("pvp-reduce-%", 0);
 
-        attr.pveDmgPercent = att.getDouble("pve-dmg-%", 0);
-        attr.pvpDmgPercent = att.getDouble("pvp-dmg-%", 0);
-        attr.pveDmgReductionPercent = att.getDouble("pve-reduce-%", 0);
-        attr.pvpDmgReductionPercent = att.getDouble("pvp-reduce-%", 0);
+            attr.maxHPPercent = att.getDouble("max-hp-%", 0);
+            attr.maxSPPercent = att.getDouble("max-sp-%", 0);
+            attr.shieldValueFlat = att.getDouble("shield-flat", 0);
+            attr.shieldRatePercent = att.getDouble("shield-rate-%", 0);
 
-        attr.maxHPPercent = att.getDouble("max-hp-%", 0);
-        attr.maxSPPercent = att.getDouble("max-sp-%", 0);
-        attr.shieldValueFlat = att.getDouble("shield-flat", 0);
-        attr.shieldRatePercent = att.getDouble("shield-rate-%", 0);
+            attr.aSpdPercent = att.getDouble("aspd-%", 0);
+            attr.mSpdPercent = att.getDouble("mspd-%", 0);
+            attr.baseMSPD = att.getDouble("base-mspd", 0);
 
-        attr.aSpdPercent = att.getDouble("aspd-%", 0);
-        attr.mSpdPercent = att.getDouble("mspd-%", 0);
-        attr.baseMSPD = att.getDouble("base-mspd", 0);
+            attr.varCTPercent = att.getDouble("var-ct-%", 0);
+            attr.varCTFlat = att.getDouble("var-ct-flat", 0);
+            attr.fixedCTPercent = att.getDouble("fixed-ct-%", 0);
+            attr.fixedCTFlat = att.getDouble("fixed-ct-flat", 0);
 
-        attr.varCTPercent = att.getDouble("var-ct-%", 0);
-        attr.varCTFlat = att.getDouble("var-ct-flat", 0);
-        attr.fixedCTPercent = att.getDouble("fixed-ct-%", 0);
-        attr.fixedCTFlat = att.getDouble("fixed-ct-flat", 0);
+            attr.healingEffectPercent = att.getDouble("heal-effect-%", 0);
+            attr.healingReceivedPercent = att.getDouble("heal-received-%", 0);
+            attr.lifestealPPercent = att.getDouble("lifesteal-p-%", 0);
+            attr.lifestealMPercent = att.getDouble("lifesteal-m-%", 0);
 
-        attr.healingEffectPercent = att.getDouble("heal-effect-%", 0);
-        attr.healingReceivedPercent = att.getDouble("heal-received-%", 0);
-        attr.lifestealPPercent = att.getDouble("lifesteal-p-%", 0);
-        attr.lifestealMPercent = att.getDouble("lifesteal-m-%", 0);
+            attr.hitFlat = att.getDouble("hit-flat", 0);
+            attr.fleeFlat = att.getDouble("flee-flat", 0);
 
-        attr.hitFlat = att.getDouble("hit-flat", 0);
-        attr.fleeFlat = att.getDouble("flee-flat", 0);
+            attr.pDmgReductionPercent = att.getDouble("p-dmg-reduce-%", 0);
+            attr.mDmgReductionPercent = att.getDouble("m-dmg-reduce-%", 0);
 
-        attr.pDmgReductionPercent = att.getDouble("p-dmg-reduce-%", 0);
-        attr.mDmgReductionPercent = att.getDouble("m-dmg-reduce-%", 0);
+            attr.ignorePDefFlat = att.getDouble("ignore-p-def-flat", 0);
+            attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
+            attr.ignorePDefPercent = att.getDouble("ignore-p-def-%", 0);
+            attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
 
-        attr.ignorePDefFlat = att.getDouble("ignore-p-def-flat", 0);
-        attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
-        attr.ignorePDefPercent = att.getDouble("ignore-p-def-%", 0);
-        attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
+            attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
+            attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
+            attr.meleePDReductionPercent = att.getDouble("melee-p-reduce-%", 0);
+            attr.rangePDReductionPercent = att.getDouble("range-p-reduce-%", 0);
 
-        attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
-        attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
-        attr.meleePDReductionPercent = att.getDouble("melee-p-reduce-%", 0);
-        attr.rangePDReductionPercent = att.getDouble("range-p-reduce-%", 0);
-
-        attr.trueDamageFlat = att.getDouble("true-damage", 0);
+            attr.trueDamageFlat = att.getDouble("true-damage", 0);
+        }
 
         return attr;
     }
 
-    public void saveToConfig(ConfigurationSection section) {
+    public void saveToConfig(ConfigurationSection root) {
+        // 1. Restore Extra Data (Preserve EI/IA fields)
+        if (extraData != null) {
+            for (Map.Entry<String, Object> entry : extraData.entrySet()) {
+                root.set(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // 2. Save Specific Root Fields
+        if (customModelData != null && customModelData != 0) root.set("customModelData", customModelData);
+        if (itemModel != null) root.set("itemModel", itemModel);
+        if (lore != null && !lore.isEmpty()) root.set("lore", lore);
+        root.set("remove-vanilla", removeVanillaAttribute);
+
+        // 3. Save Attributes
+        ConfigurationSection section = root.createSection("attributes");
+
         if (strGear != 0) section.set("str", strGear);
         if (agiGear != 0) section.set("agi", agiGear);
         if (vitGear != 0) section.set("vit", vitGear);
@@ -248,7 +285,7 @@ public class ItemAttribute {
         if (trueDamageFlat != 0) section.set("true-damage", trueDamageFlat);
     }
 
-    // Getters and Setters
+    // Getters and Setters (Complete)
     public int getStrGear() { return strGear; }
     public void setStrGear(int strGear) { this.strGear = strGear; }
     public int getAgiGear() { return agiGear; }
@@ -384,7 +421,16 @@ public class ItemAttribute {
     public boolean isRemoveVanillaAttribute() { return removeVanillaAttribute; }
     public void setRemoveVanillaAttribute(boolean removeVanillaAttribute) { this.removeVanillaAttribute = removeVanillaAttribute; }
 
-    // NEW: Getters/Setters for CustomModelData
     public Integer getCustomModelData() { return customModelData; }
     public void setCustomModelData(Integer customModelData) { this.customModelData = customModelData; }
+
+    public String getItemModel() { return itemModel; }
+    public void setItemModel(String itemModel) { this.itemModel = itemModel; }
+
+    public List<String> getLore() { return lore; }
+    public void setLore(List<String> lore) { this.lore = lore; }
+
+    // NEW: Access to Extra Data for advanced users
+    public Map<String, Object> getExtraData() { return extraData; }
+    public void addExtraData(String key, Object value) { extraData.put(key, value); }
 }

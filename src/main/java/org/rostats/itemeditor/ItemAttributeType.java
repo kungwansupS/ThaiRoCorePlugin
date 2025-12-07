@@ -48,7 +48,7 @@ public enum ItemAttributeType {
     MELEE_PDMG_REDUCTION_PERCENT("MeleePDReductionPercent", "§aMelee Reduce %", Material.CHAINMAIL_CHESTPLATE, "%.1f%%", 1.0, 5.0),
     RANGE_PDMG_REDUCTION_PERCENT("RangePDReductionPercent", "§aRange Reduce %", Material.CHAINMAIL_HELMET, "%.1f%%", 1.0, 5.0),
 
-    // ** FIXED: Removed '%' suffix for RAW PVE/PVP fields **
+    // ** FIXED: Removed '%' suffix for RAW PVE/PVP fields per request **
     PVE_DMG_PERCENT("PveDmgBonusPercent", "§aPVE RAW Bonus", Material.OAK_SAPLING, "%.0f", 1.0, 10.0),
     PVP_DMG_PERCENT("PvpDmgBonusPercent", "§cPVP RAW Bonus", Material.IRON_SWORD, "%.0f", 1.0, 10.0),
 
