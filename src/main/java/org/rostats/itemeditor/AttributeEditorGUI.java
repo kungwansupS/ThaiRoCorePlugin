@@ -68,6 +68,15 @@ public class AttributeEditorGUI {
                 "§7เปิดระบบแก้ไขแบบหลายบรรทัดในแชท"
         ));
 
+        // [NEW] Change Item Type Button
+        inv.setItem(21, createIcon(Material.ANVIL, "§eChange Type / เปลี่ยนประเภท",
+                "§7Change the item material.",
+                "§7(e.g. Sword, Armor, Paper)",
+                "§8---------------",
+                "§7เปลี่ยนชนิดของไอเทม",
+                "§7(เช่น ดาบ, เกราะ, กระดาษ)"
+        ));
+
         inv.setItem(22, createIcon(Material.POTION, "§dEdit Effects / เอฟเฟกต์ยา",
                 "§7Manage Potion Effects.",
                 "§7(Passive effects when held/worn)",

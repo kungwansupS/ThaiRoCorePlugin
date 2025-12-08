@@ -17,7 +17,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
-import org.rostats.gui.SkillLibraryGUI; // Import ของ Skill Lib
+import org.rostats.gui.SkillLibraryGUI;
 
 import java.io.File;
 import java.util.HashMap;
@@ -28,8 +28,6 @@ import java.util.UUID;
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
-    // ใช้เก็บ state ชั่วคราวของผู้เล่นขณะกำลังทำ Flow เพิ่มสกิล
-    // Key: UUID, Value: Map<"itemFile"|"skillId"|"trigger", Object>
     private final Map<UUID, Map<String, Object>> skillBindingFlow = new HashMap<>();
 
     public GUIListener(ThaiRoCorePlugin plugin) {
@@ -71,22 +69,59 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
         }
-        // --- 4. NEW: Skill Select Logic (From SkillLibraryGUI) ---
+        // --- 4. Skill Select Logic ---
         else if (title.startsWith("SkillSelect: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             handleSkillSelectClick(event, player, title.substring(13));
         }
-        // --- 5. NEW: Trigger Select Logic ---
+        // --- 5. Trigger Select Logic ---
         else if (title.startsWith("Select Trigger: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             handleTriggerSelectClick(event, player, title.substring(16));
         }
+        // --- 6. [NEW] Material Select Logic ---
+        else if (title.startsWith("Material Select: ")) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+            handleMaterialSelectClick(event, player, title.substring(17));
+        }
     }
 
-    // --- NEW HANDLERS FOR SKILL FLOW ---
+    // --- NEW: Material Select Handler ---
+    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
 
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+
+        if (clicked.getType() == Material.ARROW) {
+            // Cancel -> Back
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            return;
+        }
+
+        if (clicked.getType() != Material.AIR) {
+            // Material Selected
+            Material newType = clicked.getType();
+            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+            stack.setType(newType); // Change type
+
+            // Save
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            plugin.getItemManager().saveItem(itemFile, attr, stack);
+
+            player.sendMessage("§aMaterial changed to " + newType.name());
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+
+            // Back to Editor
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+        }
+    }
+
+    // --- NEW HANDLERS FOR SKILL FLOW (Existing from previous request) ---
     private void handleSkillSelectClick(InventoryClickEvent event, Player player, String relativePath) {
         File currentDir = plugin.getSkillManager().getFileFromRelative(relativePath);
         if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
@@ -94,7 +129,6 @@ public class GUIListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
-        // Navigation
         if (clicked.getType() == Material.ARROW) {
             new SkillLibraryGUI(plugin, currentDir.getParentFile()).openSelectMode(player);
             return;
@@ -110,15 +144,11 @@ public class GUIListener implements Listener {
         if (target.isDirectory()) {
             new SkillLibraryGUI(plugin, target).openSelectMode(player);
         } else {
-            // Skill Selected!
-            // 1. Save skillId to temp map
             String skillId = name.replace(".yml", "");
             Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
-            if (flowData == null) return; // Should not happen if flow started correctly
+            if (flowData == null) return;
 
             flowData.put("skillId", skillId);
-
-            // 2. Open Trigger Selector
             new TriggerSelectorGUI(plugin, skillId).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         }
@@ -129,7 +159,6 @@ public class GUIListener implements Listener {
         if (clicked == null) return;
 
         if (clicked.getType() == Material.ARROW) {
-            // Cancel -> Back to Item Skill Editor
             Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
             if (flowData != null && flowData.containsKey("itemFile")) {
                 new SkillBindingGUI(plugin, (File) flowData.get("itemFile")).open(player);
@@ -137,7 +166,6 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Get Trigger from Lore
         List<String> lore = clicked.getItemMeta().getLore();
         TriggerType trigger = null;
         if (lore != null) {
@@ -152,18 +180,15 @@ public class GUIListener implements Listener {
         }
 
         if (trigger != null) {
-            // Trigger Selected!
             Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
             if (flowData == null) return;
             flowData.put("trigger", trigger);
 
-            // 3. Ask for Level (Chat)
             plugin.getChatInputHandler().awaitInput(player, "Enter Skill Level (ตัวเลข):", (lvlStr) -> {
                 try {
                     int level = Integer.parseInt(lvlStr);
                     if (level < 1) level = 1;
 
-                    // 4. Ask for Chance (Chat)
                     int finalLevel = level;
                     plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0 - 1.0, e.g. 1.0 = 100%):", (chanceStr) -> {
                         try {
@@ -171,7 +196,6 @@ public class GUIListener implements Listener {
                             if (chance < 0) chance = 0;
                             if (chance > 1) chance = 1;
 
-                            // 5. FINISH: Save everything
                             File itemFile = (File) flowData.get("itemFile");
                             String sId = (String) flowData.get("skillId");
                             TriggerType trig = (TriggerType) flowData.get("trigger");
@@ -185,7 +209,6 @@ public class GUIListener implements Listener {
                             player.sendMessage("§aSkill bound successfully!");
                             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
 
-                            // Clean up and reopen GUI
                             skillBindingFlow.remove(player.getUniqueId());
                             new BukkitRunnableWrapper(plugin, () -> new SkillBindingGUI(plugin, itemFile).open(player));
 
@@ -201,8 +224,6 @@ public class GUIListener implements Listener {
         }
     }
 
-    // --- MODIFIED EXISTING HANDLERS ---
-
     private void handleSkillBindingClick(InventoryClickEvent event, Player player, String title) {
         String fileName = title.substring(8, title.lastIndexOf(" ["));
         File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
@@ -212,18 +233,14 @@ public class GUIListener implements Listener {
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
         if (clicked.getType() == Material.LIME_DYE) {
-            // Add Skill -> Start Flow
             Map<String, Object> flowData = new HashMap<>();
             flowData.put("itemFile", itemFile);
             skillBindingFlow.put(player.getUniqueId(), flowData);
-
-            // Open Skill Library Selector
             new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).openSelectMode(player);
 
-        } else if (clicked.getType() == Material.ARROW) { // Back
+        } else if (clicked.getType() == Material.ARROW) {
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
         } else if (clicked.getType() == Material.ENCHANTED_BOOK) {
-            // Remove on Right Click
             if (event.isRightClick()) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
                 List<ItemSkillBinding> bindings = attr.getSkillBindings();
@@ -238,47 +255,153 @@ public class GUIListener implements Listener {
         }
     }
 
-    // ... (ส่วนอื่นๆ ของไฟล์ handleEffectEnchantClick, handleConfirmDeleteClick, handleLibraryClick, handleEditorClick, handleImportItem ยังคงเหมือนเดิม ไม่ต้องแก้ แต่ต้องแปะไว้ให้ครบเพื่อให้ compile ผ่าน) ...
+    private void handleEditorClick(InventoryClickEvent event, Player player, String title) {
+        int lastSpaceIndex = title.lastIndexOf(" [");
+        if (lastSpaceIndex == -1) return;
+        String fileName = title.substring(8, lastSpaceIndex);
 
-    // เพื่อประหยัดพื้นที่ ผมจะละส่วนที่เหลือไว้ หากคุณต้องการไฟล์เต็มแจ้งได้ครับ
-    // แต่หลักๆ คือเพิ่ม handleSkillSelectClick, handleTriggerSelectClick
-    // และแก้ handleSkillBindingClick ให้ใช้ flow ใหม่ครับ
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null || !itemFile.exists()) {
+            player.sendMessage("§cError: File not found: " + fileName);
+            player.closeInventory();
+            return;
+        }
 
-    // --- Helper Methods ---
-    private void applyEffectEnchant(Player player, File file, Mode mode, String key, int level, boolean add) {
-        new BukkitRunnableWrapper(plugin, () -> {
-            ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
-            ItemStack stack = plugin.getItemManager().loadItemStack(file);
-            boolean changed = false;
+        final File finalItemFile = itemFile;
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || !clicked.hasItemMeta()) return;
 
-            if (mode == Mode.EFFECT) {
-                PotionEffectType type = PotionEffectType.getByName(key);
-                if (type != null) {
-                    if (add) attr.getPotionEffects().put(type, level);
-                    else attr.getPotionEffects().remove(type);
-                    plugin.getItemManager().saveItem(file, attr, stack);
-                    changed = true;
-                }
-            } else {
-                Enchantment ench = null;
-                for (Enchantment e : Enchantment.values()) {
-                    if (e.getKey().getKey().equalsIgnoreCase(key)) { ench = e; break; }
-                }
-                if (ench != null) {
-                    ItemMeta meta = stack.getItemMeta();
-                    if (add) meta.addEnchant(ench, level, true);
-                    else meta.removeEnchant(ench);
-                    stack.setItemMeta(meta);
-                    plugin.getItemManager().saveItem(file, attr, stack);
-                    changed = true;
-                }
+        String dp = clicked.getItemMeta().getDisplayName();
+
+        if (dp.contains("Change Type")) {
+            new ItemTypeSelectorGUI(plugin, finalItemFile).open(player);
+            return;
+        }
+
+        if (dp.contains("Edit Effects")) {
+            new EffectEnchantGUI(plugin, finalItemFile, Mode.EFFECT).open(player);
+            return;
+        }
+        if (dp.contains("Edit Enchantments")) {
+            new EffectEnchantGUI(plugin, finalItemFile, Mode.ENCHANT).open(player);
+            return;
+        }
+        if (dp.contains("Edit Skills")) {
+            new SkillBindingGUI(plugin, finalItemFile).open(player);
+            return;
+        }
+
+        if (dp.contains("Back to Library")) {
+            new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
+            return;
+        }
+        for (Page p : Page.values()) {
+            if (dp.contains(p.name())) {
+                new AttributeEditorGUI(plugin, itemFile).open(player, p);
+                return;
             }
+        }
 
-            if (changed) {
-                player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-                new EffectEnchantGUI(plugin, file, mode).open(player);
+        if (dp.contains("Rename Item")) {
+            plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ (รองรับสี &#RRGGBB):", (str) -> {
+                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
+                ItemMeta meta = stack.getItemMeta();
+                if (meta != null) meta.setDisplayName(str.replace("&", "§"));
+                stack.setItemMeta(meta);
+                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
+                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
+                new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
+            });
+            return;
+        }
+        if (dp.contains("Edit Lore")) {
+            plugin.getChatInputHandler().awaitMultiLineInput(player, "แก้ไข Lore:", (lines) -> {
+                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
+                ItemMeta meta = stack.getItemMeta();
+                if (meta != null) meta.setLore(lines);
+                stack.setItemMeta(meta);
+                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
+                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
+                new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
+            });
+            return;
+        }
+        if (dp.contains("Remove Vanilla")) {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
+            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            return;
+        }
+        if (dp.contains("Save to File")) {
+            player.sendMessage("§aSaved!");
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
+            return;
+        }
+
+        for (ItemAttributeType type : ItemAttributeType.values()) {
+            if (dp.equals(type.getDisplayName())) {
+                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+                double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
+                double change = 0;
+                if (event.getClick() == ClickType.LEFT) change = type.getClickStep();
+                else if (event.getClick() == ClickType.RIGHT) change = -type.getClickStep();
+                else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
+                else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
+
+                plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
+                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+                new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
+                return;
             }
-        });
+        }
+    }
+
+    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
+        int lastBracket = title.lastIndexOf(" [");
+        if (lastBracket == -1) return;
+        String fileName = title.substring(8, lastBracket);
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        Mode mode = title.contains("EFFECT") ? Mode.EFFECT : Mode.ENCHANT;
+        String metaKey = "RO_EDITOR_SEL_" + mode.name();
+        String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+        int slot = event.getSlot();
+
+        if (slot < 45) {
+            if (clicked.getType() == Material.AIR) return;
+            String dp = clicked.getItemMeta().getDisplayName();
+            String key = dp.length() > 2 ? dp.substring(2) : dp;
+
+            player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            new EffectEnchantGUI(plugin, itemFile, mode).open(player);
+        }
+        else if (slot == 50 && selected != null) {
+            plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + selected + ":", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
+                } catch (NumberFormatException e) {
+                    player.sendMessage("§cInvalid Number");
+                    new BukkitRunnableWrapper(plugin, () -> new EffectEnchantGUI(plugin, itemFile, mode).open(player));
+                }
+            });
+        }
+        else if (slot == 51 && selected != null) {
+            applyEffectEnchant(player, itemFile, mode, selected, 1, true);
+        }
+        else if (slot == 52 && selected != null) {
+            applyEffectEnchant(player, itemFile, mode, selected, 0, false);
+        }
+        else if (slot == 53) {
+            player.removeMetadata(metaKey, plugin);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+        }
     }
 
     private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
@@ -401,149 +524,40 @@ public class GUIListener implements Listener {
         }
     }
 
-    private void handleEditorClick(InventoryClickEvent event, Player player, String title) {
-        int lastSpaceIndex = title.lastIndexOf(" [");
-        if (lastSpaceIndex == -1) return;
-        String fileName = title.substring(8, lastSpaceIndex);
+    private void applyEffectEnchant(Player player, File file, Mode mode, String key, int level, boolean add) {
+        new BukkitRunnableWrapper(plugin, () -> {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
+            ItemStack stack = plugin.getItemManager().loadItemStack(file);
+            boolean changed = false;
 
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null || !itemFile.exists()) {
-            player.sendMessage("§cError: File not found: " + fileName);
-            player.closeInventory();
-            return;
-        }
-
-        final File finalItemFile = itemFile;
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || !clicked.hasItemMeta()) return;
-
-        String dp = clicked.getItemMeta().getDisplayName();
-
-        if (dp.contains("Edit Effects")) {
-            new EffectEnchantGUI(plugin, finalItemFile, Mode.EFFECT).open(player);
-            return;
-        }
-        if (dp.contains("Edit Enchantments")) {
-            new EffectEnchantGUI(plugin, finalItemFile, Mode.ENCHANT).open(player);
-            return;
-        }
-        if (dp.contains("Edit Skills")) {
-            new SkillBindingGUI(plugin, finalItemFile).open(player);
-            return;
-        }
-
-        if (dp.contains("Back to Library")) {
-            new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
-            return;
-        }
-        for (Page p : Page.values()) {
-            if (dp.contains(p.name())) {
-                new AttributeEditorGUI(plugin, itemFile).open(player, p);
-                return;
-            }
-        }
-
-        if (dp.contains("Rename Item")) {
-            plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ (รองรับสี &#RRGGBB):", (str) -> {
-                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
-                ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setDisplayName(str.replace("&", "§"));
-                stack.setItemMeta(meta);
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
-                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
-                new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
-            });
-            return;
-        }
-        if (dp.contains("Edit Lore")) {
-            plugin.getChatInputHandler().awaitMultiLineInput(player, "แก้ไข Lore:", (lines) -> {
-                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
-                ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setLore(lines);
-                stack.setItemMeta(meta);
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
-                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
-                new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
-            });
-            return;
-        }
-        if (dp.contains("Remove Vanilla")) {
-            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-            attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
-            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-            return;
-        }
-        if (dp.contains("Save to File")) {
-            player.sendMessage("§aSaved!");
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
-            return;
-        }
-
-        // Handle normal attribute clicks
-        for (ItemAttributeType type : ItemAttributeType.values()) {
-            if (dp.equals(type.getDisplayName())) {
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-                double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
-                double change = 0;
-                if (event.getClick() == ClickType.LEFT) change = type.getClickStep();
-                else if (event.getClick() == ClickType.RIGHT) change = -type.getClickStep();
-                else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
-                else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
-
-                plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
-                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-                new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
-                return;
-            }
-        }
-    }
-
-    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
-        int lastBracket = title.lastIndexOf(" [");
-        if (lastBracket == -1) return;
-        String fileName = title.substring(8, lastBracket);
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null) return;
-
-        Mode mode = title.contains("EFFECT") ? Mode.EFFECT : Mode.ENCHANT;
-        String metaKey = "RO_EDITOR_SEL_" + mode.name();
-        String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-        int slot = event.getSlot();
-
-        if (slot < 45) {
-            if (clicked.getType() == Material.AIR) return;
-            String dp = clicked.getItemMeta().getDisplayName();
-            String key = dp.length() > 2 ? dp.substring(2) : dp;
-
-            player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-            new EffectEnchantGUI(plugin, itemFile, mode).open(player);
-        }
-        else if (slot == 50 && selected != null) {
-            plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + selected + ":", (str) -> {
-                try {
-                    int lvl = Integer.parseInt(str);
-                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
-                } catch (NumberFormatException e) {
-                    player.sendMessage("§cInvalid Number");
-                    new BukkitRunnableWrapper(plugin, () -> new EffectEnchantGUI(plugin, itemFile, mode).open(player));
+            if (mode == Mode.EFFECT) {
+                PotionEffectType type = PotionEffectType.getByName(key);
+                if (type != null) {
+                    if (add) attr.getPotionEffects().put(type, level);
+                    else attr.getPotionEffects().remove(type);
+                    plugin.getItemManager().saveItem(file, attr, stack);
+                    changed = true;
                 }
-            });
-        }
-        else if (slot == 51 && selected != null) {
-            applyEffectEnchant(player, itemFile, mode, selected, 1, true);
-        }
-        else if (slot == 52 && selected != null) {
-            applyEffectEnchant(player, itemFile, mode, selected, 0, false);
-        }
-        else if (slot == 53) {
-            player.removeMetadata(metaKey, plugin);
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-        }
+            } else {
+                Enchantment ench = null;
+                for (Enchantment e : Enchantment.values()) {
+                    if (e.getKey().getKey().equalsIgnoreCase(key)) { ench = e; break; }
+                }
+                if (ench != null) {
+                    ItemMeta meta = stack.getItemMeta();
+                    if (add) meta.addEnchant(ench, level, true);
+                    else meta.removeEnchant(ench);
+                    stack.setItemMeta(meta);
+                    plugin.getItemManager().saveItem(file, attr, stack);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+                new EffectEnchantGUI(plugin, file, mode).open(player);
+            }
+        });
     }
 
     private File findFileByName(File dir, String name) {

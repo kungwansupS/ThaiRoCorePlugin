@@ -17,6 +17,7 @@ org\rostats\gui\SkillEditorGUI.class
 org\rostats\itemeditor\TriggerSelectorGUI.class
 org\rostats\data\DataManager.class
 org\rostats\engine\action\impl\AreaAction.class
+org\rostats\itemeditor\ItemTypeSelectorGUI.class
 org\rostats\utils\FormulaParser$1.class
 org\rostats\engine\action\impl\DamageAction.class
 org\rostats\itemeditor\ItemAttributeManager$1.class
