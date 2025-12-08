@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -28,12 +29,8 @@ public class AttributeHandler implements Listener {
 
     private final ThaiRoCorePlugin plugin;
 
-    // Cache สำหรับเก็บ Passive Effect/Skill ของผู้เล่นแต่ละคน
     private final Map<UUID, List<ItemSkillBinding>> cachedPassiveSkills = new ConcurrentHashMap<>();
     private final Map<UUID, Map<PotionEffectType, Integer>> cachedPassivePotions = new ConcurrentHashMap<>();
-
-    // [FIX] เพิ่ม Cache สำหรับ Trigger Skills (ON_HIT, ON_DEFEND, ON_KILL)
-    // Map<UUID, Map<TriggerType, List<ItemSkillBinding>>>
     private final Map<UUID, Map<TriggerType, List<ItemSkillBinding>>> cachedTriggers = new ConcurrentHashMap<>();
 
     public AttributeHandler(ThaiRoCorePlugin plugin) {
@@ -50,13 +47,19 @@ public class AttributeHandler implements Listener {
         UUID uuid = event.getPlayer().getUniqueId();
         cachedPassiveSkills.remove(uuid);
         cachedPassivePotions.remove(uuid);
-        cachedTriggers.remove(uuid); // [FIX] Clear Trigger Cache
+        cachedTriggers.remove(uuid);
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getWhoClicked() instanceof Player player) {
-            plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
+            // [FIXED] Performance Check: Update stats only if armor/offhand slots are involved
+            if (event.getSlotType() == InventoryType.SlotType.ARMOR ||
+                    event.getSlotType() == InventoryType.SlotType.QUICKBAR || // Main hand is in quickbar
+                    event.getSlot() == 40) { // 40 is usually offhand in generic inventory views
+
+                plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
+            }
         }
     }
 
@@ -70,20 +73,16 @@ public class AttributeHandler implements Listener {
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
-    // --- TRIGGER LOGIC ---
-    // [FIX] เมธอดสำหรับดึง Trigger จาก Cache (ใช้โดย CombatHandler)
     public List<ItemSkillBinding> getCachedTriggers(Player player, TriggerType type) {
         Map<TriggerType, List<ItemSkillBinding>> map = cachedTriggers.get(player.getUniqueId());
         if (map == null) return Collections.emptyList();
         return map.getOrDefault(type, Collections.emptyList());
     }
 
-    // --- PASSIVE EFFECT LOGIC ---
     public void runPassiveEffectsTask() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID uuid = player.getUniqueId();
 
-            // 1. Apply Cached Potions
             Map<PotionEffectType, Integer> potions = cachedPassivePotions.get(uuid);
             if (potions != null && !potions.isEmpty()) {
                 for (Map.Entry<PotionEffectType, Integer> entry : potions.entrySet()) {
@@ -91,7 +90,6 @@ public class AttributeHandler implements Listener {
                 }
             }
 
-            // 2. Apply Cached Passive Skills (PASSIVE_TICK)
             List<ItemSkillBinding> skills = cachedPassiveSkills.get(uuid);
             if (skills != null && !skills.isEmpty()) {
                 for (ItemSkillBinding binding : skills) {
@@ -110,7 +108,7 @@ public class AttributeHandler implements Listener {
         UUID uuid = player.getUniqueId();
         List<ItemSkillBinding> newPassiveSkills = new ArrayList<>();
         Map<PotionEffectType, Integer> newPassivePotions = new HashMap<>();
-        Map<TriggerType, List<ItemSkillBinding>> newTriggers = new HashMap<>(); // [FIX] Temp storage for triggers
+        Map<TriggerType, List<ItemSkillBinding>> newTriggers = new HashMap<>();
 
         List<ItemStack> items = new ArrayList<>();
         if (player.getEquipment() != null) {
@@ -122,17 +120,14 @@ public class AttributeHandler implements Listener {
         for (ItemStack item : items) {
             if (item != null && item.getType() != Material.AIR) {
                 ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-                // Apply Stats
                 applyItemAttributes(player, attr);
 
-                // Collect Potions
                 if (!attr.getPotionEffects().isEmpty()) {
                     for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
                         newPassivePotions.merge(entry.getKey(), entry.getValue(), Math::max);
                     }
                 }
 
-                // Collect Skills
                 if (!attr.getSkillBindings().isEmpty()) {
                     for (ItemSkillBinding binding : attr.getSkillBindings()) {
                         TriggerType t = binding.getTrigger();
@@ -141,7 +136,6 @@ public class AttributeHandler implements Listener {
                         } else if (t == TriggerType.PASSIVE_APPLY) {
                             plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
                         } else if (t == TriggerType.ON_HIT || t == TriggerType.ON_DEFEND || t == TriggerType.ON_KILL) {
-                            // [FIX] Cache Combat Triggers
                             newTriggers.computeIfAbsent(t, k -> new ArrayList<>()).add(binding);
                         }
                     }
@@ -149,15 +143,14 @@ public class AttributeHandler implements Listener {
             }
         }
 
-        // Update Caches
         cachedPassiveSkills.put(uuid, newPassiveSkills);
         cachedPassivePotions.put(uuid, newPassivePotions);
-        cachedTriggers.put(uuid, newTriggers); // [FIX] Save to Trigger Cache
+        cachedTriggers.put(uuid, newTriggers);
     }
 
     public void applyItemAttributes(Player player, ItemAttribute attr) {
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
-        // [คงเดิม: โค้ดส่วนการบวก Stat ทั้งหมดยังเหมือนเดิม]
+
         data.setSTRBonusGear(data.getSTRBonusGear() + attr.getStrGear());
         data.setAGIBonusGear(data.getAGIBonusGear() + attr.getAgiGear());
         data.setVITBonusGear(data.getVITBonusGear() + attr.getVitGear());

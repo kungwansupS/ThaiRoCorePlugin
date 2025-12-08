@@ -49,7 +49,8 @@ public class GUIListener implements Listener {
         if (!(event.getPlayer() instanceof Player player)) return;
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
-        if (!title.contains("Character Status (ROO)")) return;
+        // [FIXED] Use Constant from CharacterGUI
+        if (!title.contains(CharacterGUI.TITLE_HEADER)) return;
 
         if (player.hasMetadata("ROSTATS_SWITCH")) {
             player.removeMetadata("ROSTATS_SWITCH", plugin);
@@ -119,7 +120,8 @@ public class GUIListener implements Listener {
             handleConfirmDeleteClick(event, player, title);
             return;
         }
-        if (title.contains("Character Status (ROO)")) {
+        // [FIXED] Use Constant from CharacterGUI
+        if (title.contains(CharacterGUI.TITLE_HEADER)) {
             handleCharacterStatusClick(event, player, title);
             return;
         }
@@ -242,18 +244,17 @@ public class GUIListener implements Listener {
                     try {
                         if (fKey.equals("level") || fKey.equals("duration") || fKey.equals("count") || fKey.equals("amplifier") || fKey.equals("max-targets")) {
                             int intVal = Integer.parseInt(str);
-                            if (intVal < 0) throw new NumberFormatException("Negative"); // Validate
+                            if (intVal < 0) throw new NumberFormatException("Negative");
                             data.put(fKey, intVal);
                         } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius")) {
                             double dVal = Double.parseDouble(str);
-                            if (dVal < 0) throw new NumberFormatException("Negative"); // Validate
+                            if (dVal < 0) throw new NumberFormatException("Negative");
                             data.put(fKey, dVal);
                         } else {
                             data.put(fKey, str);
                         }
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     } catch (Exception e) {
-                        // [FIX] Improved Error Feedback
                         player.sendMessage("§cInvalid input! Must be a positive number.");
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
@@ -306,8 +307,6 @@ public class GUIListener implements Listener {
             }
         }
     }
-
-    // ... (ส่วนอื่นๆ ของคลาสที่ไม่ได้เปลี่ยนแปลง คงเดิม) ...
 
     private void handleSkillEditorClick(InventoryClickEvent event, Player player, String skillId) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);
@@ -593,7 +592,6 @@ public class GUIListener implements Listener {
             new EffectEnchantGUI(plugin, itemFile, mode).open(player);
         } else if (slot == 50 && selected != null) {
             plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
-                // [FIX] Validate Level
                 try {
                     int lvl = Integer.parseInt(str);
                     if (lvl < 0) throw new NumberFormatException("Negative");

@@ -3,7 +3,7 @@ package org.rostats;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World; // [NEW] Import World
+import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -37,8 +37,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.bukkit.NamespacedKey; // [NEW]
-import org.bukkit.persistence.PersistentDataType; // [NEW]
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
 
 public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
@@ -59,27 +59,18 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private SkillManager skillManager;
 
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
-    private NamespacedKey floatingTextKey; // [NEW]
+    private NamespacedKey floatingTextKey;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
-        // [NEW] Initialize Key for Floating Text Cleanup
         this.floatingTextKey = new NamespacedKey(this, "RO_FLOATING_TEXT");
 
-        // [NEW] Cleanup old ArmorStands (Run on Main thread first)
-        getServer().getScheduler().runTask(this, () -> {
-            for (World world : getServer().getWorlds()) {
-                world.getEntities().stream()
-                        .filter(e -> e instanceof ArmorStand)
-                        .filter(e -> e.getPersistentDataContainer().has(floatingTextKey, PersistentDataType.STRING))
-                        .forEach(Entity::remove);
-            }
-        });
+        // [FIXED] Removed heavy entity iteration on main thread to prevent lag on startup
+        // Old floating texts will disappear naturally or when chunks unload/load if managed properly.
+        // getServer().getScheduler().runTask(this, () -> { ... });
 
-
-        // 1. Initialize Core Managers
         this.statManager = new StatManager(this);
         this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
@@ -89,16 +80,13 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.projectileHandler = new ProjectileHandler(this);
         this.statusHandler = new StatusHandler(this);
 
-        // 2. Initialize Engine Managers
         this.effectManager = new EffectManager(this);
         this.skillManager = new SkillManager(this);
 
-        // 3. Initialize Item Editor Managers
         this.itemAttributeManager = new ItemAttributeManager(this);
         this.itemManager = new ItemManager(this);
         this.chatInputHandler = new ChatInputHandler(this);
 
-        // 4. Register Events
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
@@ -110,7 +98,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this), this);
         getServer().getPluginManager().registerEvents(chatInputHandler, this);
 
-        // 5. Register Commands
         PluginCommand statusCmd = getCommand("status");
         if (statusCmd != null) statusCmd.setExecutor(new PlayerCommand(this));
 
@@ -123,7 +110,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
         PluginCommand itemEditCmd = getCommand("roitemedit");
         if (itemEditCmd != null) {
-            // [FIXED] ใช้ Constructor ที่ถูกต้อง (new ItemEditorCommand(this))
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
@@ -132,15 +118,12 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             skillCmd.setExecutor(new SkillCommand(this));
         }
 
-        // 6. PAPI Hook
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PAPIHook(this).register();
         }
 
-        // 7. Tasks
         getServer().getScheduler().runTaskTimer(this, () -> {
             for (Player player : getServer().getOnlinePlayers()) {
-                // Auto-save: Async is fine
                 dataManager.savePlayerData(player, true);
             }
             getLogger().info("💾 Auto-Saved all player data.");
@@ -159,7 +142,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public void onDisable() {
         if (dataManager != null) {
             for (Player player : getServer().getOnlinePlayers()) {
-                // [FIX] Force Sync Save on Disable
                 dataManager.savePlayerData(player, false);
                 if (manaManager != null) manaManager.removeBar(player);
             }
@@ -189,7 +171,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        // [FIX] Async save on quit is fine
         dataManager.savePlayerData(event.getPlayer(), true);
 
         statManager.removeData(event.getPlayer().getUniqueId());
@@ -219,7 +200,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.customName(Component.text(text));
             stand.setSmall(true);
 
-            // [NEW]: Tag the ArmorStand for cleanup
             if (floatingTextKey != null) {
                 stand.getPersistentDataContainer().set(floatingTextKey, PersistentDataType.STRING, "true");
             }

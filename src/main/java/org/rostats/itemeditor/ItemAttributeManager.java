@@ -69,15 +69,15 @@ public class ItemAttributeManager {
             }
         }
 
-        // NEW: Read Skill Bindings from PDC
+        // [FIXED] Read Skill Bindings from PDC (Changed delimiter to ';')
         NamespacedKey skillKey = new NamespacedKey(plugin, "RO_SKILLS");
         if (pdc.has(skillKey, PersistentDataType.STRING)) {
             String encoded = pdc.get(skillKey, PersistentDataType.STRING);
             if (encoded != null && !encoded.isEmpty()) {
                 String[] parts = encoded.split(",");
                 for (String part : parts) {
-                    // Format: skillId:TRIGGER:level:chance
-                    String[] d = part.split(":");
+                    // Format: skillId;TRIGGER;level;chance
+                    String[] d = part.split(";");
                     if (d.length == 4) {
                         try {
                             String skillId = d[0];
@@ -131,16 +131,16 @@ public class ItemAttributeManager {
             pdc.remove(effectKey);
         }
 
-        // NEW: Apply Skill Bindings to PDC
+        // [FIXED] Apply Skill Bindings to PDC (Changed delimiter to ';')
         NamespacedKey skillKey = new NamespacedKey(plugin, "RO_SKILLS");
         if (!attr.getSkillBindings().isEmpty()) {
             StringBuilder sb = new StringBuilder();
             for (ItemSkillBinding binding : attr.getSkillBindings()) {
                 if (sb.length() > 0) sb.append(",");
-                // Format: skillId:TRIGGER:level:chance
-                sb.append(binding.getSkillId()).append(":")
-                        .append(binding.getTrigger().name()).append(":")
-                        .append(binding.getLevel()).append(":")
+                // Format: skillId;TRIGGER;level;chance
+                sb.append(binding.getSkillId()).append(";")
+                        .append(binding.getTrigger().name()).append(";")
+                        .append(binding.getLevel()).append(";")
                         .append(binding.getChance());
             }
             pdc.set(skillKey, PersistentDataType.STRING, sb.toString());
@@ -178,7 +178,6 @@ public class ItemAttributeManager {
     }
 
     public void setAttributeToObj(ItemAttribute attr, ItemAttributeType type, double val) {
-        // ... (คงเดิม) ...
         switch (type) {
             case STR_GEAR: attr.setStrGear((int)val); break;
             case AGI_GEAR: attr.setAgiGear((int)val); break;
@@ -241,7 +240,6 @@ public class ItemAttributeManager {
     }
 
     public double getAttributeValueFromAttrObject(ItemAttribute attr, ItemAttributeType type) {
-        // ... (คงเดิม) ...
         switch (type) {
             case STR_GEAR: return attr.getStrGear();
             case AGI_GEAR: return attr.getAgiGear();
@@ -378,13 +376,13 @@ public class ItemAttributeManager {
                 }
             }
 
-            // Show Skills in Lore
             if (pdc.has(skillKey, PersistentDataType.STRING)) {
                 String encoded = pdc.get(skillKey, PersistentDataType.STRING);
                 if (encoded != null && !encoded.isEmpty()) {
                     String[] parts = encoded.split(",");
                     for (String part : parts) {
-                        String[] d = part.split(":");
+                        // [FIXED] Split with ';'
+                        String[] d = part.split(";");
                         if (d.length == 4) {
                             newLore.add("§6Skill: §e" + d[0] + " §7(Lv." + d[2] + ") [" + d[1] + "]");
                         }

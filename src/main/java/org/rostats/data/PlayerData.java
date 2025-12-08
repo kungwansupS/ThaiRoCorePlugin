@@ -7,6 +7,7 @@ import org.rostats.engine.effect.ActiveEffect;
 import org.rostats.engine.effect.EffectType;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class PlayerData {
@@ -22,10 +23,9 @@ public class PlayerData {
     private final Map<String, Integer> stats = new HashMap<>();
     private final Map<String, Integer> pendingStats = new HashMap<>();
 
-    // Map สำหรับเก็บ Cooldown (SkillID -> Timestamp)
-    private final Map<String, Long> skillCooldowns = new HashMap<>();
+    // [FIXED] Use ConcurrentHashMap for thread safety
+    private final Map<String, Long> skillCooldowns = new ConcurrentHashMap<>();
 
-    // Active Effects List
     private final List<ActiveEffect> activeEffects = new CopyOnWriteArrayList<>();
 
     // Gear Bonuses & Advanced Stats
@@ -92,7 +92,6 @@ public class PlayerData {
     private double pDmgReductionPercent = 0.0;
     private double mDmgReductionPercent = 0.0;
 
-    // New Fields (Full Support)
     private double ignorePDefFlat = 0.0;
     private double ignoreMDefFlat = 0.0;
     private double ignorePDefPercent = 0.0;
@@ -112,7 +111,6 @@ public class PlayerData {
         calculateMaxSP();
     }
 
-    // --- Active Effect Logic ---
     public List<ActiveEffect> getActiveEffects() { return activeEffects; }
     public void addActiveEffect(ActiveEffect effect) { this.activeEffects.add(effect); }
     public void removeActiveEffect(ActiveEffect effect) { this.activeEffects.remove(effect); }
@@ -129,9 +127,7 @@ public class PlayerData {
         return bonus;
     }
 
-    // --- Skill Cooldown Logic (With Cleanup) ---
     public long getSkillCooldown(String skillId) {
-        // [FIX] Lazy Cleanup: ลบข้อมูลเก่าทิ้งเมื่อมีการเรียกใช้
         cleanupExpiredCooldowns();
         return skillCooldowns.getOrDefault(skillId, 0L);
     }
@@ -140,9 +136,9 @@ public class PlayerData {
         skillCooldowns.put(skillId, timestamp);
     }
 
-    // [FIX] เมธอดลบ Cooldown ที่หมดเวลาแล้ว
     public void cleanupExpiredCooldowns() {
         long now = System.currentTimeMillis();
+        // Safe to removeIf on ConcurrentHashMap
         skillCooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
     }
 
@@ -174,7 +170,6 @@ public class PlayerData {
         this.hitBonusFlat = 0; this.fleeBonusFlat = 0;
         this.pDmgReductionPercent = 0; this.mDmgReductionPercent = 0;
 
-        // Reset new fields
         this.ignorePDefFlat = 0; this.ignoreMDefFlat = 0;
         this.ignorePDefPercent = 0; this.ignoreMDefPercent = 0;
         this.meleePDmgPercent = 0; this.rangePDmgPercent = 0;
@@ -182,7 +177,6 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // --- Getters & Setters ---
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -295,7 +289,6 @@ public class PlayerData {
     public double getMDmgReductionPercent() { return mDmgReductionPercent; }
     public void setMDmgReductionPercent(double v) { this.mDmgReductionPercent = v; }
 
-    // [FIXED] Added Setters for New Fields
     public double getIgnorePDefFlat() { return ignorePDefFlat; }
     public void setIgnorePDefFlat(double v) { this.ignorePDefFlat = v; }
     public double getIgnoreMDefFlat() { return ignoreMDefFlat; }
@@ -317,7 +310,6 @@ public class PlayerData {
     public double getTrueDamageFlat() { return trueDamageFlat; }
     public void setTrueDamageFlat(double v) { this.trueDamageFlat = v; }
 
-    // --- Core Methods ---
     public int getStat(String key) { return stats.getOrDefault(key.toUpperCase(), 1); }
     public void setStat(String key, int val) { stats.put(key.toUpperCase(), val); calculateMaxSP(); }
     public Set<String> getStatKeys() { return stats.keySet(); }
@@ -433,7 +425,6 @@ public class PlayerData {
     public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
     public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
 
-    // Boilerplate Getters/Setters
     public int getBaseLevel() { return baseLevel; }
     public void setBaseLevel(int l) { this.baseLevel = l; calculateMaxSP(); }
     public long getBaseExp() { return baseExp; }
