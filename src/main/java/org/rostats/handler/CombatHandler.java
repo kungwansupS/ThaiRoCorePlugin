@@ -1,7 +1,5 @@
 package org.rostats.handler;
 
-import net.kyori.adventure.text.Component;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -24,8 +22,6 @@ import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
 import org.rostats.itemeditor.ItemSkillBinding;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -47,6 +43,7 @@ public class CombatHandler implements Listener {
     }
 
     // --- Active Skill Trigger (Right Click) ---
+    // Right-Click uses item in hand, still needs NBT reading as it's an active action
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
@@ -55,13 +52,11 @@ public class CombatHandler implements Listener {
 
             if (item == null || item.getType() == Material.AIR) return;
 
-            // Use ItemAttributeManager to read attributes which include skills
             ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
             if (attr == null) return;
 
             for (ItemSkillBinding binding : attr.getSkillBindings()) {
                 if (binding.getTrigger() == TriggerType.CAST) {
-                    // Cast Skill (Target = null handled by SkillAction logic)
                     plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), null);
                 }
             }
@@ -75,7 +70,7 @@ public class CombatHandler implements Listener {
         LivingEntity victim = event.getEntity();
         PlayerData data = plugin.getStatManager().getData(killer.getUniqueId());
 
-        // Check for ON_KILL triggers on killer's equipment
+        // Check for ON_KILL triggers (Using Cache)
         checkTriggers(killer, victim, TriggerType.ON_KILL);
 
         int rawBaseExp = event.getDroppedExp();
@@ -123,9 +118,11 @@ public class CombatHandler implements Listener {
             return;
         }
 
-        // --- Check Triggers ---
+        // --- Check Triggers (Using Cache) ---
+        // Attacker: ON_HIT
         checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
 
+        // Defender: ON_DEFEND
         if (defenderEntity instanceof Player defenderPlayer) {
             checkTriggers(defenderPlayer, attackerPlayer, TriggerType.ON_DEFEND);
         }
@@ -257,27 +254,16 @@ public class CombatHandler implements Listener {
         }
     }
 
+    // [FIX] ใช้ Cache จาก AttributeHandler แทนการอ่าน Item
     private void checkTriggers(Player player, LivingEntity target, TriggerType type) {
-        List<ItemStack> items = new ArrayList<>();
-        if (player.getEquipment() != null) {
-            items.add(player.getEquipment().getItemInMainHand());
-            items.add(player.getEquipment().getItemInOffHand());
-            items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
-        }
+        List<ItemSkillBinding> bindings = plugin.getAttributeHandler().getCachedTriggers(player, type);
 
-        for (ItemStack item : items) {
-            if (item == null || item.getType() == Material.AIR) continue;
+        if (bindings == null || bindings.isEmpty()) return;
 
-            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-            if (attr == null) continue;
-
-            for (ItemSkillBinding binding : attr.getSkillBindings()) {
-                if (binding.getTrigger() == type) {
-                    if (random.nextDouble() < binding.getChance()) {
-                        // Cast Skill
-                        plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), target);
-                    }
-                }
+        for (ItemSkillBinding binding : bindings) {
+            if (random.nextDouble() < binding.getChance()) {
+                // Cast Skill
+                plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), target);
             }
         }
     }
