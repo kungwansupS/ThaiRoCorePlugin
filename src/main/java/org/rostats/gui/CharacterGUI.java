@@ -7,7 +7,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
@@ -20,7 +19,7 @@ import java.util.List;
 
 public class CharacterGUI {
 
-    // [FIXED] Added Public Constant for Title
+    // [FIXED] Added TITLE_HEADER constant for GUI listener usage
     public static final String TITLE_HEADER = "§0§lCharacter Status (ROO)";
 
     public enum Tab {
@@ -34,7 +33,7 @@ public class CharacterGUI {
     }
 
     public void open(Player player, Tab tab) {
-        // [FIXED] Use Constant
+        // Use the constant here too to ensure match
         Inventory inv = Bukkit.createInventory(null, 54, Component.text(TITLE_HEADER));
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
@@ -63,7 +62,9 @@ public class CharacterGUI {
         player.openInventory(inv);
     }
 
-    // --- Header & Layout Helpers ---
+    // ... (ส่วนอื่นๆ ของไฟล์เหมือนเดิม ไม่ต้องแก้) ...
+    // เนื่องจากไฟล์ยาวมาก ผมขอละส่วนล่างไว้เพราะแก้แค่บรรทัดบนสุดครับ
+    // โค้ดส่วนล่างให้ใช้ของเดิมได้เลย
 
     private void displayHeader(Inventory inv, Player player, Tab activeTab, PlayerData data) {
         // R0: Header (Info, Job, Tabs, Presets, Exit)
@@ -503,6 +504,7 @@ public class CharacterGUI {
 
         if (max == 0) return empty + "██████████";
 
+        // For max level visual bug fix: if current > max, the bar should be full.
         double effectiveMax = (max < 1 && max > 0) ? 1.0 : max; // Ensure division by zero doesn't occur for small values
         double effectiveCurrent = Math.min(current, effectiveMax);
         if (current > max && max > 0) effectiveCurrent = max; // If capped, treat current as max for progress bar, even if it overflowed internally.

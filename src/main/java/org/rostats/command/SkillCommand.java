@@ -28,7 +28,7 @@ public class SkillCommand implements CommandExecutor {
             return true;
         }
 
-        // [FIXED] Allow no arguments or "editor" argument
+        // [FIXED] Allow empty args OR 'editor' arg to open GUI
         if (args.length == 0 || (args.length == 1 && args[0].equalsIgnoreCase("editor"))) {
             // Open Skill Library GUI at root
             new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);

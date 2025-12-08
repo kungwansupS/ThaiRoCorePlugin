@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -53,13 +52,9 @@ public class AttributeHandler implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getWhoClicked() instanceof Player player) {
-            // [FIXED] Performance Check: Update stats only if armor/offhand slots are involved
-            if (event.getSlotType() == InventoryType.SlotType.ARMOR ||
-                    event.getSlotType() == InventoryType.SlotType.QUICKBAR ||
-                    event.getSlot() == 40) {
-
-                plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
-            }
+            // [FIXED] Removed restrictive slot check to ensure Shift-Click updates stats correctly
+            // The overhead is minimal because applyAllEquipmentAttributes only iterates over 6 items.
+            plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
         }
     }
 

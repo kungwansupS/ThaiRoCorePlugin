@@ -98,26 +98,7 @@ public class GUIListener implements Listener {
             }
             return;
         }
-
-        // [FIXED] Removed "Library: " and "Editor: " logic from here.
-        // It is now handled exclusively by org.rostats.itemeditor.GUIListener
-
-        if (title.startsWith("Confirm Delete: ")) {
-            // Note: Confirm Delete might be shared or specific.
-            // If SkillLibrary uses "Skill Delete: ", then "Confirm Delete: " might be ItemLibrary only.
-            // But if SkillLibrary uses "Confirm Delete: " too, keep it.
-            // Based on previous code, SkillLibrary uses "Skill Delete: ".
-            // So "Confirm Delete: " is likely ItemLibrary only.
-            // Safest to comment out if it belongs to Item Editor, OR keep if shared.
-            // Let's check SkillLibraryGUI... it uses "Skill Delete: ".
-            // ItemLibraryGUI uses "Confirm Delete: ".
-            // So we REMOVE this too.
-            /*
-            event.setCancelled(true);
-            handleConfirmDeleteClick(event, player, title);
-            return;
-            */
-        }
+        // [FIXED] Removed Library, Editor, Confirm Delete from here as they are handled in itemeditor.GUIListener
 
         // [FIXED] Use Constant from CharacterGUI
         if (title.contains(CharacterGUI.TITLE_HEADER)) {
