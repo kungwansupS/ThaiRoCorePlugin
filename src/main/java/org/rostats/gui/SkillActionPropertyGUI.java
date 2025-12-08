@@ -41,8 +41,8 @@ public class SkillActionPropertyGUI {
         }
         else if (type == ActionType.HEAL) {
             inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Heal Amount", (String)data.getOrDefault("formula","10"), "§eEdit Amount"));
-            inv.setItem(slot++, createPropItem(Material.REDSTONE, "is-mana", "Is Mana?", data.getOrDefault("is-mana",false).toString(), "§eToggle"));
-            // [FIX] Add Self Only button
+            inv.setItem(slot++, createPropItem(Material.REDSTONE, "is-mana", "Is Mana?", data.getOrDefault("is-mana",false).toString(), "§eToggle (HP/SP)"));
+            // [UPDATED] Add Self Only
             inv.setItem(slot++, createPropItem(Material.PLAYER_HEAD, "self-only", "Self Only?", data.getOrDefault("self-only", true).toString(), "§eToggle Target Mode"));
         }
         else if (type == ActionType.APPLY_EFFECT) {
@@ -50,9 +50,9 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.POTION, "effect-type", "Type", (String)data.getOrDefault("effect-type","STAT_MODIFIER"), "§eEdit Type"));
             inv.setItem(slot++, createPropItem(Material.EXPERIENCE_BOTTLE, "level", "Level", data.getOrDefault("level",1).toString(), "§eEdit Level"));
             inv.setItem(slot++, createPropItem(Material.IRON_SWORD, "power", "Power", data.getOrDefault("power",0.0).toString(), "§eEdit Power"));
-            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration",100).toString(), "§eEdit Duration"));
-            inv.setItem(slot++, createPropItem(Material.FEATHER, "chance", "Chance", data.getOrDefault("chance",1.0).toString(), "§eEdit Chance"));
-            inv.setItem(slot++, createPropItem(Material.ANVIL, "stat-key", "Stat Key", (String)data.getOrDefault("stat-key","None"), "§eEdit Key"));
+            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration",100).toString(), "§eEdit Duration (Ticks)"));
+            inv.setItem(slot++, createPropItem(Material.FEATHER, "chance", "Chance", data.getOrDefault("chance",1.0).toString(), "§eEdit Chance (0.0-1.0)"));
+            inv.setItem(slot++, createPropItem(Material.ANVIL, "stat-key", "Stat Key", (String)data.getOrDefault("stat-key","None"), "§eEdit Key (e.g. STR)"));
         }
         else if (type == ActionType.SOUND) {
             inv.setItem(slot++, createPropItem(Material.NOTE_BLOCK, "sound", "Sound Name", (String)data.getOrDefault("sound","ENTITY_EXPERIENCE_ORB_PICKUP"), "§eEdit Sound"));
@@ -67,9 +67,9 @@ public class SkillActionPropertyGUI {
         }
         else if (type == ActionType.POTION) {
             inv.setItem(slot++, createPropItem(Material.POTION, "potion", "Potion Type", (String)data.getOrDefault("potion","SPEED"), "§eEdit Potion"));
-            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration",60).toString(), "§eEdit Duration"));
+            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration",60).toString(), "§eEdit Duration (Ticks)"));
             inv.setItem(slot++, createPropItem(Material.GLOWSTONE, "amplifier", "Amplifier", data.getOrDefault("amplifier",0).toString(), "§eEdit Amp"));
-            // [FIX] Add Self Only button
+            // [UPDATED] Add Self Only
             inv.setItem(slot++, createPropItem(Material.PLAYER_HEAD, "self-only", "Self Only?", data.getOrDefault("self-only", true).toString(), "§eToggle Target Mode"));
         }
         else if (type == ActionType.TELEPORT) {
@@ -82,14 +82,15 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "on-hit", "On-Hit Skill ID", (String)data.getOrDefault("on-hit","none"), "§eEdit On-Hit ID"));
         }
         else if (type == ActionType.AREA_EFFECT) {
-            inv.setItem(slot++, createPropItem(Material.BEACON, "radius", "Radius (Blocks)", data.getOrDefault("radius", 5.0).toString(), "§eEdit Radius"));
-            inv.setItem(slot++, createPropItem(Material.ZOMBIE_HEAD, "target-type", "Target Type", (String) data.getOrDefault("target-type", "ENEMY"), "§eEdit Target (ENEMY/ALLY/ALL)"));
+            // [UPDATED] Area Effect Properties
+            inv.setItem(slot++, createPropItem(Material.BEACON, "radius", "Radius", data.getOrDefault("radius", 5.0).toString(), "§eEdit Radius (Blocks)"));
+            inv.setItem(slot++, createPropItem(Material.ZOMBIE_HEAD, "target-type", "Target Type", (String) data.getOrDefault("target-type", "ENEMY"), "§eEdit (ENEMY/ALLY/ALL)"));
             inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "sub-skill", "Sub Skill ID", (String) data.getOrDefault("sub-skill", "none"), "§eEdit Sub Skill"));
             inv.setItem(slot++, createPropItem(Material.SKELETON_SKULL, "max-targets", "Max Targets", data.getOrDefault("max-targets", 10).toString(), "§eEdit Max Count"));
         }
 
-        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE CHANGES", "§7Apply changes.", "§8---------------", "§7บันทึก"));
-        inv.setItem(53, createGuiItem(Material.RED_CONCRETE, "§cCancel", "§7Discard."));
+        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE CHANGES", "§7Apply changes.", "§8---------------", "§7บันทึกการเปลี่ยนแปลง"));
+        inv.setItem(53, createGuiItem(Material.RED_CONCRETE, "§cCancel", "§7Discard.", "§7ยกเลิก"));
 
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) { if (inv.getItem(i) == null) inv.setItem(i, bg); }

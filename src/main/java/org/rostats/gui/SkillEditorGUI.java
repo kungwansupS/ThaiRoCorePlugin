@@ -80,6 +80,15 @@ public class SkillEditorGUI {
                 "§eคลิกขวา: §7แก้เวลาร่าย"
         ));
 
+        // 7: [NEW] Required Level
+        inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aRequirements / เงื่อนไข",
+                "§7Required Level: §e" + skillData.getRequiredLevel(),
+                "§8---------------",
+                "§eClick: §7Edit Required Level",
+                "§8---------------",
+                "§eคลิก: §7แก้เลเวลที่ต้องการ"
+        ));
+
         // 8: Cost
         inv.setItem(8, createGuiItem(Material.POTION, "§dCost / ค่าใช้จ่าย",
                 "§7SP Cost: §f" + skillData.getSpCostBase(),
@@ -104,14 +113,18 @@ public class SkillEditorGUI {
                 case SOUND: mat = Material.NOTE_BLOCK; break;
                 case PARTICLE: mat = Material.BLAZE_POWDER; break;
                 case PROJECTILE: mat = Material.ARROW; break;
+                case AREA_EFFECT: mat = Material.TNT; break;
                 default: mat = Material.PAPER; break;
             }
 
             inv.setItem(slot, createGuiItem(mat, "§fAction #" + (index+1) + ": " + action.getType().name(),
                     "§7Index: " + index,
                     "§8---------------",
-                    "§eShift+Right Click: §cRemove / ลบ",
-                    "§7(Properties editor coming in Part 3)"
+                    "§eL-Click: §7Edit Properties / แก้ไข",
+                    "§eShift+L: §6Move Left/Up / เลื่อนขึ้น",
+                    "§eR-Click: §6Move Right/Down / เลื่อนลง",
+                    "§eShift+R: §cRemove / ลบ",
+                    "§8---------------"
             ));
 
             slot++;

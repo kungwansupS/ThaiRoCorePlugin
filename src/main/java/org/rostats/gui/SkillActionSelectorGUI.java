@@ -37,12 +37,11 @@ public class SkillActionSelectorGUI {
         inv.setItem(slot++, createGuiItem(Material.ENDER_PEARL, "§dTELEPORT", "§7Dash/Warp.", "ActionType: TELEPORT"));
         inv.setItem(slot++, createGuiItem(Material.GLASS_BOTTLE, "§fPOTION", "§7Vanilla Potion.", "ActionType: POTION"));
 
-        // --- NEW BUTTON ---
+        // [ADDED] Area Effect
         inv.setItem(slot++, createGuiItem(Material.TNT, "§c§lAREA EFFECT",
                 "§7Trigger skills on nearby targets.",
                 "§7(AOE Damage, Buffs, etc.)",
                 "ActionType: AREA_EFFECT"));
-        // ------------------
 
         inv.setItem(53, createGuiItem(Material.ARROW, "§cBack", "§7Cancel"));
 

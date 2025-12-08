@@ -24,6 +24,9 @@ public class SkillData {
 
     private double castTime;
 
+    // [NEW] Required Level
+    private int requiredLevel = 1;
+
     // Actions List (Sequence of logic)
     private final List<SkillAction> actions = new ArrayList<>();
 
@@ -71,6 +74,10 @@ public class SkillData {
 
     public double getCastTime() { return castTime; }
     public void setCastTime(double castTime) { this.castTime = castTime; }
+
+    // [NEW] Required Level Getter/Setter
+    public int getRequiredLevel() { return requiredLevel; }
+    public void setRequiredLevel(int requiredLevel) { this.requiredLevel = requiredLevel; }
 
     public List<SkillAction> getActions() { return actions; }
     public void addAction(SkillAction action) { this.actions.add(action); }

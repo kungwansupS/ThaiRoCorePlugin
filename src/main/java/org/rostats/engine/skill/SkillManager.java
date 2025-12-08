@@ -29,7 +29,6 @@ public class SkillManager {
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
 
-    // [FIX] เพิ่มตัวนับความลึกของการร่ายสกิล (Recursion Guard)
     private final ThreadLocal<Integer> recursionDepth = ThreadLocal.withInitial(() -> 0);
     private static final int MAX_RECURSION_DEPTH = 5;
 
@@ -141,6 +140,8 @@ public class SkillManager {
         config.set(key + ".conditions.sp-cost", skill.getSpCostBase());
         config.set(key + ".conditions.sp-cost-per-level", skill.getSpCostPerLevel());
         config.set(key + ".conditions.cast-time", skill.getCastTime());
+        // [NEW] Save Required Level
+        config.set(key + ".conditions.required-level", skill.getRequiredLevel());
 
         List<Map<String, Object>> serializedActions = new ArrayList<>();
         for (SkillAction action : skill.getActions()) {
@@ -180,7 +181,6 @@ public class SkillManager {
     }
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
-        // [FIX] Recursion Guard
         int currentDepth = recursionDepth.get();
         if (currentDepth >= MAX_RECURSION_DEPTH) {
             plugin.getLogger().warning("Skill recursion limit reached for skill: " + skillId + " (Caster: " + caster.getName() + "). Stopping chain.");
@@ -193,6 +193,7 @@ public class SkillManager {
             SkillData skill = skillMap.get(skillId);
             if (skill == null) return;
 
+            // Status Check (CC)
             if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
                 if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
                 return;
@@ -204,6 +205,12 @@ public class SkillManager {
 
             if (!isPassive && caster instanceof Player player) {
                 PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+
+                // [NEW] Level Requirement Check
+                if (data.getBaseLevel() < skill.getRequiredLevel()) {
+                    player.sendMessage("§cLevel too low! Required: " + skill.getRequiredLevel());
+                    return;
+                }
 
                 long now = System.currentTimeMillis();
                 long lastUse = data.getSkillCooldown(skillId);
@@ -299,6 +306,8 @@ public class SkillManager {
                 skill.setSpCostBase(cond.getInt("sp-cost", 0));
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
                 skill.setCastTime(cond.getDouble("cast-time", 0));
+                // [NEW] Load Required Level
+                skill.setRequiredLevel(cond.getInt("required-level", 1));
             }
 
             if (section.contains("actions")) {
@@ -403,6 +412,7 @@ public class SkillManager {
 
             config.set(key + ".conditions.cooldown", 5.0);
             config.set(key + ".conditions.sp-cost", 20);
+            config.set(key + ".conditions.required-level", 1); // Example
 
             List<Map<String, Object>> actions = new ArrayList<>();
 

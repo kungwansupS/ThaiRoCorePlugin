@@ -21,6 +21,7 @@ import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,6 @@ public class GUIListener implements Listener {
         if (!(event.getPlayer() instanceof Player player)) return;
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
-        // [FIXED] Use Constant from CharacterGUI
         if (!title.contains(CharacterGUI.TITLE_HEADER)) return;
 
         if (player.hasMetadata("ROSTATS_SWITCH")) {
@@ -98,9 +98,7 @@ public class GUIListener implements Listener {
             }
             return;
         }
-        // [FIXED] Removed Library, Editor, Confirm Delete from here as they are handled in itemeditor.GUIListener
 
-        // [FIXED] Use Constant from CharacterGUI
         if (title.contains(CharacterGUI.TITLE_HEADER)) {
             handleCharacterStatusClick(event, player, title);
             return;
@@ -136,8 +134,9 @@ public class GUIListener implements Listener {
                 switch (type) {
                     case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
                     case HEAL:
-                        boolean hSelf = (boolean) data.getOrDefault("self-only", true);
-                        newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), (boolean)data.getOrDefault("is-mana", false), hSelf);
+                        boolean hSelf = Boolean.parseBoolean(String.valueOf(data.getOrDefault("self-only", true)));
+                        boolean isMana = Boolean.parseBoolean(String.valueOf(data.getOrDefault("is-mana", false)));
+                        newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), isMana, hSelf);
                         break;
                     case APPLY_EFFECT:
                         String eid = String.valueOf(data.getOrDefault("effect-id", "unknown"));
@@ -167,12 +166,12 @@ public class GUIListener implements Listener {
                         String pot = String.valueOf(data.getOrDefault("potion", "SPEED"));
                         int dur = Integer.parseInt(String.valueOf(data.getOrDefault("duration", "60")));
                         int amp = Integer.parseInt(String.valueOf(data.getOrDefault("amplifier", "0")));
-                        boolean pSelf = (boolean) data.getOrDefault("self-only", true);
+                        boolean pSelf = Boolean.parseBoolean(String.valueOf(data.getOrDefault("self-only", true)));
                         newAction = new PotionAction(pot, dur, amp, pSelf);
                         break;
                     case TELEPORT:
                         double rng = Double.parseDouble(String.valueOf(data.getOrDefault("range", "5.0")));
-                        boolean tgt = (boolean) data.getOrDefault("to-target", false);
+                        boolean tgt = Boolean.parseBoolean(String.valueOf(data.getOrDefault("to-target", false)));
                         newAction = new TeleportAction(rng, tgt);
                         break;
                     case PROJECTILE:
@@ -307,34 +306,42 @@ public class GUIListener implements Listener {
         else if (slot >= 18 && slot <= 44) {
             ItemStack item = event.getCurrentItem();
             if (item != null && item.getType() != Material.GRAY_STAINED_GLASS_PANE) {
-                if (event.isShiftClick() && event.isRightClick()) {
-                    List<String> lore = item.getItemMeta().getLore();
-                    if (lore != null) {
-                        for (String l : lore) {
-                            if (l.startsWith("§7Index: ")) {
-                                try {
-                                    int index = Integer.parseInt(l.substring(9));
-                                    if (index >= 0 && index < skill.getActions().size()) {
-                                        skill.getActions().remove(index);
-                                        plugin.getSkillManager().saveSkill(skill);
-                                        new SkillEditorGUI(plugin, skillId).open(player);
-                                    }
-                                } catch (Exception e) {}
-                            }
+                List<String> lore = item.getItemMeta().getLore();
+                int index = -1;
+                if (lore != null) {
+                    for (String l : lore) {
+                        if (l.startsWith("§7Index: ")) {
+                            try { index = Integer.parseInt(l.substring(9)); } catch (Exception e) {}
+                            break;
                         }
                     }
-                } else if (event.isLeftClick()) {
-                    List<String> lore = item.getItemMeta().getLore();
-                    if (lore != null) {
-                        for (String l : lore) {
-                            if (l.startsWith("§7Index: ")) {
-                                try {
-                                    int index = Integer.parseInt(l.substring(9));
-                                    editingActions.put(player.getUniqueId(), new HashMap<>(skill.getActions().get(index).serialize()));
-                                    new SkillActionPropertyGUI(plugin, skillId, index, skill.getActions().get(index)).open(player);
-                                } catch (Exception e) {}
-                            }
+                }
+
+                if (index != -1 && index < skill.getActions().size()) {
+                    // [UPDATED] Reordering Logic
+                    if (event.isShiftClick() && event.isRightClick()) {
+                        // Remove
+                        skill.getActions().remove(index);
+                        plugin.getSkillManager().saveSkill(skill);
+                        new SkillEditorGUI(plugin, skillId).open(player);
+                    } else if (event.isShiftClick() && event.isLeftClick()) {
+                        // Move Up/Left (Index - 1)
+                        if (index > 0) {
+                            Collections.swap(skill.getActions(), index, index - 1);
+                            plugin.getSkillManager().saveSkill(skill);
+                            new SkillEditorGUI(plugin, skillId).open(player);
                         }
+                    } else if (event.isRightClick()) {
+                        // Move Down/Right (Index + 1)
+                        if (index < skill.getActions().size() - 1) {
+                            Collections.swap(skill.getActions(), index, index + 1);
+                            plugin.getSkillManager().saveSkill(skill);
+                            new SkillEditorGUI(plugin, skillId).open(player);
+                        }
+                    } else if (event.isLeftClick()) {
+                        // Edit
+                        editingActions.put(player.getUniqueId(), new HashMap<>(skill.getActions().get(index).serialize()));
+                        new SkillActionPropertyGUI(plugin, skillId, index, skill.getActions().get(index)).open(player);
                     }
                 }
             }
@@ -361,6 +368,17 @@ public class GUIListener implements Listener {
         else if (slot == 6) {
             if (event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> { try { skill.setCooldownBase(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
             else plugin.getChatInputHandler().awaitInput(player, "CastTime:", (str) -> { try { skill.setCastTime(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
+        }
+        // [NEW] Slot 7: Required Level
+        else if (slot == 7) {
+            plugin.getChatInputHandler().awaitInput(player, "Required Level:", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    if (lvl < 1) lvl = 1;
+                    skill.setRequiredLevel(lvl);
+                } catch (Exception e) {}
+                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+            });
         }
         else if (slot == 8) {
             plugin.getChatInputHandler().awaitInput(player, "SP Cost:", (str) -> { try { skill.setSpCostBase(Integer.parseInt(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
