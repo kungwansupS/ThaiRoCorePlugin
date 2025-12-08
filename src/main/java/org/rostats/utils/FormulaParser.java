@@ -77,6 +77,10 @@ public class FormulaParser {
                 case "sp": return String.valueOf(data.getCurrentSP());
                 case "str": return String.valueOf(data.getStat("STR"));
                 // Add more stats as needed
+
+                // [FIXED] Add P.ATK and M.ATK from StatManager
+                case "patk": return String.valueOf(plugin.getStatManager().getPhysicalAttack(player));
+                case "matk": return String.valueOf(plugin.getStatManager().getMagicAttack(player));
             }
         }
         return "0";

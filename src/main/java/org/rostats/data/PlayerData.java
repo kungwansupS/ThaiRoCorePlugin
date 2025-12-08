@@ -128,7 +128,7 @@ public class PlayerData {
     }
 
     public long getSkillCooldown(String skillId) {
-        cleanupExpiredCooldowns();
+        // cleanupExpiredCooldowns(); // [FIXED] Remove buggy call
         return skillCooldowns.getOrDefault(skillId, 0L);
     }
 
@@ -136,11 +136,7 @@ public class PlayerData {
         skillCooldowns.put(skillId, timestamp);
     }
 
-    public void cleanupExpiredCooldowns() {
-        long now = System.currentTimeMillis();
-        // Safe to removeIf on ConcurrentHashMap
-        skillCooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
-    }
+    // [FIXED] Removed cleanupExpiredCooldowns method as it was buggy.
 
     public long getBaseExpReq() { return getBaseExpReq(this.baseLevel); }
     public long getJobExpReq() { return getJobExpReq(this.jobLevel); }
@@ -424,6 +420,43 @@ public class PlayerData {
     private int getStatPointsGain(int level) { return level <= 50 ? 5 : 8; }
     public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
     public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
+
+    // --- NEW: V-CT Calculation Helpers (for fixing INT casting reduction) ---
+
+    private double getVariableCastTimeReduction() {
+        // Use the combined stat values (base + pending + gear + effect)
+        // Note: We use getStat() + getPendingStat() + getSTATBonusGear() to get the *total* effective base stat
+        int totalDex = getStat("DEX") + getPendingStat("DEX") + getDEXBonusGear() + (int)getEffectBonus("DEX");
+        int totalInt = getStat("INT") + getPendingStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
+
+        // Common RO formula for V-CT Reduction % = (DEX / 2) + (INT / 4)
+        double statReduction = (totalDex / 2.0) + (totalInt / 4.0);
+        double gearReduction = getVarCTPercent() + getEffectBonus("VAR_CT_PERCENT"); // Gear % reduction
+
+        return statReduction + gearReduction;
+    }
+
+    public double getFinalCastTime(double baseCastTime) {
+        if (baseCastTime <= 0) return 0;
+
+        // 1. Calculate Variable Cast Time (V-CT) Reduction Multiplier
+        double reduction = getVariableCastTimeReduction();
+        double multiplier = Math.max(0.0, 1.0 - (reduction / 100.0));
+
+        // 2. Apply V-CT Reduction to base cast time
+        double castTimeAfterVarReduction = baseCastTime * multiplier;
+
+        // 3. Apply Flat Cast Time (Fixed Cast Time is usually fixed, but here we treat it as flat V-CT reduction for a simple formula)
+        // Fixed CT Flat Reduction (from gear/effects)
+        double fixedCTFlatReduction = getFixedCTFlat() + getEffectBonus("FIXED_CT_FLAT");
+
+        // We apply the flat fixed reduction to the remaining cast time
+        double finalCastTime = castTimeAfterVarReduction - fixedCTFlatReduction;
+
+        return Math.max(0.0, finalCastTime);
+    }
+    // --- END NEW CT Logic ---
+
 
     public int getBaseLevel() { return baseLevel; }
     public void setBaseLevel(int l) { this.baseLevel = l; calculateMaxSP(); }

@@ -15,11 +15,19 @@ public class DamageAction implements SkillAction {
     private final ThaiRoCorePlugin plugin;
     private final String formula;
     private final String element;
+    private final boolean isBypassDef; // [NEW FIELD]
 
-    public DamageAction(ThaiRoCorePlugin plugin, String formula, String element) {
+    // [NEW CONSTRUCTOR]
+    public DamageAction(ThaiRoCorePlugin plugin, String formula, String element, boolean isBypassDef) {
         this.plugin = plugin;
         this.formula = formula;
         this.element = element;
+        this.isBypassDef = isBypassDef;
+    }
+
+    // [OLD CONSTRUCTOR for backward compatibility]
+    public DamageAction(ThaiRoCorePlugin plugin, String formula, String element) {
+        this(plugin, formula, element, false); // Default to false
     }
 
     @Override
@@ -43,8 +51,16 @@ public class DamageAction implements SkillAction {
             damage = 1.0;
         }
 
-        target.damage(damage, caster);
-        plugin.showDamageFCT(target.getLocation(), damage);
+        if (damage <= 0) return;
+
+        if (isBypassDef) { // [NEW LOGIC] Bypass Defense (True Damage)
+            double newHealth = Math.max(0, target.getHealth() - damage);
+            target.setHealth(newHealth);
+            plugin.showTrueDamageFCT(target.getLocation(), damage); // ใช้ FCT สี True Damage (ส้ม/ทอง)
+        } else {
+            target.damage(damage, caster);
+            plugin.showDamageFCT(target.getLocation(), damage);
+        }
     }
 
     private LivingEntity findTarget(LivingEntity caster, int range) {
@@ -68,6 +84,7 @@ public class DamageAction implements SkillAction {
         map.put("type", "DAMAGE");
         map.put("formula", formula);
         map.put("element", element);
+        map.put("bypass-def", isBypassDef); // [NEW SERIALIZATION]
         return map;
     }
 }

@@ -12,6 +12,7 @@ import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
+import org.rostats.engine.action.impl.DelayAction; // ADDED
 
 import java.io.File;
 import java.io.IOException;
@@ -55,15 +56,19 @@ public class SkillManager {
             return;
         }
 
+        List<SkillAction> finalActions = new LinkedList<>(skill.getActions()); // Create mutable list of actions
+
         // Resource & Cooldown Check (Only for Players)
         if (!isPassive && caster instanceof Player player) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
+            // 1. Level Check
             if (data.getBaseLevel() < skill.getRequiredLevel()) {
                 player.sendMessage("§cLevel too low! Required: " + skill.getRequiredLevel());
                 return;
             }
 
+            // 2. Cooldown Check
             long now = System.currentTimeMillis();
             long lastUse = data.getSkillCooldown(skillId);
             double cooldownSeconds = skill.getCooldown(level);
@@ -73,23 +78,36 @@ public class SkillManager {
                 return; // On cooldown
             }
 
+            // 3. SP Cost Check
             int spCost = skill.getSpCost(level);
             if (data.getCurrentSP() < spCost) {
                 player.sendMessage("§cNot enough SP!");
                 return;
             }
 
-            // Deduct SP & Set Cooldown
+            // 4. CAST TIME CALCULATION (FIX for INT CT Reduction)
+            double baseCastTimeSeconds = skill.getCastTime();
+            if (baseCastTimeSeconds > 0.0) {
+                double finalCastTimeSeconds = data.getFinalCastTime(baseCastTimeSeconds); // Use new method
+
+                if (finalCastTimeSeconds > 0.0) {
+                    long castTimeTicks = (long) (finalCastTimeSeconds * 20.0);
+                    // Prepend the calculated delay to the action list.
+                    finalActions.add(0, new DelayAction(castTimeTicks));
+                }
+            }
+
+            // 5. Deduct SP & Set Cooldown
             data.setCurrentSP(data.getCurrentSP() - spCost);
             data.setSkillCooldown(skillId, now);
             plugin.getManaManager().updateBar(player);
         }
 
-        // Execute via SkillRunner (Supports Delays & Loops)
-        SkillRunner runner = new SkillRunner(plugin, caster, target, level, skill.getActions());
+        // Execute via SkillRunner (using finalActions)
+        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
 
-        // Setup Runner for LoopActions (Inject dependency)
-        for (SkillAction action : skill.getActions()) {
+        // Setup Runner for LoopActions
+        for (SkillAction action : finalActions) {
             if (action instanceof LoopAction) {
                 ((LoopAction) action).setRunner(runner);
             }
