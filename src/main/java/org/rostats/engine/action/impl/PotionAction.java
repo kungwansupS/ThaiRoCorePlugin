@@ -30,7 +30,7 @@ public class PotionAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level) {
-        // [FIX] Logic เลือกเป้าหมาย
+        // [FIX] Logic เลือกเป้าหมาย: ถ้าเป็น Self Only หรือไม่มีเป้าหมาย ให้ใส่ตัวเอง
         if (isSelfOnly || target == null) {
             target = caster;
         }
