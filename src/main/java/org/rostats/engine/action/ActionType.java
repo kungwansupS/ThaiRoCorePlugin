@@ -1,13 +1,15 @@
 package org.rostats.engine.action;
 
 public enum ActionType {
-    DAMAGE,         // สร้างความเสียหาย
-    HEAL,           // ฮีล
-    APPLY_EFFECT,   // ยัด Effect
-    SOUND,          // เล่นเสียง
-    PARTICLE,       // เล่นเอฟเฟกต์
-    PROJECTILE,     // ยิงลูกพลัง
-    POTION,         // ยัด Vanilla Potion
-    TELEPORT,       // วาร์ป/พุ่ง
-    AREA_EFFECT     // NEW: สกิลหมู่ (AOE)
+    DAMAGE,
+    HEAL,
+    APPLY_EFFECT,
+    SOUND,
+    PARTICLE,
+    PROJECTILE,
+    POTION,
+    TELEPORT,
+    AREA_EFFECT,
+    DELAY,      // สำหรับหน่วงเวลา (จากรอบที่แล้ว)
+    COMMAND     // [NEW] สำหรับรันคำสั่ง
 }

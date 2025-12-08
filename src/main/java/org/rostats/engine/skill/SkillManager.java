@@ -12,14 +12,11 @@ import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
+import org.rostats.engine.action.impl.CommandAction;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -29,8 +26,8 @@ public class SkillManager {
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
 
-    private final ThreadLocal<Integer> recursionDepth = ThreadLocal.withInitial(() -> 0);
-    private static final int MAX_RECURSION_DEPTH = 5;
+    // ลบ recursionDepth ออก เพราะ SkillRunner จะจัดการเรื่อง Stack Overflow ได้ดีกว่าแบบเดิม
+    // private final ThreadLocal<Integer> recursionDepth ...
 
     public SkillManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -140,7 +137,6 @@ public class SkillManager {
         config.set(key + ".conditions.sp-cost", skill.getSpCostBase());
         config.set(key + ".conditions.sp-cost-per-level", skill.getSpCostPerLevel());
         config.set(key + ".conditions.cast-time", skill.getCastTime());
-        // [NEW] Save Required Level
         config.set(key + ".conditions.required-level", skill.getRequiredLevel());
 
         List<Map<String, Object>> serializedActions = new ArrayList<>();
@@ -181,72 +177,53 @@ public class SkillManager {
     }
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
-        int currentDepth = recursionDepth.get();
-        if (currentDepth >= MAX_RECURSION_DEPTH) {
-            plugin.getLogger().warning("Skill recursion limit reached for skill: " + skillId + " (Caster: " + caster.getName() + "). Stopping chain.");
+        // [UPDATED] Removed recursion check, relying on SkillRunner and Logic checks
+
+        SkillData skill = skillMap.get(skillId);
+        if (skill == null) return;
+
+        // Status Check (CC)
+        if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
+            if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
+            return;
+        }
+        if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "SILENCE")) {
+            if (caster instanceof Player) caster.sendMessage("§cYou are silenced!");
             return;
         }
 
-        try {
-            recursionDepth.set(currentDepth + 1);
+        if (!isPassive && caster instanceof Player player) {
+            PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
-            SkillData skill = skillMap.get(skillId);
-            if (skill == null) return;
-
-            // Status Check (CC)
-            if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
-                if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
-                return;
-            }
-            if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "SILENCE")) {
-                if (caster instanceof Player) caster.sendMessage("§cYou are silenced!");
+            if (data.getBaseLevel() < skill.getRequiredLevel()) {
+                player.sendMessage("§cLevel too low! Required: " + skill.getRequiredLevel());
                 return;
             }
 
-            if (!isPassive && caster instanceof Player player) {
-                PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+            long now = System.currentTimeMillis();
+            long lastUse = data.getSkillCooldown(skillId);
+            double cooldownSeconds = skill.getCooldown(level);
+            long cooldownMillis = (long) (cooldownSeconds * 1000);
 
-                // [NEW] Level Requirement Check
-                if (data.getBaseLevel() < skill.getRequiredLevel()) {
-                    player.sendMessage("§cLevel too low! Required: " + skill.getRequiredLevel());
-                    return;
-                }
-
-                long now = System.currentTimeMillis();
-                long lastUse = data.getSkillCooldown(skillId);
-                double cooldownSeconds = skill.getCooldown(level);
-                long cooldownMillis = (long) (cooldownSeconds * 1000);
-
-                if (now - lastUse < cooldownMillis) {
-                    long timeLeft = (cooldownMillis - (now - lastUse)) / 1000;
-                    player.sendMessage("§cSkill is on cooldown! (" + timeLeft + "s)");
-                    return;
-                }
-
-                int spCost = skill.getSpCost(level);
-                if (data.getCurrentSP() < spCost) {
-                    player.sendMessage("§cNot enough SP!");
-                    return;
-                }
-
-                data.setCurrentSP(data.getCurrentSP() - spCost);
-                data.setSkillCooldown(skillId, now);
-                plugin.getManaManager().updateBar(player);
+            if (now - lastUse < cooldownMillis) {
+                long timeLeft = (cooldownMillis - (now - lastUse)) / 1000;
+                // player.sendMessage("§cSkill is on cooldown! (" + timeLeft + "s)"); // Optional spam check
+                return;
             }
 
-            for (SkillAction action : skill.getActions()) {
-                try {
-                    action.execute(caster, target, level);
-                } catch (Exception e) {
-                    plugin.getLogger().warning("Error executing action for skill " + skillId);
-                    e.printStackTrace();
-                }
+            int spCost = skill.getSpCost(level);
+            if (data.getCurrentSP() < spCost) {
+                player.sendMessage("§cNot enough SP!");
+                return;
             }
 
-        } finally {
-            recursionDepth.set(recursionDepth.get() - 1);
-            if (recursionDepth.get() < 0) recursionDepth.set(0);
+            data.setCurrentSP(data.getCurrentSP() - spCost);
+            data.setSkillCooldown(skillId, now);
+            plugin.getManaManager().updateBar(player);
         }
+
+        // [NEW] Use SkillRunner instead of Loop
+        new SkillRunner(plugin, caster, target, level, skill.getActions()).runNext();
     }
 
     public void loadSkills() {
@@ -306,7 +283,6 @@ public class SkillManager {
                 skill.setSpCostBase(cond.getInt("sp-cost", 0));
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
                 skill.setCastTime(cond.getDouble("cast-time", 0));
-                // [NEW] Load Required Level
                 skill.setRequiredLevel(cond.getInt("required-level", 1));
             }
 
@@ -336,7 +312,6 @@ public class SkillManager {
             case DAMAGE:
                 return new DamageAction(plugin, (String) map.getOrDefault("formula", "ATK"), (String) map.getOrDefault("element", "NEUTRAL"));
             case HEAL:
-                // [FIX] Load self-only
                 return new HealAction(plugin,
                         (String) map.getOrDefault("formula", "10"),
                         (boolean) map.getOrDefault("is-mana", false),
@@ -363,7 +338,6 @@ public class SkillManager {
                 double offset = map.containsKey("offset") ? ((Number)map.get("offset")).doubleValue() : 0.5;
                 return new ParticleAction(particleName, count, speed, offset);
             case POTION:
-                // [FIX] Load self-only
                 String potion = (String) map.getOrDefault("potion", "SPEED");
                 int pDuration = map.containsKey("duration") ? ((Number)map.get("duration")).intValue() : 60;
                 int amp = map.containsKey("amplifier") ? ((Number)map.get("amplifier")).intValue() : 0;
@@ -384,6 +358,18 @@ public class SkillManager {
                 String subSkill = (String) map.getOrDefault("sub-skill", "none");
                 int maxT = map.containsKey("max-targets") ? ((Number)map.get("max-targets")).intValue() : 10;
                 return new AreaAction(plugin, radius, tType, subSkill, maxT);
+
+            // [PREVIOUS] DELAY ACTION
+            case DELAY:
+                long ticks = map.containsKey("ticks") ? ((Number)map.get("ticks")).longValue() : 20L;
+                return new DelayAction(ticks);
+
+            // [NEW] COMMAND ACTION
+            case COMMAND:
+                String cmd = (String) map.getOrDefault("command", "say Hi %player%");
+                boolean console = (boolean) map.getOrDefault("as-console", false);
+                return new CommandAction(cmd, console);
+
             default:
                 return null;
         }
@@ -412,24 +398,29 @@ public class SkillManager {
 
             config.set(key + ".conditions.cooldown", 5.0);
             config.set(key + ".conditions.sp-cost", 20);
-            config.set(key + ".conditions.required-level", 1); // Example
+            config.set(key + ".conditions.required-level", 1);
 
             List<Map<String, Object>> actions = new ArrayList<>();
 
-            Map<String, Object> damage = new HashMap<>();
-            damage.put("type", "DAMAGE");
-            damage.put("formula", "(MATK * 1.5) + (INT * 5)");
-            damage.put("element", "FIRE");
-            actions.add(damage);
+            // Sound
+            Map<String, Object> sound = new HashMap<>();
+            sound.put("type", "SOUND");
+            sound.put("sound", "ENTITY_GHAST_SHOOT");
+            actions.add(sound);
 
-            Map<String, Object> burn = new HashMap<>();
-            burn.put("type", "APPLY_EFFECT");
-            burn.put("effect-id", "burn_dot");
-            burn.put("effect-type", "PERIODIC_DAMAGE");
-            burn.put("power", 10.0);
-            burn.put("duration", 100);
-            burn.put("chance", 0.5);
-            actions.add(burn);
+            // Delay example
+            Map<String, Object> delay = new HashMap<>();
+            delay.put("type", "DELAY");
+            delay.put("ticks", 10);
+            actions.add(delay);
+
+            // Projectile
+            Map<String, Object> proj = new HashMap<>();
+            proj.put("type", "PROJECTILE");
+            proj.put("projectile", "SMALL_FIREBALL");
+            proj.put("speed", 1.5);
+            proj.put("on-hit", "fireball_explode");
+            actions.add(proj);
 
             config.set(key + ".actions", actions);
 
