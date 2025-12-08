@@ -32,6 +32,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\CombatHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\DeathHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\ManaManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\ProjectileHandler.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\StatusHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\hook\PAPIHook.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\input\ChatInputHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\AttributeEditorGUI.java

@@ -21,7 +21,8 @@ import org.rostats.gui.GUIListener;
 import org.rostats.handler.AttributeHandler;
 import org.rostats.handler.CombatHandler;
 import org.rostats.handler.ManaManager;
-import org.rostats.handler.ProjectileHandler; // NEW IMPORT
+import org.rostats.handler.ProjectileHandler;
+import org.rostats.handler.StatusHandler; // NEW IMPORT
 import org.rostats.hook.PAPIHook;
 import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
@@ -40,8 +41,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private ManaManager manaManager;
     private DataManager dataManager;
 
-    // NEW: Handler for Projectiles
     private ProjectileHandler projectileHandler;
+    private StatusHandler statusHandler; // NEW Field
 
     private ItemAttributeManager itemAttributeManager;
     private ItemManager itemManager;
@@ -61,8 +62,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
 
-        // NEW: Init Projectile Handler
         this.projectileHandler = new ProjectileHandler(this);
+        this.statusHandler = new StatusHandler(this); // Initialize
 
         // 2. Initialize Engine Managers
         this.effectManager = new EffectManager(this);
@@ -77,7 +78,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
-        getServer().getPluginManager().registerEvents(projectileHandler, this); // Register here
+        getServer().getPluginManager().registerEvents(projectileHandler, this);
+        getServer().getPluginManager().registerEvents(statusHandler, this); // Register
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(this, this);
 
@@ -217,7 +219,5 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ChatInputHandler getChatInputHandler() { return chatInputHandler; }
     public EffectManager getEffectManager() { return effectManager; }
     public SkillManager getSkillManager() { return skillManager; }
-
-    // NEW Getter
     public ProjectileHandler getProjectileHandler() { return projectileHandler; }
 }

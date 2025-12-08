@@ -9,7 +9,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.*; // Import all actions including AreaAction
+import org.rostats.engine.action.impl.*; // Import all actions (Damage, Heal, Effect, Sound, Particle, Potion, Teleport, Projectile, Area)
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
 
@@ -89,6 +89,7 @@ public class SkillManager {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             String id = skillName.replace(".yml", "").toLowerCase().replace(" ", "_");
 
+            // Default Template
             config.set(id + ".display-name", skillName);
             config.set(id + ".icon", "BOOK");
             config.set(id + ".max-level", 1);
@@ -183,6 +184,18 @@ public class SkillManager {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
 
+        // --- Status Check (Silence / Stun) ---
+        if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
+            if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
+            return;
+        }
+        if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "SILENCE")) {
+            if (caster instanceof Player) caster.sendMessage("§cYou are silenced!");
+            return;
+        }
+        // -------------------------------------
+
+        // --- Cooldown and SP Check (Only for Players & Not Passive) ---
         if (!isPassive && caster instanceof Player player) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
@@ -208,6 +221,7 @@ public class SkillManager {
             plugin.getManaManager().updateBar(player);
         }
 
+        // Execute Actions
         for (SkillAction action : skill.getActions()) {
             try {
                 action.execute(caster, target, level);
@@ -254,10 +268,13 @@ public class SkillManager {
 
             SkillData skill = new SkillData(key);
             skill.setDisplayName(section.getString("display-name", key));
+
             String iconName = section.getString("icon", "BOOK");
             Material icon = Material.getMaterial(iconName);
             skill.setIcon(icon != null ? icon : Material.BOOK);
+
             skill.setMaxLevel(section.getInt("max-level", 1));
+
             String triggerStr = section.getString("trigger", "CAST");
             try {
                 skill.setTrigger(TriggerType.valueOf(triggerStr));
@@ -336,16 +353,12 @@ public class SkillManager {
                 double projSpeed = map.containsKey("speed") ? ((Number)map.get("speed")).doubleValue() : 1.0;
                 String onHit = (String) map.getOrDefault("on-hit", "none");
                 return new ProjectileAction(plugin, projType, projSpeed, onHit);
-
-            // --- NEW: AREA EFFECT PARSING ---
             case AREA_EFFECT:
                 double radius = map.containsKey("radius") ? ((Number)map.get("radius")).doubleValue() : 5.0;
                 String tType = (String) map.getOrDefault("target-type", "ENEMY");
                 String subSkill = (String) map.getOrDefault("sub-skill", "none");
                 int maxT = map.containsKey("max-targets") ? ((Number)map.get("max-targets")).intValue() : 10;
                 return new AreaAction(plugin, radius, tType, subSkill, maxT);
-            // --------------------------------
-
             default:
                 return null;
         }

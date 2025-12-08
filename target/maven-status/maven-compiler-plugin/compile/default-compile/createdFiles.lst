@@ -24,6 +24,7 @@ org\rostats\utils\FormulaParser.class
 org\rostats\gui\CharacterGUI.class
 org\rostats\itemeditor\ItemAttributeManager.class
 org\rostats\engine\action\impl\ParticleAction.class
+org\rostats\handler\StatusHandler.class
 org\rostats\handler\ManaManager.class
 org\rostats\gui\SkillActionSelectorGUI.class
 org\rostats\ThaiRoCorePlugin$1.class
