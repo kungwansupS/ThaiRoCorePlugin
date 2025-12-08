@@ -1,12 +1,36 @@
 # Configuration for ROStats Core System
 # ไฟล์นี้ใช้สำหรับตั้งค่าคงที่ที่สำคัญเพื่อให้ง่ายต่อการปรับสมดุล (Balancing)
 
-# --- Stat Cost Formula ---
-# Formula คือ: ((Current Value - 1) / Stat_Cost_Divisor) + Stat_Cost_Base
-stat-cost:
-  base: 2
-  divisor: 10
-  cost-start-level: 2 # ค่า Stat จะเริ่มคิด Cost เมื่อมีค่าถึงระดับนี้ (เช่น เมื่อค่า Stat >= 2)
+# --- Stat Formulas (ปรับสมดุลสูตรคำนวณ) ---
+stat-formulas:
+  # สูตร P.ATK = (STR * str-mult) + (DEX * dex-mult) + (LUK * luk-mult)
+  patk:
+    str-multiplier: 1.0
+    dex-multiplier: 0.2
+    luk-multiplier: 0.2
+  # สูตร M.ATK = (INT * int-mult) + (LUK * luk-mult)
+  matk:
+    int-multiplier: 1.5
+    luk-multiplier: 0.3
+  # สูตร HIT = DEX + LUK + BaseLevel + Bonus
+  hit:
+    dex-multiplier: 1.0
+    luk-multiplier: 1.0
+  # สูตร FLEE = AGI + (LUK * luk-mult) + BaseLevel + Bonus
+  flee:
+    agi-multiplier: 1.0
+    luk-multiplier: 0.2
+  # สูตร CRIT = (LUK * luk-mult) + Bonus
+  crit:
+    luk-multiplier: 0.3
+  # สูตร Soft DEF = (VIT * vit-mult) + (AGI * agi-mult)
+  def:
+    vit-multiplier: 0.5
+    agi-multiplier: 0.1
+  # สูตร Soft MDEF = (INT * int-mult) + (VIT * vit-mult)
+  mdef:
+    int-multiplier: 1.0
+    vit-multiplier: 0.5
 
 # --- Experience & Points ---
 exp-formula:

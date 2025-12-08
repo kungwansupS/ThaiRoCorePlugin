@@ -20,13 +20,17 @@ public class EffectManager {
     private final ThaiRoCorePlugin plugin;
     private final Map<UUID, List<ActiveEffect>> mobEffectsMap = new ConcurrentHashMap<>();
 
+    // [FIX] กำหนดช่วงเวลาการทำงานของ Task (5 Ticks = 0.25 วินาที)
+    private static final long TICK_INTERVAL = 5L;
+
     public EffectManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         startTickTask();
     }
 
     private void startTickTask() {
-        plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickAll, 1L, 1L);
+        // [FIX] เปลี่ยนจาก 1L เป็น TICK_INTERVAL (ลดภาระ Server 5 เท่า)
+        plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickAll, 1L, TICK_INTERVAL);
     }
 
     private void tickAll() {
@@ -64,7 +68,11 @@ public class EffectManager {
 
         // Tick & Trigger
         for (ActiveEffect effect : effects) {
-            effect.tick();
+            // [FIX] ลดเวลาลงทีละ 5 Ticks ตามรอบการทำงาน
+            effect.tick(TICK_INTERVAL);
+
+            // หมายเหตุ: isReadyToTrigger อาจจะลดความแม่นยำลงเล็กน้อยในระดับมิลลิวินาที
+            // แต่สำหรับ RPG Minecraft ถือว่ายอมรับได้แลกกับ Performance ที่ดีขึ้น
             if (effect.isReadyToTrigger(currentTick)) {
                 triggerEffect(entity, effect);
             }
@@ -80,7 +88,6 @@ public class EffectManager {
         });
 
         if (removed) {
-            // เช็คว่าต้องอัพเดท Stat หรือไม่ (ง่ายๆ คืออัพเดทหมดถ้ามีอะไรหายไปที่เป็น Stat)
             needStatUpdate = true;
         }
 
@@ -99,15 +106,12 @@ public class EffectManager {
 
         boolean found = false;
         for (ActiveEffect existing : effects) {
-            // เช็ค ID เดียวกัน (Refresh Duration)
             if (existing.getId().equals(newEffect.getId())) {
                 existing.setDurationTicks(newEffect.getDurationTicks());
                 if (newEffect.getLevel() > existing.getLevel()) {
                     existing.setLevel(newEffect.getLevel());
-                    // Re-apply logic for higher level
                     applyEffectLogic(target, newEffect);
                 } else {
-                    // Just refresh logic (e.g. potion duration extension)
                     applyEffectLogic(target, existing);
                 }
                 found = true;
@@ -125,18 +129,15 @@ public class EffectManager {
         }
     }
 
-    // --- Logic เมื่อได้รับ Effect ---
     private void applyEffectLogic(LivingEntity target, ActiveEffect effect) {
         if (effect.getType() == EffectType.VANILLA_POTION) {
             PotionEffectType pType = PotionEffectType.getByName(effect.getStatKey());
             if (pType != null) {
-                // Apply Potion (Duration in ticks, Amplifier = Level - 1)
                 target.addPotionEffect(new PotionEffect(pType, (int) effect.getDurationTicks(), effect.getLevel() - 1));
             }
         }
     }
 
-    // --- Logic เมื่อ Effect หมดเวลา ---
     private void removeEffectLogic(LivingEntity target, ActiveEffect effect) {
         if (effect.getType() == EffectType.VANILLA_POTION) {
             PotionEffectType pType = PotionEffectType.getByName(effect.getStatKey());
@@ -144,7 +145,6 @@ public class EffectManager {
                 target.removePotionEffect(pType);
             }
         }
-        // STAT_MODIFIER จะถูกจัดการโดย updatePlayerStats ใน processEffects อยู่แล้ว
     }
 
     public void removeEffect(LivingEntity target, String effectId) {
@@ -184,7 +184,6 @@ public class EffectManager {
         }
     }
 
-    // --- NEW: Helper Method to check active status ---
     public boolean hasEffect(LivingEntity entity, EffectType type, String statKey) {
         List<ActiveEffect> effects;
         if (entity instanceof Player player) {
@@ -197,8 +196,6 @@ public class EffectManager {
 
         for (ActiveEffect effect : effects) {
             if (effect.getType() == type) {
-                // ถ้า statKey เป็น null คือไม่เช็ค Key (เช็คแค่ Type)
-                // ถ้า statKey มีค่า ต้องตรงกัน
                 if (statKey == null || (effect.getStatKey() != null && effect.getStatKey().equalsIgnoreCase(statKey))) {
                     return true;
                 }

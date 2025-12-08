@@ -9,7 +9,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.*; // Import all actions
+import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
 
@@ -29,9 +29,9 @@ public class SkillManager {
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
 
-    // [FIX] เพิ่มตัวนับความลึกของการร่ายสกิล (Recursion Guard) เพื่อป้องกัน Infinite Loop จาก AreaAction หรือการเรียกวน
+    // [FIX] เพิ่มตัวนับความลึกของการร่ายสกิล (Recursion Guard)
     private final ThreadLocal<Integer> recursionDepth = ThreadLocal.withInitial(() -> 0);
-    private static final int MAX_RECURSION_DEPTH = 5; // จำกัดการร่ายต่อเนื่องซ้อนกันไม่เกิน 5 ชั้น
+    private static final int MAX_RECURSION_DEPTH = 5;
 
     public SkillManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -43,10 +43,7 @@ public class SkillManager {
         loadSkills();
     }
 
-    // --- File Management ---
-    public File getRootDir() {
-        return skillFolder;
-    }
+    public File getRootDir() { return skillFolder; }
 
     public String getRelativePath(File file) {
         String rootPath = skillFolder.getAbsolutePath();
@@ -93,7 +90,6 @@ public class SkillManager {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             String id = skillName.replace(".yml", "").toLowerCase().replace(" ", "_");
 
-            // Default Template
             config.set(id + ".display-name", skillName);
             config.set(id + ".icon", "BOOK");
             config.set(id + ".max-level", 1);
@@ -125,7 +121,6 @@ public class SkillManager {
         loadSkills();
     }
 
-    // --- Save Skill Logic ---
     public void saveSkill(SkillData skill) {
         File file = findFileBySkillId(skill.getId());
         if (file == null) {
@@ -185,7 +180,7 @@ public class SkillManager {
     }
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
-        // [FIX] Recursion Guard: Check Depth
+        // [FIX] Recursion Guard
         int currentDepth = recursionDepth.get();
         if (currentDepth >= MAX_RECURSION_DEPTH) {
             plugin.getLogger().warning("Skill recursion limit reached for skill: " + skillId + " (Caster: " + caster.getName() + "). Stopping chain.");
@@ -193,13 +188,11 @@ public class SkillManager {
         }
 
         try {
-            // [FIX] Increment depth
             recursionDepth.set(currentDepth + 1);
 
             SkillData skill = skillMap.get(skillId);
             if (skill == null) return;
 
-            // --- Status Check (Silence / Stun) ---
             if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
                 if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
                 return;
@@ -208,9 +201,7 @@ public class SkillManager {
                 if (caster instanceof Player) caster.sendMessage("§cYou are silenced!");
                 return;
             }
-            // -------------------------------------
 
-            // --- Cooldown and SP Check (Only for Players & Not Passive) ---
             if (!isPassive && caster instanceof Player player) {
                 PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
@@ -236,7 +227,6 @@ public class SkillManager {
                 plugin.getManaManager().updateBar(player);
             }
 
-            // Execute Actions
             for (SkillAction action : skill.getActions()) {
                 try {
                     action.execute(caster, target, level);
@@ -247,9 +237,8 @@ public class SkillManager {
             }
 
         } finally {
-            // [FIX] Decrement depth (Ensure it runs even if exception occurs)
             recursionDepth.set(recursionDepth.get() - 1);
-            if (recursionDepth.get() < 0) recursionDepth.set(0); // Safety net
+            if (recursionDepth.get() < 0) recursionDepth.set(0);
         }
     }
 
@@ -338,7 +327,11 @@ public class SkillManager {
             case DAMAGE:
                 return new DamageAction(plugin, (String) map.getOrDefault("formula", "ATK"), (String) map.getOrDefault("element", "NEUTRAL"));
             case HEAL:
-                return new HealAction(plugin, (String) map.getOrDefault("formula", "10"), (boolean) map.getOrDefault("is-mana", false));
+                // [FIX] Load self-only
+                return new HealAction(plugin,
+                        (String) map.getOrDefault("formula", "10"),
+                        (boolean) map.getOrDefault("is-mana", false),
+                        (boolean) map.getOrDefault("self-only", true));
             case APPLY_EFFECT:
                 String eid = (String) map.getOrDefault("effect-id", "unknown");
                 String effTypeStr = (String) map.getOrDefault("effect-type", "STAT_MODIFIER");
@@ -361,10 +354,12 @@ public class SkillManager {
                 double offset = map.containsKey("offset") ? ((Number)map.get("offset")).doubleValue() : 0.5;
                 return new ParticleAction(particleName, count, speed, offset);
             case POTION:
+                // [FIX] Load self-only
                 String potion = (String) map.getOrDefault("potion", "SPEED");
                 int pDuration = map.containsKey("duration") ? ((Number)map.get("duration")).intValue() : 60;
                 int amp = map.containsKey("amplifier") ? ((Number)map.get("amplifier")).intValue() : 0;
-                return new PotionAction(potion, pDuration, amp);
+                boolean selfOnly = (boolean) map.getOrDefault("self-only", true);
+                return new PotionAction(potion, pDuration, amp, selfOnly);
             case TELEPORT:
                 double range = map.containsKey("range") ? ((Number)map.get("range")).doubleValue() : 5.0;
                 boolean toTarget = (boolean) map.getOrDefault("to-target", false);

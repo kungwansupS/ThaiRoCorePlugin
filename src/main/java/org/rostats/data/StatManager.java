@@ -15,6 +15,11 @@ public class StatManager {
         this.plugin = plugin;
     }
 
+    // [FIX] เพิ่มเมธอดสำหรับลบข้อมูลเมื่อผู้เล่นออก (แก้ Memory Leak)
+    public void removeData(UUID uuid) {
+        playerDataMap.remove(uuid);
+    }
+
     public PlayerData getData(UUID uuid) {
         return playerDataMap.computeIfAbsent(uuid, k -> new PlayerData(plugin));
     }
@@ -105,7 +110,7 @@ public class StatManager {
         return ((currentVal - 1) / costDivisor) + costBase;
     }
 
-    // --- FIX: Helper Method to get Base + Pending + Gear + Effect Bonus ---
+    // Helper Method to get Base + Pending + Gear + Effect Bonus
     private int getTotalStat(PlayerData data, String statKey) {
         int base = data.getStat(statKey);
         int pending = data.getPendingStat(statKey);
@@ -123,7 +128,7 @@ public class StatManager {
         return base + pending + gear + effect;
     }
 
-    // --- UPDATED CALCULATIONS USING TOTAL STATS & EFFECT BONUSES ---
+    // --- UPDATED CALCULATIONS USING CONFIG (Fix Hardcoded) ---
 
     public double getPhysicalAttack(Player player) {
         PlayerData data = getData(player.getUniqueId());
@@ -131,8 +136,12 @@ public class StatManager {
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
 
+        double strMult = plugin.getConfig().getDouble("stat-formulas.patk.str-multiplier", 1.0);
+        double dexMult = plugin.getConfig().getDouble("stat-formulas.patk.dex-multiplier", 0.2);
+        double lukMult = plugin.getConfig().getDouble("stat-formulas.patk.luk-multiplier", 0.2);
+
         double effectBonus = data.getEffectBonus("P_ATK");
-        return (str * 1.0) + (dex * 0.2) + (luk * 0.2) + data.getWeaponPAtk() + data.getPAtkBonusFlat() + effectBonus;
+        return (str * strMult) + (dex * dexMult) + (luk * lukMult) + data.getWeaponPAtk() + data.getPAtkBonusFlat() + effectBonus;
     }
 
     public double getMagicAttack(Player player) {
@@ -140,8 +149,11 @@ public class StatManager {
         int intel = getTotalStat(data, "INT");
         int luk = getTotalStat(data, "LUK");
 
+        double intMult = plugin.getConfig().getDouble("stat-formulas.matk.int-multiplier", 1.5);
+        double lukMult = plugin.getConfig().getDouble("stat-formulas.matk.luk-multiplier", 0.3);
+
         double effectBonus = data.getEffectBonus("M_ATK");
-        return (intel * 1.5) + (luk * 0.3) + data.getWeaponMAtk() + data.getMAtkBonusFlat() + effectBonus;
+        return (intel * intMult) + (luk * lukMult) + data.getWeaponMAtk() + data.getMAtkBonusFlat() + effectBonus;
     }
 
     public int getHit(Player player) {
@@ -149,8 +161,11 @@ public class StatManager {
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
 
+        double dexMult = plugin.getConfig().getDouble("stat-formulas.hit.dex-multiplier", 1.0);
+        double lukMult = plugin.getConfig().getDouble("stat-formulas.hit.luk-multiplier", 1.0);
+
         int effectBonus = (int) data.getEffectBonus("HIT");
-        return (int) (dex + luk + data.getBaseLevel() + data.getHitBonusFlat() + effectBonus);
+        return (int) ((dex * dexMult) + (luk * lukMult) + data.getBaseLevel() + data.getHitBonusFlat() + effectBonus);
     }
 
     public int getFlee(Player player) {
@@ -158,8 +173,11 @@ public class StatManager {
         int agi = getTotalStat(data, "AGI");
         int luk = getTotalStat(data, "LUK");
 
+        double agiMult = plugin.getConfig().getDouble("stat-formulas.flee.agi-multiplier", 1.0);
+        double lukMult = plugin.getConfig().getDouble("stat-formulas.flee.luk-multiplier", 0.2);
+
         int effectBonus = (int) data.getEffectBonus("FLEE");
-        return (int) (agi + (luk * 0.2) + data.getBaseLevel() + data.getFleeBonusFlat() + effectBonus);
+        return (int) ((agi * agiMult) + (luk * lukMult) + data.getBaseLevel() + data.getFleeBonusFlat() + effectBonus);
     }
 
     public double getAspdBonus(Player player) {
@@ -177,8 +195,11 @@ public class StatManager {
         int vit = getTotalStat(data, "VIT");
         int agi = getTotalStat(data, "AGI");
 
+        double vitMult = plugin.getConfig().getDouble("stat-formulas.def.vit-multiplier", 0.5);
+        double agiMult = plugin.getConfig().getDouble("stat-formulas.def.agi-multiplier", 0.1);
+
         double effectBonus = data.getEffectBonus("DEF");
-        return (vit * 0.5) + (agi * 0.1) + effectBonus;
+        return (vit * vitMult) + (agi * agiMult) + effectBonus;
     }
 
     public double getSoftMDef(Player player) {
@@ -186,16 +207,21 @@ public class StatManager {
         int intel = getTotalStat(data, "INT");
         int vit = getTotalStat(data, "VIT");
 
+        double intMult = plugin.getConfig().getDouble("stat-formulas.mdef.int-multiplier", 1.0);
+        double vitMult = plugin.getConfig().getDouble("stat-formulas.mdef.vit-multiplier", 0.5);
+
         double effectBonus = data.getEffectBonus("MDEF");
-        return (intel * 1.0) + (vit * 0.5) + effectBonus;
+        return (intel * intMult) + (vit * vitMult) + effectBonus;
     }
 
     public double getCritChance(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int luk = getTotalStat(data, "LUK");
 
+        double lukMult = plugin.getConfig().getDouble("stat-formulas.crit.luk-multiplier", 0.3);
+
         double effectBonus = data.getEffectBonus("CRIT");
-        return (luk * 0.3) + effectBonus;
+        return (luk * lukMult) + effectBonus;
     }
 
     public double calculatePower(Player player) {

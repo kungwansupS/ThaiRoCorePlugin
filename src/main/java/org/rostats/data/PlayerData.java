@@ -22,7 +22,7 @@ public class PlayerData {
     private final Map<String, Integer> stats = new HashMap<>();
     private final Map<String, Integer> pendingStats = new HashMap<>();
 
-    // NEW: Map สำหรับเก็บ Cooldown (SkillID -> Timestamp)
+    // Map สำหรับเก็บ Cooldown (SkillID -> Timestamp)
     private final Map<String, Long> skillCooldowns = new HashMap<>();
 
     // Active Effects List
@@ -91,6 +91,8 @@ public class PlayerData {
 
     private double pDmgReductionPercent = 0.0;
     private double mDmgReductionPercent = 0.0;
+
+    // New Fields (Full Support)
     private double ignorePDefFlat = 0.0;
     private double ignoreMDefFlat = 0.0;
     private double ignorePDefPercent = 0.0;
@@ -111,17 +113,9 @@ public class PlayerData {
     }
 
     // --- Active Effect Logic ---
-    public List<ActiveEffect> getActiveEffects() {
-        return activeEffects;
-    }
-
-    public void addActiveEffect(ActiveEffect effect) {
-        this.activeEffects.add(effect);
-    }
-
-    public void removeActiveEffect(ActiveEffect effect) {
-        this.activeEffects.remove(effect);
-    }
+    public List<ActiveEffect> getActiveEffects() { return activeEffects; }
+    public void addActiveEffect(ActiveEffect effect) { this.activeEffects.add(effect); }
+    public void removeActiveEffect(ActiveEffect effect) { this.activeEffects.remove(effect); }
 
     public double getEffectBonus(String key) {
         double bonus = 0.0;
@@ -134,25 +128,26 @@ public class PlayerData {
         }
         return bonus;
     }
-    // ---------------------------
 
-    // --- Skill Cooldown Logic ---
+    // --- Skill Cooldown Logic (With Cleanup) ---
     public long getSkillCooldown(String skillId) {
+        // [FIX] Lazy Cleanup: ลบข้อมูลเก่าทิ้งเมื่อมีการเรียกใช้
+        cleanupExpiredCooldowns();
         return skillCooldowns.getOrDefault(skillId, 0L);
     }
 
     public void setSkillCooldown(String skillId, long timestamp) {
         skillCooldowns.put(skillId, timestamp);
     }
-    // ----------------------------
 
-    public long getBaseExpReq() {
-        return getBaseExpReq(this.baseLevel);
+    // [FIX] เมธอดลบ Cooldown ที่หมดเวลาแล้ว
+    public void cleanupExpiredCooldowns() {
+        long now = System.currentTimeMillis();
+        skillCooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
     }
 
-    public long getJobExpReq() {
-        return getJobExpReq(this.jobLevel);
-    }
+    public long getBaseExpReq() { return getBaseExpReq(this.baseLevel); }
+    public long getJobExpReq() { return getJobExpReq(this.jobLevel); }
 
     public void resetGearBonuses() {
         this.strBonusGear = 0; this.agiBonusGear = 0; this.vitBonusGear = 0;
@@ -161,7 +156,7 @@ public class PlayerData {
         this.pAtkBonusFlat = 0; this.mAtkBonusFlat = 0;
         this.pDmgBonusPercent = 0; this.mDmgBonusPercent = 0;
         this.pDmgBonusFlat = 0; this.mDmgBonusFlat = 0;
-        this.critDmgPercent = 50.0; // Base value
+        this.critDmgPercent = 50.0;
         this.critDmgResPercent = 0; this.critRes = 0;
         this.pPenFlat = 0; this.mPenFlat = 0;
         this.pPenPercent = 0; this.mPenPercent = 0;
@@ -179,6 +174,7 @@ public class PlayerData {
         this.hitBonusFlat = 0; this.fleeBonusFlat = 0;
         this.pDmgReductionPercent = 0; this.mDmgReductionPercent = 0;
 
+        // Reset new fields
         this.ignorePDefFlat = 0; this.ignoreMDefFlat = 0;
         this.ignorePDefPercent = 0; this.ignoreMDefPercent = 0;
         this.meleePDmgPercent = 0; this.rangePDmgPercent = 0;
@@ -186,7 +182,7 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // --- FULL Getters and Setters (ละไว้ในฐานที่เข้าใจ ให้คงเดิมที่มีอยู่แล้ว) ---
+    // --- Getters & Setters ---
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -299,32 +295,44 @@ public class PlayerData {
     public double getMDmgReductionPercent() { return mDmgReductionPercent; }
     public void setMDmgReductionPercent(double v) { this.mDmgReductionPercent = v; }
 
+    // [FIXED] Added Setters for New Fields
     public double getIgnorePDefFlat() { return ignorePDefFlat; }
+    public void setIgnorePDefFlat(double v) { this.ignorePDefFlat = v; }
     public double getIgnoreMDefFlat() { return ignoreMDefFlat; }
+    public void setIgnoreMDefFlat(double v) { this.ignoreMDefFlat = v; }
     public double getIgnorePDefPercent() { return ignorePDefPercent; }
+    public void setIgnorePDefPercent(double v) { this.ignorePDefPercent = v; }
     public double getIgnoreMDefPercent() { return ignoreMDefPercent; }
-    public double getMeleePDmgPercent() { return meleePDmgPercent; }
-    public double getRangePDmgPercent() { return rangePDmgPercent; }
-    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
-    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
-    public double getTrueDamageFlat() { return trueDamageFlat; }
+    public void setIgnoreMDefPercent(double v) { this.ignoreMDefPercent = v; }
 
+    public double getMeleePDmgPercent() { return meleePDmgPercent; }
+    public void setMeleePDmgPercent(double v) { this.meleePDmgPercent = v; }
+    public double getRangePDmgPercent() { return rangePDmgPercent; }
+    public void setRangePDmgPercent(double v) { this.rangePDmgPercent = v; }
+    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
+    public void setMeleePDReductionPercent(double v) { this.meleePDReductionPercent = v; }
+    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
+    public void setRangePDReductionPercent(double v) { this.rangePDReductionPercent = v; }
+
+    public double getTrueDamageFlat() { return trueDamageFlat; }
+    public void setTrueDamageFlat(double v) { this.trueDamageFlat = v; }
+
+    // --- Core Methods ---
     public int getStat(String key) { return stats.getOrDefault(key.toUpperCase(), 1); }
     public void setStat(String key, int val) { stats.put(key.toUpperCase(), val); calculateMaxSP(); }
     public Set<String> getStatKeys() { return stats.keySet(); }
     public int getPendingStat(String key) { return pendingStats.getOrDefault(key.toUpperCase(), 0); }
     public void setPendingStat(String key, int count) { pendingStats.put(key.toUpperCase(), count); }
-    public void clearAllPendingStats() { pendingStats.put("STR", 0); pendingStats.put("AGI", 0); pendingStats.put("VIT", 0);
-        pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0); }
-
-    // --- Core Calcs ---
+    public void clearAllPendingStats() {
+        pendingStats.put("STR", 0); pendingStats.put("AGI", 0); pendingStats.put("VIT", 0);
+        pendingStats.put("INT", 0); pendingStats.put("DEX", 0); pendingStats.put("LUK", 0);
+    }
 
     public double getMaxHP() {
         int vit = getStat("VIT") + getPendingStat("VIT") + getVITBonusGear() + (int)getEffectBonus("VIT");
         double baseHealth = 18 + (baseLevel * 2.0);
         double vitMultiplier = 1.0 + (vit * 0.01);
         double finalMaxHealth = baseHealth * vitMultiplier;
-
         double percentBonus = getMaxHPPercent() + getEffectBonus("MAX_HP_PERCENT");
         return Math.floor(finalMaxHealth * (1 + percentBonus / 100.0));
     }
@@ -334,7 +342,6 @@ public class PlayerData {
         double baseSP = 20.0 + (baseLevel * 3.0);
         double intMultiplier = 1.0 + (intel * 0.01);
         double finalMaxSP = baseSP * intMultiplier;
-
         double percentBonus = getMaxSPPercent() + getEffectBonus("MAX_SP_PERCENT");
         return Math.floor(finalMaxSP * (1 + percentBonus / 100.0));
     }
@@ -342,7 +349,6 @@ public class PlayerData {
     public double getHPRegen() {
         int vit = getStat("VIT") + getVITBonusGear() + (int)getEffectBonus("VIT");
         double baseRegen = 1.0 + (vit * 0.2);
-
         double healRecv = getHealingReceivedPercent() + getEffectBonus("HEAL_RECEIVED");
         return baseRegen * (1 + healRecv / 100.0);
     }
@@ -354,7 +360,6 @@ public class PlayerData {
         if (this.currentSP < max) {
             int intel = getStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
             double healRecv = getHealingReceivedPercent() + getEffectBonus("HEAL_RECEIVED");
-
             double regen = (1.0 + (intel / plugin.getConfig().getDouble("sp-regen.regen-int-divisor", 6.0))) * (1 + healRecv / 100.0);
             this.currentSP = Math.min(max, this.currentSP + regen);
         }
@@ -424,13 +429,11 @@ public class PlayerData {
         return (long) Math.max(1, Math.ceil(A * Math.pow(level, B)));
     }
 
-    private int getStatPointsGain(int level) {
-        return level <= 50 ? 5 : 8;
-    }
-
+    private int getStatPointsGain(int level) { return level <= 50 ? 5 : 8; }
     public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
     public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
 
+    // Boilerplate Getters/Setters
     public int getBaseLevel() { return baseLevel; }
     public void setBaseLevel(int l) { this.baseLevel = l; calculateMaxSP(); }
     public long getBaseExp() { return baseExp; }

@@ -154,7 +154,13 @@ public class GUIListener implements Listener {
 
                 switch (type) {
                     case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
-                    case HEAL: newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), (boolean)data.getOrDefault("is-mana", false)); break;
+
+                    // [FIXED] เพิ่ม self-only argument (4 ตัว)
+                    case HEAL:
+                        boolean hSelf = (boolean) data.getOrDefault("self-only", true);
+                        newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), (boolean)data.getOrDefault("is-mana", false), hSelf);
+                        break;
+
                     case APPLY_EFFECT:
                         String eid = String.valueOf(data.getOrDefault("effect-id", "unknown"));
                         EffectType et = EffectType.valueOf(String.valueOf(data.getOrDefault("effect-type", "STAT_MODIFIER")));
@@ -179,12 +185,16 @@ public class GUIListener implements Listener {
                         double off = Double.parseDouble(String.valueOf(data.getOrDefault("offset", "0.5")));
                         newAction = new ParticleAction(par, cnt, spd, off);
                         break;
+
+                    // [FIXED] เพิ่ม self-only argument (4 ตัว)
                     case POTION:
                         String pot = String.valueOf(data.getOrDefault("potion", "SPEED"));
                         int dur = Integer.parseInt(String.valueOf(data.getOrDefault("duration", "60")));
                         int amp = Integer.parseInt(String.valueOf(data.getOrDefault("amplifier", "0")));
-                        newAction = new PotionAction(pot, dur, amp);
+                        boolean pSelf = (boolean) data.getOrDefault("self-only", true);
+                        newAction = new PotionAction(pot, dur, amp, pSelf);
                         break;
+
                     case TELEPORT:
                         double rng = Double.parseDouble(String.valueOf(data.getOrDefault("range", "5.0")));
                         boolean tgt = (boolean) data.getOrDefault("to-target", false);
@@ -196,7 +206,6 @@ public class GUIListener implements Listener {
                         String hitSkill = String.valueOf(data.getOrDefault("on-hit", "none"));
                         newAction = new ProjectileAction(plugin, proj, pSpd, hitSkill);
                         break;
-                    // --- NEW: AREA EFFECT SAVE ---
                     case AREA_EFFECT:
                         double rad = Double.parseDouble(String.valueOf(data.getOrDefault("radius", "5.0")));
                         String tType = String.valueOf(data.getOrDefault("target-type", "ENEMY"));
@@ -204,7 +213,6 @@ public class GUIListener implements Listener {
                         int maxT = Integer.parseInt(String.valueOf(data.getOrDefault("max-targets", "10")));
                         newAction = new AreaAction(plugin, rad, tType, sub, maxT);
                         break;
-                    // -----------------------------
                 }
 
                 if (newAction != null) {
@@ -280,11 +288,13 @@ public class GUIListener implements Listener {
                     SkillAction action = null;
                     switch (type) {
                         case DAMAGE: action = new DamageAction(plugin, "ATK * 1.0", "NEUTRAL"); break;
-                        case HEAL: action = new HealAction(plugin, "10", false); break;
+                        // [FIXED] Default values for 4 args
+                        case HEAL: action = new HealAction(plugin, "10", false, true); break;
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
                         case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
                         case PARTICLE: action = new ParticleAction("VILLAGER_HAPPY", 5, 0.1, 0.5); break;
-                        case POTION: action = new PotionAction("SPEED", 60, 0); break;
+                        // [FIXED] Default values for 4 args
+                        case POTION: action = new PotionAction("SPEED", 60, 0, true); break;
                         case TELEPORT: action = new TeleportAction(5.0, false); break;
                         case PROJECTILE: action = new ProjectileAction(plugin, "ARROW", 1.5, "none"); break;
                         case AREA_EFFECT: action = new AreaAction(plugin, 5.0, "ENEMY", "none", 10); break;
@@ -299,8 +309,6 @@ public class GUIListener implements Listener {
             }
         }
     }
-
-    // ... (Remaining methods: handleSkillEditorClick, handleSkillLibraryClick, etc. SAME AS BEFORE) ...
 
     private void handleSkillEditorClick(InventoryClickEvent event, Player player, String skillId) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);

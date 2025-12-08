@@ -14,11 +14,13 @@ public class PotionAction implements SkillAction {
     private final String potionType;
     private final int durationTicks;
     private final int amplifier;
+    private final boolean isSelfOnly; // [FIX] New Field
 
-    public PotionAction(String potionType, int durationTicks, int amplifier) {
+    public PotionAction(String potionType, int durationTicks, int amplifier, boolean isSelfOnly) {
         this.potionType = potionType;
         this.durationTicks = durationTicks;
         this.amplifier = amplifier;
+        this.isSelfOnly = isSelfOnly;
     }
 
     @Override
@@ -28,7 +30,10 @@ public class PotionAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level) {
-        if (target == null) target = caster; // ถ้าไม่มีเป้าหมาย ให้ใส่ตัวเอง
+        // [FIX] Logic เลือกเป้าหมาย
+        if (isSelfOnly || target == null) {
+            target = caster;
+        }
 
         PotionEffectType type = PotionEffectType.getByName(potionType);
         if (type != null) {
@@ -43,6 +48,7 @@ public class PotionAction implements SkillAction {
         map.put("potion", potionType);
         map.put("duration", durationTicks);
         map.put("amplifier", amplifier);
+        map.put("self-only", isSelfOnly);
         return map;
     }
 }

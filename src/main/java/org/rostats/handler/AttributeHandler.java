@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -20,14 +21,17 @@ import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
 import org.rostats.itemeditor.ItemSkillBinding;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AttributeHandler implements Listener {
 
     private final ThaiRoCorePlugin plugin;
+
+    // [FIX] Cache สำหรับเก็บ Passive Effect/Skill ของผู้เล่นแต่ละคน
+    // เพื่อไม่ต้องอ่าน NBT ทุกวินาที
+    private final Map<UUID, List<ItemSkillBinding>> cachedPassiveSkills = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<PotionEffectType, Integer>> cachedPassivePotions = new ConcurrentHashMap<>();
 
     public AttributeHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -36,6 +40,14 @@ public class AttributeHandler implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         updatePlayerStats(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        // [FIX] Clear Cache เมื่อออกเกม
+        UUID uuid = event.getPlayer().getUniqueId();
+        cachedPassiveSkills.remove(uuid);
+        cachedPassivePotions.remove(uuid);
     }
 
     @EventHandler
@@ -55,44 +67,27 @@ public class AttributeHandler implements Listener {
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
-    // --- PASSIVE EFFECT LOGIC (UPDATED PHASE 6) ---
+    // --- PASSIVE EFFECT LOGIC (OPTIMIZED) ---
     public void runPassiveEffectsTask() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            // Collect all equipment
-            List<ItemStack> items = new ArrayList<>();
-            if (player.getEquipment() != null) {
-                items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
-                items.add(player.getEquipment().getItemInMainHand());
-                items.add(player.getEquipment().getItemInOffHand());
+            UUID uuid = player.getUniqueId();
+
+            // 1. Apply Cached Potions
+            // ใช้ Cache แทนการอ่าน Item NBT ใหม่
+            Map<PotionEffectType, Integer> potions = cachedPassivePotions.get(uuid);
+            if (potions != null && !potions.isEmpty()) {
+                for (Map.Entry<PotionEffectType, Integer> entry : potions.entrySet()) {
+                    // Duration 60 ticks (3s) เพื่อให้ effect ไม่ขาดตอน
+                    player.addPotionEffect(new PotionEffect(entry.getKey(), 60, entry.getValue() - 1, true, false, true));
+                }
             }
 
-            for (ItemStack item : items) {
-                if (item != null && item.getType() != Material.AIR) {
-                    // Read attributes from item
-                    ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-                    if (attr == null) continue;
-
-                    // 1. Potion Effects (Vanilla)
-                    if (!attr.getPotionEffects().isEmpty()) {
-                        for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
-                            PotionEffectType type = entry.getKey();
-                            int level = entry.getValue();
-                            if (level > 0 && type != null) {
-                                player.addPotionEffect(new PotionEffect(type, 60, level - 1, true, false, true));
-                            }
-                        }
-                    }
-
-                    // 2. Skill Passive Bindings (NEW)
-                    if (!attr.getSkillBindings().isEmpty()) {
-                        for (ItemSkillBinding binding : attr.getSkillBindings()) {
-                            // Check for PASSIVE_TICK or PASSIVE_APPLY
-                            if (binding.getTrigger() == TriggerType.PASSIVE_TICK || binding.getTrigger() == TriggerType.PASSIVE_APPLY) {
-                                // Cast Skill with isPassive=true (No CD/SP checks)
-                                // Target = player (Self)
-                                plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
-                            }
-                        }
+            // 2. Apply Cached Passive Skills (PASSIVE_TICK)
+            List<ItemSkillBinding> skills = cachedPassiveSkills.get(uuid);
+            if (skills != null && !skills.isEmpty()) {
+                for (ItemSkillBinding binding : skills) {
+                    if (binding.getTrigger() == TriggerType.PASSIVE_TICK) {
+                        plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
                     }
                 }
             }
@@ -104,6 +99,11 @@ public class AttributeHandler implements Listener {
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
         data.resetGearBonuses();
 
+        // [FIX] Reset Cache ก่อนคำนวณใหม่
+        UUID uuid = player.getUniqueId();
+        List<ItemSkillBinding> newPassiveSkills = new ArrayList<>();
+        Map<PotionEffectType, Integer> newPassivePotions = new HashMap<>();
+
         List<ItemStack> items = new ArrayList<>();
         if (player.getEquipment() != null) {
             items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
@@ -114,14 +114,44 @@ public class AttributeHandler implements Listener {
         for (ItemStack item : items) {
             if (item != null && item.getType() != Material.AIR) {
                 ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+                // Apply Stats
                 applyItemAttributes(player, attr);
+
+                // [FIX] Collect Passives into Local Variables
+
+                // Collect Potions
+                if (!attr.getPotionEffects().isEmpty()) {
+                    for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
+                        // Logic รวม Potion Level (อาจจะใช้ max หรือ stack แล้วแต่ design)
+                        // ที่นี้ใช้แบบทับถ้า Level เยอะกว่า
+                        PotionEffectType type = entry.getKey();
+                        int lvl = entry.getValue();
+                        newPassivePotions.merge(type, lvl, Math::max);
+                    }
+                }
+
+                // Collect Skills
+                if (!attr.getSkillBindings().isEmpty()) {
+                    for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                        if (binding.getTrigger() == TriggerType.PASSIVE_TICK) {
+                            newPassiveSkills.add(binding);
+                        } else if (binding.getTrigger() == TriggerType.PASSIVE_APPLY) {
+                            // Apply ทันทีครั้งเดียวตอนใส่
+                            plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
+                        }
+                    }
+                }
             }
         }
+
+        // [FIX] Update Cache
+        cachedPassiveSkills.put(uuid, newPassiveSkills);
+        cachedPassivePotions.put(uuid, newPassivePotions);
     }
 
     public void applyItemAttributes(Player player, ItemAttribute attr) {
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
-
+        // ... (โค้ดเดิมส่วน Set Stats ยังคงเดิม ไม่มีการเปลี่ยนแปลง logic ส่วนนี้) ...
         data.setSTRBonusGear(data.getSTRBonusGear() + attr.getStrGear());
         data.setAGIBonusGear(data.getAGIBonusGear() + attr.getAgiGear());
         data.setVITBonusGear(data.getVITBonusGear() + attr.getVitGear());
@@ -185,9 +215,22 @@ public class AttributeHandler implements Listener {
 
         data.setPDmgReductionPercent(data.getPDmgReductionPercent() + attr.getPDmgReductionPercent());
         data.setMDmgReductionPercent(data.getMDmgReductionPercent() + attr.getMDmgReductionPercent());
+
+        data.setIgnorePDefFlat(data.getIgnorePDefFlat() + attr.getIgnorePDefFlat());
+        data.setIgnoreMDefFlat(data.getIgnoreMDefFlat() + attr.getIgnoreMDefFlat());
+        data.setIgnorePDefPercent(data.getIgnorePDefPercent() + attr.getIgnorePDefPercent());
+        data.setIgnoreMDefPercent(data.getIgnoreMDefPercent() + attr.getIgnoreMDefPercent());
+
+        data.setMeleePDmgPercent(data.getMeleePDmgPercent() + attr.getMeleePDmgPercent());
+        data.setRangePDmgPercent(data.getRangePDmgPercent() + attr.getRangePDmgPercent());
+        data.setMeleePDReductionPercent(data.getMeleePDReductionPercent() + attr.getMeleePDReductionPercent());
+        data.setRangePDReductionPercent(data.getRangePDReductionPercent() + attr.getRangePDReductionPercent());
+
+        data.setTrueDamageFlat(data.getTrueDamageFlat() + attr.getTrueDamageFlat());
     }
 
     public void updatePlayerStats(Player player) {
+        // [NOTE] applyAllEquipmentAttributes จะทำการ update cache ให้ด้วย
         applyAllEquipmentAttributes(player);
 
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());

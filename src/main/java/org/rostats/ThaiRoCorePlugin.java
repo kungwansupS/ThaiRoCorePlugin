@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -31,7 +32,10 @@ import org.rostats.itemeditor.ItemManager;
 import org.rostats.engine.effect.EffectManager;
 import org.rostats.engine.skill.SkillManager;
 
+import java.util.Collections;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
@@ -50,6 +54,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     private EffectManager effectManager;
     private SkillManager skillManager;
+
+    // [FIX] Set สำหรับเก็บ Entity ที่สร้างไว้ (เพื่อลบตอนปิด Server)
+    private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
 
     @Override
     public void onEnable() {
@@ -102,7 +109,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
-        // UPDATED: ใช้ชื่อคำสั่งใหม่ roskilleditor
         PluginCommand skillCmd = getCommand("roskilleditor");
         if (skillCmd != null) {
             skillCmd.setExecutor(new SkillCommand(this));
@@ -138,6 +144,15 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
                 if (manaManager != null) manaManager.removeBar(player);
             }
         }
+
+        // [FIX] Cleanup Floating Texts
+        for (Entity entity : activeFloatingTexts) {
+            if (entity != null && entity.isValid()) {
+                entity.remove();
+            }
+        }
+        activeFloatingTexts.clear();
+
         getLogger().info("❌ ThaiRoCorePlugin Disabled");
     }
 
@@ -156,6 +171,14 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         dataManager.savePlayerData(event.getPlayer());
+
+        // [FIX] Clean up memory
+        statManager.removeData(event.getPlayer().getUniqueId());
+        if (manaManager != null) {
+            manaManager.removeBar(event.getPlayer());
+            manaManager.removeBaseExpBar(event.getPlayer());
+            manaManager.removeJobExpBar(event.getPlayer());
+        }
     }
 
     // --- Floating Text Helpers ---
@@ -167,6 +190,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     }
     public void showFloatingText(UUID playerUUID, String text) { showFloatingText(playerUUID, text, 0.25); }
     public void showCombatFloatingText(Location loc, String text) { showAnimatedText(loc.add(0, 1.5, 0), text); }
+
     private void showAnimatedText(Location startLoc, String text) {
         getServer().getScheduler().runTask(this, () -> {
             final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
@@ -176,6 +200,10 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.setCustomNameVisible(true);
             stand.customName(Component.text(text));
             stand.setSmall(true);
+
+            // [FIX] Add to cleanup list
+            activeFloatingTexts.add(stand);
+
             BukkitTask[] task = new BukkitTask[1];
             task[0] = getServer().getScheduler().runTaskTimer(this, new Runnable() {
                 private int ticks = 0;
@@ -185,6 +213,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
                 public void run() {
                     if (stand.isDead() || ticks >= 20) {
                         stand.remove();
+                        // [FIX] Remove from cleanup list
+                        activeFloatingTexts.remove(stand);
+
                         if (task[0] != null) task[0].cancel();
                         return;
                     }
@@ -195,6 +226,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             }, 0L, 1L);
         });
     }
+
     public void showDamageFCT(Location loc, double damage) { showCombatFloatingText(loc, "§f" + String.format("%.0f", damage)); }
     public void showTrueDamageFCT(Location loc, double damage) { showCombatFloatingText(loc, "§6" + String.format("%.0f", damage)); }
     public void showHealHPFCT(Location loc, double value) { showCombatFloatingText(loc, "§a+" + String.format("%.0f", value) + " HP"); }

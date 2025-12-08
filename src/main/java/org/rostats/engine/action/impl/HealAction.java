@@ -9,8 +9,6 @@ import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.utils.FormulaParser;
-// Import นี้จำเป็นเพื่อให้เรียก updateBar ได้
-import org.rostats.handler.ManaManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,11 +18,13 @@ public class HealAction implements SkillAction {
     private final ThaiRoCorePlugin plugin;
     private final String formula;
     private final boolean isMana;
+    private final boolean isSelfOnly; // [FIX] New Field
 
-    public HealAction(ThaiRoCorePlugin plugin, String formula, boolean isMana) {
+    public HealAction(ThaiRoCorePlugin plugin, String formula, boolean isMana, boolean isSelfOnly) {
         this.plugin = plugin;
         this.formula = formula;
         this.isMana = isMana;
+        this.isSelfOnly = isSelfOnly;
     }
 
     @Override
@@ -34,7 +34,11 @@ public class HealAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level) {
-        if (target == null) target = caster;
+        // [FIX] ถ้า self-only เป็น true หรือไม่มีเป้าหมาย ให้ฮีลตัวเอง
+        if (isSelfOnly || target == null) {
+            target = caster;
+        }
+
         double amount = 0.0;
         try {
             String calcFormula = formula.replace("LVL", String.valueOf(level));
@@ -54,7 +58,6 @@ public class HealAction implements SkillAction {
                 PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
                 double newSP = Math.min(data.getMaxSP(), data.getCurrentSP() + amount);
                 data.setCurrentSP(newSP);
-                // เรียกใช้เมธอด updateBar
                 plugin.getManaManager().updateBar(player);
                 plugin.showHealSPFCT(player.getLocation(), amount);
                 target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
@@ -74,6 +77,7 @@ public class HealAction implements SkillAction {
         map.put("type", "HEAL");
         map.put("formula", formula);
         map.put("is-mana", isMana);
+        map.put("self-only", isSelfOnly); // Save option
         return map;
     }
 }
