@@ -21,11 +21,13 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-import org.rostats.itemeditor.AttributeEditorGUI;
-import org.rostats.itemeditor.EffectEnchantGUI;
-import org.rostats.itemeditor.ItemAttribute;
-import org.rostats.itemeditor.ItemAttributeType;
-import org.rostats.itemeditor.ItemLibraryGUI;
+import org.rostats.itemeditor.*;
+
+// NEW IMPORTS (ที่เคยขาดไป)
+import org.rostats.itemeditor.ItemSkillBinding;
+import org.rostats.itemeditor.ItemSkillManageGUI;
+import org.rostats.itemeditor.ItemSkillSelectorGUI;
+import org.rostats.itemeditor.ItemSkillSettingsGUI;
 
 import java.io.File;
 import java.util.HashMap;
@@ -35,7 +37,10 @@ import java.util.Map;
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
+    // Cache for Action Editing
     private final Map<java.util.UUID, Map<String, Object>> editingActions = new HashMap<>();
+    // Cache for Skill Binding Editing
+    private final Map<java.util.UUID, ItemSkillBinding> pendingBindings = new HashMap<>();
 
     public GUIListener(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -87,13 +92,15 @@ public class GUIListener implements Listener {
         if (title.startsWith("SkillEditor: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-            handleSkillEditorClick(event, player, title.substring(13));
+            String skillId = title.substring(13);
+            handleSkillEditorClick(event, player, skillId);
             return;
         }
         if (title.startsWith("ActionSelector: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-            handleActionSelectorClick(event, player, title.substring(16));
+            String skillId = title.substring(16);
+            handleActionSelectorClick(event, player, skillId);
             return;
         }
         if (title.startsWith("ActionEdit: ")) {
@@ -103,6 +110,23 @@ public class GUIListener implements Listener {
             if (parts.length == 2) {
                 handleActionPropertyClick(event, player, parts[0], Integer.parseInt(parts[1]));
             }
+            return;
+        }
+
+        // --- ITEM SKILL BINDING LOGIC (NEW) ---
+        if (title.startsWith("ItemSkills: ")) {
+            event.setCancelled(true);
+            handleItemSkillManage(event, player, title.substring(12));
+            return;
+        }
+        if (title.startsWith("SkillSelect: ")) {
+            event.setCancelled(true);
+            handleItemSkillSelect(event, player, title.substring(13));
+            return;
+        }
+        if (title.startsWith("SkillSettings: ")) {
+            event.setCancelled(true);
+            handleItemSkillSettings(event, player, title.substring(15));
             return;
         }
 
@@ -139,7 +163,136 @@ public class GUIListener implements Listener {
     }
 
     // ====================================================================================
-    // SKILL SYSTEM HANDLERS
+    // ITEM SKILL BINDING HANDLERS (NEW)
+    // ====================================================================================
+
+    private void handleItemSkillManage(InventoryClickEvent event, Player player, String fileName) {
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+
+        if (clicked.getType() == Material.ARROW) { // Back
+            new AttributeEditorGUI(plugin, itemFile).open(player, AttributeEditorGUI.Page.GENERAL);
+            return;
+        }
+
+        if (clicked.getType() == Material.EMERALD_BLOCK) { // Add New
+            new ItemSkillSelectorGUI(plugin, itemFile).open(player);
+            return;
+        }
+
+        // Remove Skill
+        if (clicked.getType() == Material.ENCHANTED_BOOK && event.isShiftClick() && event.isRightClick()) {
+            List<String> lore = clicked.getItemMeta().getLore();
+            if (lore != null) {
+                for (String l : lore) {
+                    if (l.startsWith("§8index:")) {
+                        try {
+                            int index = Integer.parseInt(l.substring(8));
+                            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+                            if (index >= 0 && index < attr.getSkillBindings().size()) {
+                                attr.getSkillBindings().remove(index);
+                                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+                                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                                new ItemSkillManageGUI(plugin, itemFile).open(player);
+                            }
+                        } catch (Exception e) {}
+                    }
+                }
+            }
+        }
+    }
+
+    private void handleItemSkillSelect(InventoryClickEvent event, Player player, String fileName) {
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        if (clicked.getType() == Material.ARROW) { // Back
+            new ItemSkillManageGUI(plugin, itemFile).open(player);
+            return;
+        }
+
+        // Select Skill
+        List<String> lore = clicked.getItemMeta().getLore();
+        if (lore != null && !lore.isEmpty()) {
+            String idLine = lore.get(0); // §aSkillName
+            // In ItemSkillSelectorGUI, lore[0] is §aDisplayName, lore[1] is §7ID: §f...
+            // Let's check lore lines for ID
+            for (String line : lore) {
+                if (line.startsWith("§7ID: §f")) {
+                    String skillId = line.substring(8);
+                    // Create default binding
+                    ItemSkillBinding binding = new ItemSkillBinding(skillId, TriggerType.ON_HIT, 1, 0.1);
+                    pendingBindings.put(player.getUniqueId(), binding);
+                    new ItemSkillSettingsGUI(plugin, itemFile, binding).open(player);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void handleItemSkillSettings(InventoryClickEvent event, Player player, String fileName) {
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        ItemSkillBinding current = pendingBindings.get(player.getUniqueId());
+        if (current == null) {
+            new ItemSkillManageGUI(plugin, itemFile).open(player);
+            return;
+        }
+
+        int slot = event.getSlot();
+
+        if (slot == 26) { // Cancel
+            pendingBindings.remove(player.getUniqueId());
+            new ItemSkillManageGUI(plugin, itemFile).open(player);
+        }
+        else if (slot == 22) { // Save
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            attr.getSkillBindings().add(current);
+            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+            player.sendMessage("§aSkill added to item!");
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+            pendingBindings.remove(player.getUniqueId());
+            new ItemSkillManageGUI(plugin, itemFile).open(player);
+        }
+        else if (slot == 11) { // Trigger
+            TriggerType[] types = TriggerType.values();
+            int nextOrd = (current.getTrigger().ordinal() + 1) % types.length;
+            updatePending(player, new ItemSkillBinding(current.getSkillId(), types[nextOrd], current.getLevel(), current.getChance()));
+            new ItemSkillSettingsGUI(plugin, itemFile, pendingBindings.get(player.getUniqueId())).open(player);
+        }
+        else if (slot == 13) { // Level
+            plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    updatePending(player, new ItemSkillBinding(current.getSkillId(), current.getTrigger(), lvl, current.getChance()));
+                } catch (Exception e) {}
+                runSync(() -> new ItemSkillSettingsGUI(plugin, itemFile, pendingBindings.get(player.getUniqueId())).open(player));
+            });
+        }
+        else if (slot == 15) { // Chance
+            plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0-1.0):", (str) -> {
+                try {
+                    double ch = Double.parseDouble(str);
+                    updatePending(player, new ItemSkillBinding(current.getSkillId(), current.getTrigger(), current.getLevel(), ch));
+                } catch (Exception e) {}
+                runSync(() -> new ItemSkillSettingsGUI(plugin, itemFile, pendingBindings.get(player.getUniqueId())).open(player));
+            });
+        }
+    }
+
+    private void updatePending(Player player, ItemSkillBinding newBinding) {
+        pendingBindings.put(player.getUniqueId(), newBinding);
+    }
+
+    // ====================================================================================
+    // SKILL EDITOR HANDLERS
     // ====================================================================================
 
     private void handleActionPropertyClick(InventoryClickEvent event, Player player, String skillId, int index) {
@@ -181,6 +334,26 @@ public class GUIListener implements Listener {
                         String sk = (String)data.getOrDefault("stat-key", null);
                         newAction = new EffectAction(plugin, eid, et, lv, pw, dr, ch, sk);
                         break;
+                    case SOUND:
+                        // Basic parsing from map (assuming simple values)
+                        org.bukkit.Sound snd = org.bukkit.Sound.valueOf((String)data.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"));
+                        float vol = ((Number)data.getOrDefault("volume", 1f)).floatValue();
+                        float pit = ((Number)data.getOrDefault("pitch", 1f)).floatValue();
+                        newAction = new org.rostats.engine.action.impl.SoundAction(snd, vol, pit);
+                        break;
+                    case PARTICLE:
+                        org.bukkit.Particle part = org.bukkit.Particle.valueOf((String)data.getOrDefault("particle", "VILLAGER_HAPPY"));
+                        int count = ((Number)data.getOrDefault("count", 10)).intValue();
+                        double spd = ((Number)data.getOrDefault("speed", 0.1)).doubleValue();
+                        double yoff = ((Number)data.getOrDefault("y-offset", 1.0)).doubleValue();
+                        newAction = new org.rostats.engine.action.impl.ParticleAction(part, count, spd, yoff);
+                        break;
+                    case PROJECTILE:
+                        org.bukkit.entity.EntityType pt = org.bukkit.entity.EntityType.valueOf((String)data.getOrDefault("projectile-type", "ARROW"));
+                        double pspd = ((Number)data.getOrDefault("speed", 1.0)).doubleValue();
+                        // Nested actions editing not supported in GUI yet, preserve existing or empty
+                        newAction = new org.rostats.engine.action.impl.ProjectileAction(plugin, pt, pspd, new java.util.ArrayList<>());
+                        break;
                 }
 
                 if (newAction != null) {
@@ -221,6 +394,7 @@ public class GUIListener implements Listener {
                         if (val instanceof Integer) data.put(fKey, Integer.parseInt(str));
                         else if (val instanceof Double) data.put(fKey, Double.parseDouble(str));
                         else if (val instanceof Long) data.put(fKey, Long.parseLong(str));
+                        else if (val instanceof Float) data.put(fKey, Float.parseFloat(str));
                         else data.put(fKey, str);
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     } catch (Exception e) {
@@ -262,6 +436,9 @@ public class GUIListener implements Listener {
                         case DAMAGE: action = new DamageAction(plugin, "ATK * 1.0", "NEUTRAL"); break;
                         case HEAL: action = new HealAction(plugin, "10", false); break;
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
+                        case SOUND: action = new org.rostats.engine.action.impl.SoundAction(org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f); break;
+                        case PARTICLE: action = new org.rostats.engine.action.impl.ParticleAction(org.bukkit.Particle.VILLAGER_HAPPY, 10, 0.1, 1.0); break;
+                        case PROJECTILE: action = new org.rostats.engine.action.impl.ProjectileAction(plugin, org.bukkit.entity.EntityType.ARROW, 1.0, new java.util.ArrayList<>()); break;
                     }
                     if (action != null) {
                         skill.addAction(action);
@@ -294,7 +471,6 @@ public class GUIListener implements Listener {
             ItemStack item = event.getCurrentItem();
             if (item != null && item.getType() != Material.GRAY_STAINED_GLASS_PANE) {
                 if (event.isShiftClick() && event.isRightClick()) {
-                    // Remove Logic
                     List<String> lore = item.getItemMeta().getLore();
                     if (lore != null) {
                         for (String l : lore) {
@@ -327,7 +503,7 @@ public class GUIListener implements Listener {
             }
         }
         else if (slot == 0) {
-            plugin.getChatInputHandler().awaitInput(player, "Name:", (str) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Enter name:", (str) -> {
                 skill.setDisplayName(str.replace("&", "§")); runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
             });
         }
@@ -339,10 +515,7 @@ public class GUIListener implements Listener {
         else if (slot == 4) {
             ItemStack cursor = event.getCursor();
             if (cursor != null && cursor.getType() != Material.AIR) {
-                skill.setIcon(cursor.getType());
-                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
-                event.setCursor(cursor);
-                new SkillEditorGUI(plugin, skillId).open(player);
+                skill.setIcon(cursor.getType()); event.setCursor(cursor); new SkillEditorGUI(plugin, skillId).open(player);
             }
         }
         else if (slot == 6) {
@@ -381,7 +554,7 @@ public class GUIListener implements Listener {
             else if (event.isRightClick()) { plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> { plugin.getSkillManager().renameFile(target, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player)); }); }
         } else {
             if (event.isLeftClick() && !event.isShiftClick()) {
-                // FIX: Normalize name to ID (lowercase, no spaces)
+                // Fix: Normalize ID
                 String skillId = name.toLowerCase().replace(" ", "_");
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
@@ -486,6 +659,7 @@ public class GUIListener implements Listener {
         if (clicked == null || !clicked.hasItemMeta()) return;
         String dp = clicked.getItemMeta().getDisplayName();
 
+        if (dp.contains("Manage Skills")) { new ItemSkillManageGUI(plugin, itemFile).open(player); return; }
         if (dp.contains("Edit Effects")) { new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.EFFECT).open(player); return; }
         if (dp.contains("Edit Enchantments")) { new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.ENCHANT).open(player); return; }
         if (dp.contains("Back to Library")) { new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player); return; }
@@ -650,6 +824,7 @@ public class GUIListener implements Listener {
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
         String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
         if (clicked.getType() == Material.ARROW) { new ItemLibraryGUI(plugin, currentDir.getParentFile()).open(player); return; }
+        if (clicked.getType() == Material.BOOKSHELF) { new ItemLibraryGUI(plugin, currentDir).open(player); return; }
         if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
             plugin.getChatInputHandler().awaitInput(player, "Folder:", (str) -> {
                 plugin.getItemManager().createFolder(finalDir, str);
