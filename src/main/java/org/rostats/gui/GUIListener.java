@@ -6,7 +6,6 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
@@ -36,7 +35,6 @@ import java.util.Map;
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
-    // Cache for Action Editing (Player -> Map)
     private final Map<java.util.UUID, Map<String, Object>> editingActions = new HashMap<>();
 
     public GUIListener(ThaiRoCorePlugin plugin) {
@@ -75,7 +73,7 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // --- SKILL LIBRARY LOGIC ---
+        // --- SKILL SYSTEM LOGIC ---
         if (title.startsWith("SkillLib: ")) {
             event.setCancelled(true);
             handleSkillLibraryClick(event, player, title.substring(10));
@@ -86,40 +84,30 @@ public class GUIListener implements Listener {
             handleSkillDeleteClick(event, player, title);
             return;
         }
-
-        // --- SKILL EDITOR LOGIC ---
         if (title.startsWith("SkillEditor: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-            String skillId = title.substring(13);
-            handleSkillEditorClick(event, player, skillId);
+            handleSkillEditorClick(event, player, title.substring(13));
             return;
         }
-
-        // --- ACTION SELECTOR LOGIC ---
         if (title.startsWith("ActionSelector: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-            String skillId = title.substring(16);
-            handleActionSelectorClick(event, player, skillId);
+            handleActionSelectorClick(event, player, title.substring(16));
             return;
         }
-
-        // --- ACTION PROPERTY EDITOR ---
         if (title.startsWith("ActionEdit: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             String[] parts = title.substring(12).split(" #");
             if (parts.length == 2) {
-                String skillId = parts[0];
-                int index = Integer.parseInt(parts[1]);
-                handleActionPropertyClick(event, player, skillId, index);
+                handleActionPropertyClick(event, player, parts[0], Integer.parseInt(parts[1]));
             }
             return;
         }
 
         // --- ITEM EDITOR LOGIC ---
-        if (title.startsWith("Library: ")) { // Item Library
+        if (title.startsWith("Library: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() == event.getView().getBottomInventory()) {
                 handleImportItem(event, player, title.substring(9));
@@ -129,6 +117,7 @@ public class GUIListener implements Listener {
             return;
         }
         if (title.startsWith("Editor: ")) {
+            event.setCancelled(true);
             if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
                 handleEffectEnchantClick(event, player, title);
                 return;
@@ -227,7 +216,7 @@ public class GUIListener implements Listener {
                 data.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType());
             } else {
-                plugin.getChatInputHandler().awaitInput(player, "Enter new value for " + fKey + ":", (str) -> {
+                plugin.getChatInputHandler().awaitInput(player, "Enter value for " + fKey + ":", (str) -> {
                     try {
                         if (val instanceof Integer) data.put(fKey, Integer.parseInt(str));
                         else if (val instanceof Double) data.put(fKey, Double.parseDouble(str));
@@ -265,28 +254,22 @@ public class GUIListener implements Listener {
         if (lore != null && !lore.isEmpty()) {
             String last = lore.get(lore.size() - 1);
             if (last.startsWith("ActionType: ")) {
-                String typeStr = last.substring(12);
                 try {
-                    ActionType type = ActionType.valueOf(typeStr);
+                    ActionType type = ActionType.valueOf(last.substring(12));
                     SkillData skill = plugin.getSkillManager().getSkill(skillId);
-
                     SkillAction action = null;
                     switch (type) {
                         case DAMAGE: action = new DamageAction(plugin, "ATK * 1.0", "NEUTRAL"); break;
                         case HEAL: action = new HealAction(plugin, "10", false); break;
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
                     }
-
                     if (action != null) {
                         skill.addAction(action);
-                        player.sendMessage("§aAdded action: " + type);
-                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
+                        player.sendMessage("§aAdded: " + type);
                         plugin.getSkillManager().saveSkill(skill);
                     }
                     new SkillEditorGUI(plugin, skillId).open(player);
-                } catch (Exception e) {
-                    player.sendMessage("§cError creating action.");
-                }
+                } catch (Exception e) { player.sendMessage("§cError creating action."); }
             }
         }
     }
@@ -298,53 +281,59 @@ public class GUIListener implements Listener {
 
         if (slot == 49) {
             plugin.getSkillManager().saveSkill(skill);
-            player.sendMessage("§aSkill saved to file!");
+            player.sendMessage("§aSkill saved!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         }
         else if (slot == 50) {
             new SkillActionSelectorGUI(plugin, skillId).open(player);
         }
+        else if (slot == 53) {
+            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
+        }
         else if (slot >= 18 && slot <= 44) {
             ItemStack item = event.getCurrentItem();
             if (item != null && item.getType() != Material.GRAY_STAINED_GLASS_PANE) {
-                // Find Index
-                int index = -1;
-                List<String> lore = item.getItemMeta().getLore();
-                if (lore != null) {
-                    for (String l : lore) {
-                        if (l.startsWith("§7Index: ")) {
-                            try { index = Integer.parseInt(l.substring(9)); } catch(Exception e){}
-                            break;
+                if (event.isShiftClick() && event.isRightClick()) {
+                    // Remove Logic
+                    List<String> lore = item.getItemMeta().getLore();
+                    if (lore != null) {
+                        for (String l : lore) {
+                            if (l.startsWith("§7Index: ")) {
+                                try {
+                                    int index = Integer.parseInt(l.substring(9));
+                                    if (index >= 0 && index < skill.getActions().size()) {
+                                        skill.getActions().remove(index);
+                                        plugin.getSkillManager().saveSkill(skill);
+                                        new SkillEditorGUI(plugin, skillId).open(player);
+                                    }
+                                } catch (Exception e) {}
+                            }
                         }
                     }
-                }
-
-                if (index != -1 && index < skill.getActions().size()) {
-                    if (event.isShiftClick() && event.isRightClick()) {
-                        skill.getActions().remove(index);
-                        plugin.getSkillManager().saveSkill(skill);
-                        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-                        new SkillEditorGUI(plugin, skillId).open(player);
-                    } else if (event.isLeftClick()) {
-                        SkillAction action = skill.getActions().get(index);
-                        editingActions.put(player.getUniqueId(), new HashMap<>(action.serialize()));
-                        new SkillActionPropertyGUI(plugin, skillId, index, action).open(player);
+                } else if (event.isLeftClick()) {
+                    List<String> lore = item.getItemMeta().getLore();
+                    if (lore != null) {
+                        for (String l : lore) {
+                            if (l.startsWith("§7Index: ")) {
+                                try {
+                                    int index = Integer.parseInt(l.substring(9));
+                                    editingActions.put(player.getUniqueId(), new HashMap<>(skill.getActions().get(index).serialize()));
+                                    new SkillActionPropertyGUI(plugin, skillId, index, skill.getActions().get(index)).open(player);
+                                } catch (Exception e) {}
+                            }
+                        }
                     }
                 }
             }
         }
         else if (slot == 0) {
-            plugin.getChatInputHandler().awaitInput(player, "Enter name:", (str) -> {
-                skill.setDisplayName(str.replace("&", "§"));
-                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+            plugin.getChatInputHandler().awaitInput(player, "Name:", (str) -> {
+                skill.setDisplayName(str.replace("&", "§")); runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
             });
         }
         else if (slot == 2) {
             TriggerType[] types = TriggerType.values();
-            int currentOrd = skill.getTrigger().ordinal();
-            int nextOrd = (currentOrd + 1) % types.length;
-            skill.setTrigger(types[nextOrd]);
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            skill.setTrigger(types[(skill.getTrigger().ordinal() + 1) % types.length]);
             new SkillEditorGUI(plugin, skillId).open(player);
         }
         else if (slot == 4) {
@@ -357,26 +346,11 @@ public class GUIListener implements Listener {
             }
         }
         else if (slot == 6) {
-            if (event.isLeftClick()) {
-                plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> {
-                    try { skill.setCooldownBase(Double.parseDouble(str)); } catch (Exception e) {}
-                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
-                });
-            } else {
-                plugin.getChatInputHandler().awaitInput(player, "CastTime:", (str) -> {
-                    try { skill.setCastTime(Double.parseDouble(str)); } catch (Exception e) {}
-                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
-                });
-            }
+            if (event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> { try { skill.setCooldownBase(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
+            else plugin.getChatInputHandler().awaitInput(player, "CastTime:", (str) -> { try { skill.setCastTime(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
         }
         else if (slot == 8) {
-            plugin.getChatInputHandler().awaitInput(player, "SP Cost:", (str) -> {
-                try { skill.setSpCostBase(Integer.parseInt(str)); } catch (Exception e) {}
-                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
-            });
-        }
-        else if (slot == 53) {
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
+            plugin.getChatInputHandler().awaitInput(player, "SP Cost:", (str) -> { try { skill.setSpCostBase(Integer.parseInt(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
         }
     }
 
@@ -384,72 +358,54 @@ public class GUIListener implements Listener {
         File currentDir = plugin.getSkillManager().getFileFromRelative(relativePath);
         if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
         final File finalDir = currentDir;
-
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-        if (!clicked.hasItemMeta() || !clicked.getItemMeta().hasDisplayName()) return;
-
         String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
 
-        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("Back")) {
-            new SkillLibraryGUI(plugin, currentDir.getParentFile()).open(player);
-            return;
-        }
-        if (clicked.getType() == Material.BOOKSHELF && clicked.getItemMeta().getDisplayName().contains("Root")) {
-            new SkillLibraryGUI(plugin, currentDir).open(player);
-            return;
-        }
+        if (clicked.getType() == Material.ARROW) { new SkillLibraryGUI(plugin, currentDir.getParentFile()).open(player); return; }
+        if (clicked.getType() == Material.BOOKSHELF) { new SkillLibraryGUI(plugin, currentDir).open(player); return; }
         if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
             plugin.getChatInputHandler().awaitInput(player, "Folder:", (str) -> {
-                plugin.getSkillManager().createFolder(finalDir, str);
-                runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
+                plugin.getSkillManager().createFolder(finalDir, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
             }); return;
         }
-        if (clicked.getType() == Material.WRITABLE_BOOK && clicked.getItemMeta().getDisplayName().contains("New Skill")) {
+        if (clicked.getType() == Material.WRITABLE_BOOK) {
             plugin.getChatInputHandler().awaitInput(player, "Skill ID:", (str) -> {
-                plugin.getSkillManager().createSkill(finalDir, str);
-                runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
+                plugin.getSkillManager().createSkill(finalDir, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
             }); return;
         }
-
         File target = new File(currentDir, name + (clicked.getType() == Material.CHEST ? "" : ".yml"));
         if (target.isDirectory()) {
-            if (event.isLeftClick() && !event.isShiftClick()) {
-                new SkillLibraryGUI(plugin, target).open(player);
-            } else if (event.isShiftClick() && event.isLeftClick()) {
-                new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            } else if (event.isShiftClick() && event.isRightClick()) {
-                plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> {
-                    plugin.getSkillManager().renameFile(target, str);
-                    runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
-                });
-            }
+            if (event.isLeftClick() && !event.isShiftClick()) new SkillLibraryGUI(plugin, target).open(player);
+            else if (event.isShiftClick() && event.isLeftClick()) new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
+            else if (event.isRightClick()) { plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> { plugin.getSkillManager().renameFile(target, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player)); }); }
         } else {
             if (event.isLeftClick() && !event.isShiftClick()) {
-                new SkillEditorGUI(plugin, name).open(player);
-            } else if (event.isShiftClick() && event.isLeftClick()) {
-                new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
+                // FIX: Normalize name to ID (lowercase, no spaces)
+                String skillId = name.toLowerCase().replace(" ", "_");
+                new SkillEditorGUI(plugin, skillId).open(player);
             }
+            else if (event.isShiftClick() && event.isLeftClick()) new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
         }
     }
 
     private void handleSkillDeleteClick(InventoryClickEvent event, Player player, String title) {
         String fileName = title.substring("Skill Delete: ".length());
         File target = findFileRecursive(plugin.getSkillManager().getRootDir(), fileName);
-        if (event.getCurrentItem() == null) return;
-
-        if (event.getCurrentItem().getType() == Material.LIME_CONCRETE && target != null) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+        if (clicked.getType() == Material.LIME_CONCRETE && target != null) {
             File parent = target.getParentFile();
             plugin.getSkillManager().deleteFile(target);
             player.sendMessage("§cDeleted.");
             runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
-        } else if (event.getCurrentItem().getType() == Material.RED_CONCRETE) {
+        } else if (clicked.getType() == Material.RED_CONCRETE) {
             player.closeInventory();
         }
     }
 
     // ====================================================================================
-    // CHARACTER STATUS & ITEM EDITOR HANDLERS (Missing methods restored)
+    // CHARACTER STATUS & ITEM EDITOR HANDLERS
     // ====================================================================================
 
     private void handleCharacterStatusClick(InventoryClickEvent event, Player player, String title) {
@@ -483,22 +439,19 @@ public class GUIListener implements Listener {
         Material resetItem = Material.getMaterial(plugin.getConfig().getString("reset-system.reset-item", "NETHER_STAR"));
 
         if (usedResets < freeResets) {
-            data.resetStats();
-            data.incrementResetCount();
+            data.resetStats(); data.incrementResetCount();
             player.sendMessage("§eFree Reset used! (" + (usedResets + 1) + "/" + freeResets + ")");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         } else if (resetItem != null && player.getInventory().contains(resetItem)) {
             player.getInventory().removeItem(new ItemStack(resetItem, 1));
-            data.resetStats();
-            data.incrementResetCount();
+            data.resetStats(); data.incrementResetCount();
             player.sendMessage("§bUsed 1x " + resetItem.name() + " to reset!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         } else {
-            player.sendMessage("§cNo free resets! You need 1x " + (resetItem != null ? resetItem.name() : "NETHER_STAR") + ".");
+            player.sendMessage("§cNo free resets!");
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             return;
         }
-
         plugin.getAttributeHandler().updatePlayerStats(player);
         plugin.getManaManager().updateBar(player);
     }
@@ -509,14 +462,12 @@ public class GUIListener implements Listener {
             case 0 -> "STR"; case 1 -> "AGI"; case 2 -> "VIT"; case 3 -> "INT"; case 4 -> "DEX"; case 5 -> "LUK"; default -> null;
         };
     }
-
     private void handleStatUpgrade(Player player, String statKey, boolean isLeftClick, boolean isRightClick) {
         boolean success = false;
         if (isLeftClick) success = plugin.getStatManager().upgradeStat(player, statKey);
         else if (isRightClick) { int c=0; while(c<10 && plugin.getStatManager().upgradeStat(player, statKey)) { c++; success=true; } }
         if (success) { plugin.getAttributeHandler().updatePlayerStats(player); plugin.getManaManager().updateBar(player); openGUI(player, Tab.BASIC_INFO); }
     }
-
     private void handleStatDowngrade(Player player, String statKey, boolean isLeftClick, boolean isRightClick) {
         boolean success = false;
         if (isLeftClick) success = plugin.getStatManager().downgradeStat(player, statKey);
@@ -538,11 +489,9 @@ public class GUIListener implements Listener {
         if (dp.contains("Edit Effects")) { new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.EFFECT).open(player); return; }
         if (dp.contains("Edit Enchantments")) { new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.ENCHANT).open(player); return; }
         if (dp.contains("Back to Library")) { new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player); return; }
-
         for (AttributeEditorGUI.Page p : AttributeEditorGUI.Page.values()) {
             if (dp.contains(p.name())) { new AttributeEditorGUI(plugin, itemFile).open(player, p); return; }
         }
-
         if (dp.contains("Rename Item")) {
             plugin.getChatInputHandler().awaitInput(player, "New Name:", (str) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
@@ -554,7 +503,6 @@ public class GUIListener implements Listener {
                 runSync(() -> new AttributeEditorGUI(plugin, finalItemFile).open(player, AttributeEditorGUI.Page.GENERAL));
             }); return;
         }
-
         if (dp.contains("Edit Lore")) {
             plugin.getChatInputHandler().awaitMultiLineInput(player, "Edit Lore:", (lines) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
@@ -566,7 +514,6 @@ public class GUIListener implements Listener {
                 runSync(() -> new AttributeEditorGUI(plugin, finalItemFile).open(player, AttributeEditorGUI.Page.GENERAL));
             }); return;
         }
-
         if (dp.contains("Remove Vanilla")) {
             ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
             attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
@@ -574,13 +521,11 @@ public class GUIListener implements Listener {
             new AttributeEditorGUI(plugin, itemFile).open(player, AttributeEditorGUI.Page.GENERAL);
             return;
         }
-
         if (dp.contains("Save to File")) {
             player.sendMessage("§aSaved!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
             return;
         }
-
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
@@ -738,7 +683,6 @@ public class GUIListener implements Listener {
         }
     }
 
-    // --- UTILS ---
     private File findFileByName(File dir, String name) {
         File[] files = dir.listFiles();
         if (files != null) {

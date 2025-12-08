@@ -28,18 +28,14 @@ public class SkillActionPropertyGUI {
         this.skillId = skillId;
         this.actionIndex = actionIndex;
         this.type = action.getType();
-        // Serialize current state to Map for editing
         this.data = action.serialize();
     }
 
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("ActionEdit: " + skillId + " #" + actionIndex));
-
-        // Display Properties based on Type
         int slot = 0;
 
-        // --- Common Properties ---
-
+        // --- Properties Display ---
         if (type == ActionType.DAMAGE) {
             inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Formula / สูตร",
                     (String) data.getOrDefault("formula", "ATK"), "§eClick to edit formula"));
@@ -95,13 +91,11 @@ public class SkillActionPropertyGUI {
     }
 
     private ItemStack createPropItem(Material mat, String key, String display, String value, String hint) {
-        // Store the key in Lore (hidden) or rely on slot index logic in listener?
-        // Let's put key in lore for safety.
         return createGuiItem(mat, "§e" + display,
                 "§7Value: §f" + value,
                 "§8---------------",
                 hint,
-                "§0Key:" + key); // Hidden key
+                "§0Key:" + key);
     }
 
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
@@ -109,11 +103,9 @@ public class SkillActionPropertyGUI {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
         meta.setLore(Arrays.asList(lore));
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_POTION_EFFECTS);
+        // FIX: Removed HIDE_POTION_EFFECTS
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;
     }
-
-    // Helpers for Listener to retrieve context
-    public Map<String, Object> getData() { return data; }
 }

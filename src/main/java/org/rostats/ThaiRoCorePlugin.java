@@ -58,7 +58,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
 
-        // 2. Initialize Engine Managers
+        // 2. Initialize Engine Managers (NEW)
         this.effectManager = new EffectManager(this);
         this.skillManager = new SkillManager(this);
 
@@ -210,5 +210,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ItemManager getItemManager() { return itemManager; }
     public ChatInputHandler getChatInputHandler() { return chatInputHandler; }
     public EffectManager getEffectManager() { return effectManager; }
+
+    // NEW Getter
     public SkillManager getSkillManager() { return skillManager; }
 }
