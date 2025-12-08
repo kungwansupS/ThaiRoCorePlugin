@@ -14,7 +14,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.rostats.command.AdminCommand;
 import org.rostats.command.PlayerCommand;
-// NEW IMPORT
 import org.rostats.command.SkillCommand;
 import org.rostats.data.DataManager;
 import org.rostats.data.StatManager;
@@ -22,6 +21,7 @@ import org.rostats.gui.GUIListener;
 import org.rostats.handler.AttributeHandler;
 import org.rostats.handler.CombatHandler;
 import org.rostats.handler.ManaManager;
+import org.rostats.handler.SkillProjectileHandler; // NEW IMPORT
 import org.rostats.hook.PAPIHook;
 import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
@@ -51,23 +51,19 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         saveDefaultConfig();
 
-        // 1. Initialize Core Managers
         this.statManager = new StatManager(this);
         this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
 
-        // 2. Initialize Engine Managers (NEW)
         this.effectManager = new EffectManager(this);
         this.skillManager = new SkillManager(this);
 
-        // 3. Initialize Item Editor Managers
         this.itemAttributeManager = new ItemAttributeManager(this);
         this.itemManager = new ItemManager(this);
         this.chatInputHandler = new ChatInputHandler(this);
 
-        // 4. Register Events
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
@@ -77,7 +73,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this), this);
         getServer().getPluginManager().registerEvents(chatInputHandler, this);
 
-        // 5. Register Commands
+        // Register Projectile Handler
+        getServer().getPluginManager().registerEvents(new SkillProjectileHandler(this), this);
+
         PluginCommand statusCmd = getCommand("status");
         if (statusCmd != null) statusCmd.setExecutor(new PlayerCommand(this));
 
@@ -93,18 +91,15 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
-        // NEW: Register Skill Command
         PluginCommand skillCmd = getCommand("roskill");
         if (skillCmd != null) {
             skillCmd.setExecutor(new SkillCommand(this));
         }
 
-        // 6. PAPI Hook
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PAPIHook(this).register();
         }
 
-        // 7. Tasks
         getServer().getScheduler().runTaskTimer(this, () -> {
             for (Player player : getServer().getOnlinePlayers()) {
                 dataManager.savePlayerData(player);
@@ -135,7 +130,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public void reload() {
         reloadConfig();
         if (combatHandler != null) combatHandler.loadValues();
-        skillManager.loadSkills();
+        if (skillManager != null) skillManager.loadSkills();
         getLogger().info("Configuration Reloaded.");
     }
 
@@ -149,7 +144,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         dataManager.savePlayerData(event.getPlayer());
     }
 
-    // --- Floating Text Helpers (Keep existing code) ---
     public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
@@ -200,7 +194,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         showCombatFloatingText(loc, color + "-" + String.format("%.0f", value));
     }
 
-    // --- Getters ---
     public StatManager getStatManager() { return statManager; }
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
@@ -210,7 +203,5 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public ItemManager getItemManager() { return itemManager; }
     public ChatInputHandler getChatInputHandler() { return chatInputHandler; }
     public EffectManager getEffectManager() { return effectManager; }
-
-    // NEW Getter
     public SkillManager getSkillManager() { return skillManager; }
 }
