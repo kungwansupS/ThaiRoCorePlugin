@@ -16,7 +16,9 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
+import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
+import org.rostats.itemeditor.ItemSkillBinding;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,7 +55,7 @@ public class AttributeHandler implements Listener {
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
-    // --- NEW: Passive Effect Logic ---
+    // --- PASSIVE EFFECT LOGIC (UPDATED PHASE 6) ---
     public void runPassiveEffectsTask() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             // Collect all equipment
@@ -68,18 +70,27 @@ public class AttributeHandler implements Listener {
                 if (item != null && item.getType() != Material.AIR) {
                     // Read attributes from item
                     ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+                    if (attr == null) continue;
 
-                    // Apply Potion Effects if present
-                    if (attr != null && !attr.getPotionEffects().isEmpty()) {
+                    // 1. Potion Effects (Vanilla)
+                    if (!attr.getPotionEffects().isEmpty()) {
                         for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
                             PotionEffectType type = entry.getKey();
-                            int level = entry.getValue(); // This is the level (e.g. 1)
-
+                            int level = entry.getValue();
                             if (level > 0 && type != null) {
-                                // Apply for 60 ticks (3 seconds) to ensure it stays active without flickering
-                                // Amplifier = Level - 1 (e.g. Lv 1 = Amp 0)
-                                // boolean ambient=true (makes particles less visible), particles=false (hide bubbles), icon=true
                                 player.addPotionEffect(new PotionEffect(type, 60, level - 1, true, false, true));
+                            }
+                        }
+                    }
+
+                    // 2. Skill Passive Bindings (NEW)
+                    if (!attr.getSkillBindings().isEmpty()) {
+                        for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                            // Check for PASSIVE_TICK or PASSIVE_APPLY
+                            if (binding.getTrigger() == TriggerType.PASSIVE_TICK || binding.getTrigger() == TriggerType.PASSIVE_APPLY) {
+                                // Cast Skill with isPassive=true (No CD/SP)
+                                // Target = player (Self)
+                                plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
                             }
                         }
                     }
@@ -91,11 +102,8 @@ public class AttributeHandler implements Listener {
 
     public void applyAllEquipmentAttributes(Player player) {
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
-
-        // 1. Reset old gear bonuses
         data.resetGearBonuses();
 
-        // 2. Collect items
         List<ItemStack> items = new ArrayList<>();
         if (player.getEquipment() != null) {
             items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
@@ -103,10 +111,8 @@ public class AttributeHandler implements Listener {
             items.add(player.getEquipment().getItemInOffHand());
         }
 
-        // 3. Loop and apply
         for (ItemStack item : items) {
             if (item != null && item.getType() != Material.AIR) {
-                // Read attribute object from item PDC via Manager
                 ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
                 applyItemAttributes(player, attr);
             }
@@ -182,13 +188,10 @@ public class AttributeHandler implements Listener {
     }
 
     public void updatePlayerStats(Player player) {
-        // 1. Recalculate gear bonuses
         applyAllEquipmentAttributes(player);
 
-        // 2. Fetch data
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
-        // 3. Update Vanilla Attributes
         double finalMaxHealth = data.getMaxHP();
         if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0;
         setAttribute(player, Attribute.GENERIC_MAX_HEALTH, finalMaxHealth);

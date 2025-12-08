@@ -40,9 +40,7 @@ public class SkillManager {
     }
 
     // --- File Management ---
-    public File getRootDir() {
-        return skillFolder;
-    }
+    public File getRootDir() { return skillFolder; }
 
     public String getRelativePath(File file) {
         String rootPath = skillFolder.getAbsolutePath();
@@ -89,7 +87,6 @@ public class SkillManager {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             String id = skillName.replace(".yml", "").toLowerCase().replace(" ", "_");
 
-            // Default Template
             config.set(id + ".display-name", skillName);
             config.set(id + ".icon", "BOOK");
             config.set(id + ".max-level", 1);
@@ -121,7 +118,6 @@ public class SkillManager {
         loadSkills();
     }
 
-    // --- Save Skill Logic ---
     public void saveSkill(SkillData skill) {
         File file = findFileBySkillId(skill.getId());
         if (file == null) {
@@ -176,12 +172,18 @@ public class SkillManager {
         return null;
     }
 
+    // Default cast (checks requirements)
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target) {
+        castSkill(caster, skillId, level, target, false);
+    }
+
+    // --- NEW: Overloaded castSkill with isPassive flag ---
+    public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
 
-        // --- Cooldown and SP Check (Only for Players) ---
-        if (caster instanceof Player player) {
+        // Check Cooldown and SP ONLY if NOT passive
+        if (!isPassive && caster instanceof Player player) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
             // 1. Cooldown
@@ -208,8 +210,8 @@ public class SkillManager {
             data.setSkillCooldown(skillId, now);
             plugin.getManaManager().updateBar(player);
         }
-        // ----------------------------------------------------
 
+        // Execute Actions
         for (SkillAction action : skill.getActions()) {
             try {
                 action.execute(caster, target, level);
@@ -219,6 +221,7 @@ public class SkillManager {
             }
         }
     }
+    // ----------------------------------------------------
 
     public void loadSkills() {
         skillMap.clear();
@@ -229,15 +232,12 @@ public class SkillManager {
     private void loadSkillsRecursive(File dir) {
         File[] files = dir.listFiles();
         if (files == null) return;
-
         for (File file : files) {
             if (file.isDirectory()) {
                 loadSkillsRecursive(file);
                 continue;
             }
-
             if (!file.getName().endsWith(".yml")) continue;
-
             try {
                 YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                 for (String key : config.getKeys(false)) {
@@ -303,70 +303,50 @@ public class SkillManager {
     private SkillAction parseAction(ActionType type, Map<String, Object> map) {
         switch (type) {
             case DAMAGE:
-                String formula = (String) map.getOrDefault("formula", "ATK");
-                String element = (String) map.getOrDefault("element", "NEUTRAL");
-                return new DamageAction(plugin, formula, element);
-
+                return new DamageAction(plugin, (String) map.getOrDefault("formula", "ATK"), (String) map.getOrDefault("element", "NEUTRAL"));
             case HEAL:
-                String healFormula = (String) map.getOrDefault("formula", "10");
-                boolean isMana = (boolean) map.getOrDefault("is-mana", false);
-                return new HealAction(plugin, healFormula, isMana);
-
+                return new HealAction(plugin, (String) map.getOrDefault("formula", "10"), (boolean) map.getOrDefault("is-mana", false));
             case APPLY_EFFECT:
-                String effectId = (String) map.getOrDefault("effect-id", "unknown");
-                String effTypeStr = (String) map.getOrDefault("effect-type", "STAT_MODIFIER");
-                EffectType effType = EffectType.valueOf(effTypeStr);
-
-                int level = map.containsKey("level") ? ((Number)map.get("level")).intValue() : 1;
-                double power = map.containsKey("power") ? ((Number)map.get("power")).doubleValue() : 0.0;
-                long duration = map.containsKey("duration") ? ((Number)map.get("duration")).longValue() : 100L;
-                double chance = map.containsKey("chance") ? ((Number)map.get("chance")).doubleValue() : 1.0;
-                String statKey = (String) map.getOrDefault("stat-key", null);
-
-                return new EffectAction(plugin, effectId, effType, level, power, duration, chance, statKey);
-
+                String eid = (String) map.getOrDefault("effect-id", "unknown");
+                EffectType effType = EffectType.valueOf((String) map.getOrDefault("effect-type", "STAT_MODIFIER"));
+                int lv = map.containsKey("level") ? ((Number)map.get("level")).intValue() : 1;
+                double pw = map.containsKey("power") ? ((Number)map.get("power")).doubleValue() : 0.0;
+                long dr = map.containsKey("duration") ? ((Number)map.get("duration")).longValue() : 100L;
+                double ch = map.containsKey("chance") ? ((Number)map.get("chance")).doubleValue() : 1.0;
+                String sk = (String) map.getOrDefault("stat-key", null);
+                return new EffectAction(plugin, eid, effType, lv, pw, dr, ch, sk);
             case SOUND:
                 String soundName = (String) map.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP");
                 float volume = map.containsKey("volume") ? ((Number)map.get("volume")).floatValue() : 1.0f;
                 float pitch = map.containsKey("pitch") ? ((Number)map.get("pitch")).floatValue() : 1.0f;
                 return new SoundAction(soundName, volume, pitch);
-
             case PARTICLE:
                 String particleName = (String) map.getOrDefault("particle", "VILLAGER_HAPPY");
                 int count = map.containsKey("count") ? ((Number)map.get("count")).intValue() : 5;
                 double speed = map.containsKey("speed") ? ((Number)map.get("speed")).doubleValue() : 0.1;
                 double offset = map.containsKey("offset") ? ((Number)map.get("offset")).doubleValue() : 0.5;
                 return new ParticleAction(particleName, count, speed, offset);
-
             case POTION:
                 String potion = (String) map.getOrDefault("potion", "SPEED");
                 int pDuration = map.containsKey("duration") ? ((Number)map.get("duration")).intValue() : 60;
                 int amp = map.containsKey("amplifier") ? ((Number)map.get("amplifier")).intValue() : 0;
                 return new PotionAction(potion, pDuration, amp);
-
             case TELEPORT:
                 double range = map.containsKey("range") ? ((Number)map.get("range")).doubleValue() : 5.0;
                 boolean toTarget = (boolean) map.getOrDefault("to-target", false);
                 return new TeleportAction(range, toTarget);
-
             case PROJECTILE:
                 String projType = (String) map.getOrDefault("projectile", "ARROW");
                 double projSpeed = map.containsKey("speed") ? ((Number)map.get("speed")).doubleValue() : 1.0;
                 String onHit = (String) map.getOrDefault("on-hit", "none");
                 return new ProjectileAction(plugin, projType, projSpeed, onHit);
-
             default:
                 return null;
         }
     }
 
-    public SkillData getSkill(String id) {
-        return skillMap.get(id);
-    }
-
-    public Map<String, SkillData> getSkills() {
-        return skillMap;
-    }
+    public SkillData getSkill(String id) { return skillMap.get(id); }
+    public Map<String, SkillData> getSkills() { return skillMap; }
 
     private void createExampleSkill() {
         File example = new File(skillFolder, "example_skill.yml");
@@ -374,24 +354,19 @@ public class SkillManager {
         try {
             example.createNewFile();
             YamlConfiguration config = YamlConfiguration.loadConfiguration(example);
-
             String key = "fireball";
             config.set(key + ".display-name", "Fireball");
             config.set(key + ".icon", "BLAZE_POWDER");
             config.set(key + ".max-level", 10);
             config.set(key + ".trigger", "CAST");
-
             config.set(key + ".conditions.cooldown", 5.0);
             config.set(key + ".conditions.sp-cost", 20);
-
             List<Map<String, Object>> actions = new ArrayList<>();
-
             Map<String, Object> damage = new HashMap<>();
             damage.put("type", "DAMAGE");
             damage.put("formula", "(MATK * 1.5) + (INT * 5)");
             damage.put("element", "FIRE");
             actions.add(damage);
-
             Map<String, Object> burn = new HashMap<>();
             burn.put("type", "APPLY_EFFECT");
             burn.put("effect-id", "burn_dot");
@@ -400,9 +375,7 @@ public class SkillManager {
             burn.put("duration", 100);
             burn.put("chance", 0.5);
             actions.add(burn);
-
             config.set(key + ".actions", actions);
-
             config.save(example);
         } catch (Exception e) {
             e.printStackTrace();
