@@ -7,6 +7,7 @@ org\rostats\itemeditor\ItemManager.class
 org\rostats\engine\skill\SkillData.class
 org\rostats\handler\CombatHandler.class
 org\rostats\hook\PAPIHook.class
+org\rostats\itemeditor\SkillBindingGUI.class
 org\rostats\engine\action\impl\HealAction.class
 org\rostats\data\PlayerData.class
 org\rostats\engine\action\impl\EffectAction.class

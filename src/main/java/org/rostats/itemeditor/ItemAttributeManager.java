@@ -11,6 +11,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
+import org.rostats.engine.trigger.TriggerType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +54,6 @@ public class ItemAttributeManager {
         NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
         if (pdc.has(effectKey, PersistentDataType.STRING)) {
             String encoded = pdc.get(effectKey, PersistentDataType.STRING);
-            // Format: EFFECT:LEVEL,EFFECT:LEVEL
             if (encoded != null && !encoded.isEmpty()) {
                 String[] parts = encoded.split(",");
                 for (String part : parts) {
@@ -64,6 +64,28 @@ public class ItemAttributeManager {
                             int lvl = Integer.parseInt(pair[1]);
                             if (type != null) attr.getPotionEffects().put(type, lvl);
                         } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
+        }
+
+        // NEW: Read Skill Bindings from PDC
+        NamespacedKey skillKey = new NamespacedKey(plugin, "RO_SKILLS");
+        if (pdc.has(skillKey, PersistentDataType.STRING)) {
+            String encoded = pdc.get(skillKey, PersistentDataType.STRING);
+            if (encoded != null && !encoded.isEmpty()) {
+                String[] parts = encoded.split(",");
+                for (String part : parts) {
+                    // Format: skillId:TRIGGER:level:chance
+                    String[] d = part.split(":");
+                    if (d.length == 4) {
+                        try {
+                            String skillId = d[0];
+                            TriggerType trigger = TriggerType.valueOf(d[1]);
+                            int lvl = Integer.parseInt(d[2]);
+                            double chance = Double.parseDouble(d[3]);
+                            attr.getSkillBindings().add(new ItemSkillBinding(skillId, trigger, lvl, chance));
+                        } catch (Exception ignored) {}
                     }
                 }
             }
@@ -96,7 +118,7 @@ public class ItemAttributeManager {
             }
         }
 
-        // Apply Potion Effects to PDC
+        // Apply Potion Effects
         NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
         if (!attr.getPotionEffects().isEmpty()) {
             StringBuilder sb = new StringBuilder();
@@ -107,6 +129,23 @@ public class ItemAttributeManager {
             pdc.set(effectKey, PersistentDataType.STRING, sb.toString());
         } else {
             pdc.remove(effectKey);
+        }
+
+        // NEW: Apply Skill Bindings to PDC
+        NamespacedKey skillKey = new NamespacedKey(plugin, "RO_SKILLS");
+        if (!attr.getSkillBindings().isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                if (sb.length() > 0) sb.append(",");
+                // Format: skillId:TRIGGER:level:chance
+                sb.append(binding.getSkillId()).append(":")
+                        .append(binding.getTrigger().name()).append(":")
+                        .append(binding.getLevel()).append(":")
+                        .append(binding.getChance());
+            }
+            pdc.set(skillKey, PersistentDataType.STRING, sb.toString());
+        } else {
+            pdc.remove(skillKey);
         }
 
         if (attr.isRemoveVanillaAttribute()) {
@@ -303,12 +342,15 @@ public class ItemAttributeManager {
             }
         }
 
-        // Check for effects
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        // Check Potion Effects
         NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
-        if (pdc.has(effectKey, PersistentDataType.STRING)) {
-            hasStats = true;
-        }
+        if (pdc.has(effectKey, PersistentDataType.STRING)) hasStats = true;
+
+        // Check Skill Bindings
+        NamespacedKey skillKey = new NamespacedKey(plugin, "RO_SKILLS");
+        if (pdc.has(skillKey, PersistentDataType.STRING)) hasStats = true;
 
         if (hasStats) {
             if (!newLore.isEmpty() && !newLore.get(newLore.size() - 1).trim().isEmpty()) {
@@ -323,7 +365,6 @@ public class ItemAttributeManager {
                 }
             }
 
-            // Add Potion Effects to Lore
             if (pdc.has(effectKey, PersistentDataType.STRING)) {
                 String encoded = pdc.get(effectKey, PersistentDataType.STRING);
                 if (encoded != null && !encoded.isEmpty()) {
@@ -332,6 +373,21 @@ public class ItemAttributeManager {
                         String[] pair = part.split(":");
                         if (pair.length == 2) {
                             newLore.add("§aEffect: " + pair[0] + " Lv." + pair[1]);
+                        }
+                    }
+                }
+            }
+
+            // Show Skills in Lore
+            if (pdc.has(skillKey, PersistentDataType.STRING)) {
+                String encoded = pdc.get(skillKey, PersistentDataType.STRING);
+                if (encoded != null && !encoded.isEmpty()) {
+                    String[] parts = encoded.split(",");
+                    for (String part : parts) {
+                        // id:trigger:lv:chance
+                        String[] d = part.split(":");
+                        if (d.length == 4) {
+                            newLore.add("§6Skill: §e" + d[0] + " §7(Lv." + d[2] + ") [" + d[1] + "]");
                         }
                     }
                 }

@@ -84,6 +84,15 @@ public class AttributeEditorGUI {
                 "§7(แสงวิบวับและผลของ Enchant ปกติ)"
         ));
 
+        // NEW: Skill Button
+        inv.setItem(24, createIcon(Material.NETHER_STAR, "§6Edit Skills / สกิล",
+                "§7Manage Active/Passive Skills.",
+                "§7(Bind skills to triggers)",
+                "§8---------------",
+                "§7จัดการสกิลที่ผูกกับไอเทม",
+                "§7(เช่น กดคลิกขวาเพื่อใช้สกิล, ตีแล้วออกสกิล)"
+        ));
+
         boolean removeVanilla = currentAttr.isRemoveVanillaAttribute();
         inv.setItem(25, createIcon(removeVanilla ? Material.REDSTONE_BLOCK : Material.REDSTONE,
                 "§cRemove Vanilla: " + removeVanilla,

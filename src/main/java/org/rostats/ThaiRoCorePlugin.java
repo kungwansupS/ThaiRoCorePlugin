@@ -22,7 +22,7 @@ import org.rostats.handler.AttributeHandler;
 import org.rostats.handler.CombatHandler;
 import org.rostats.handler.ManaManager;
 import org.rostats.handler.ProjectileHandler;
-import org.rostats.handler.StatusHandler; // NEW IMPORT
+import org.rostats.handler.StatusHandler;
 import org.rostats.hook.PAPIHook;
 import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
@@ -42,7 +42,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private DataManager dataManager;
 
     private ProjectileHandler projectileHandler;
-    private StatusHandler statusHandler; // NEW Field
+    private StatusHandler statusHandler;
 
     private ItemAttributeManager itemAttributeManager;
     private ItemManager itemManager;
@@ -63,7 +63,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.combatHandler = new CombatHandler(this);
 
         this.projectileHandler = new ProjectileHandler(this);
-        this.statusHandler = new StatusHandler(this); // Initialize
+        this.statusHandler = new StatusHandler(this);
 
         // 2. Initialize Engine Managers
         this.effectManager = new EffectManager(this);
@@ -79,7 +79,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
         getServer().getPluginManager().registerEvents(projectileHandler, this);
-        getServer().getPluginManager().registerEvents(statusHandler, this); // Register
+        getServer().getPluginManager().registerEvents(statusHandler, this);
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(this, this);
 
@@ -102,7 +102,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
-        PluginCommand skillCmd = getCommand("roskill");
+        // FIXED: Register new command name
+        PluginCommand skillCmd = getCommand("roskilleditor");
         if (skillCmd != null) {
             skillCmd.setExecutor(new SkillCommand(this));
         }

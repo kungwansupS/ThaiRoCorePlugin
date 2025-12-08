@@ -18,6 +18,7 @@ import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
 
 import java.io.File;
+import java.util.List;
 
 public class GUIListener implements Listener {
 
@@ -48,7 +49,11 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
-            // Handle Effect/Enchant GUI
+            if (title.contains("[SKILLS]")) {
+                handleSkillBindingClick(event, player, title);
+                return;
+            }
+
             if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
                 handleEffectEnchantClick(event, player, title);
                 return;
@@ -60,6 +65,34 @@ public class GUIListener implements Listener {
         else if (title.startsWith("Confirm Delete: ")) {
             event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
+        }
+    }
+
+    private void handleSkillBindingClick(InventoryClickEvent event, Player player, String title) {
+        String fileName = title.substring(8, title.lastIndexOf(" ["));
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        if (clicked.getType() == Material.LIME_DYE) { // Add Skill
+            new SkillBindingGUI(plugin, itemFile).openAddSkillSelector(player);
+        } else if (clicked.getType() == Material.ARROW) { // Back
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+        } else if (clicked.getType() == Material.ENCHANTED_BOOK) {
+            // Remove on Right Click
+            if (event.isRightClick()) {
+                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+                List<ItemSkillBinding> bindings = attr.getSkillBindings();
+                int slot = event.getSlot();
+                if (slot < bindings.size()) {
+                    bindings.remove(slot);
+                    plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+                    player.sendMessage("§cRemoved skill binding.");
+                    new SkillBindingGUI(plugin, itemFile).open(player);
+                }
+            }
         }
     }
 
@@ -78,22 +111,16 @@ public class GUIListener implements Listener {
         if (clicked == null) return;
         int slot = event.getSlot();
 
-        // 1. Selection (Slots 0-44)
         if (slot < 45) {
             if (clicked.getType() == Material.AIR) return;
-            // Name format: "§aName" or "§7Name". Substring(2) removes color code.
             String dp = clicked.getItemMeta().getDisplayName();
             String key = dp.length() > 2 ? dp.substring(2) : dp;
 
             player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-
-            // Refresh GUI
             new EffectEnchantGUI(plugin, itemFile, mode).open(player);
         }
-
-        // 2. Actions (Slots 49-53)
-        else if (slot == 50 && selected != null) { // Set Level
+        else if (slot == 50 && selected != null) {
             plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + selected + ":", (str) -> {
                 try {
                     int lvl = Integer.parseInt(str);
@@ -104,22 +131,19 @@ public class GUIListener implements Listener {
                 }
             });
         }
-        else if (slot == 51 && selected != null) { // Add/Update (Use default 1 or prompt? Let's prompt if not set, or set 1)
-            // For simplicity, Button 51 will imply adding Level 1 if not used via Anvil, OR confirms input.
-            // Let's make it just apply Level 1 for quick add
+        else if (slot == 51 && selected != null) {
             applyEffectEnchant(player, itemFile, mode, selected, 1, true);
         }
-        else if (slot == 52 && selected != null) { // Remove
+        else if (slot == 52 && selected != null) {
             applyEffectEnchant(player, itemFile, mode, selected, 0, false);
         }
-        else if (slot == 53) { // Back
+        else if (slot == 53) {
             player.removeMetadata(metaKey, plugin);
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
         }
     }
 
     private void applyEffectEnchant(Player player, File file, Mode mode, String key, int level, boolean add) {
-        // Helper wrapper to run on main thread if coming from async chat
         new BukkitRunnableWrapper(plugin, () -> {
             ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
             ItemStack stack = plugin.getItemManager().loadItemStack(file);
@@ -128,33 +152,20 @@ public class GUIListener implements Listener {
             if (mode == Mode.EFFECT) {
                 PotionEffectType type = PotionEffectType.getByName(key);
                 if (type != null) {
-                    if (add) {
-                        attr.getPotionEffects().put(type, level);
-                        player.sendMessage("§aSet Effect: " + type.getName() + " Lv." + level);
-                    } else {
-                        attr.getPotionEffects().remove(type);
-                        player.sendMessage("§cRemoved Effect: " + type.getName());
-                    }
+                    if (add) attr.getPotionEffects().put(type, level);
+                    else attr.getPotionEffects().remove(type);
                     plugin.getItemManager().saveItem(file, attr, stack);
                     changed = true;
                 }
             } else {
                 Enchantment ench = null;
                 for (Enchantment e : Enchantment.values()) {
-                    if (e.getKey().getKey().equalsIgnoreCase(key)) {
-                        ench = e;
-                        break;
-                    }
+                    if (e.getKey().getKey().equalsIgnoreCase(key)) { ench = e; break; }
                 }
                 if (ench != null) {
                     ItemMeta meta = stack.getItemMeta();
-                    if (add) {
-                        meta.addEnchant(ench, level, true);
-                        player.sendMessage("§aSet Enchant: " + key + " Lv." + level);
-                    } else {
-                        meta.removeEnchant(ench);
-                        player.sendMessage("§cRemoved Enchant: " + key);
-                    }
+                    if (add) meta.addEnchant(ench, level, true);
+                    else meta.removeEnchant(ench);
                     stack.setItemMeta(meta);
                     plugin.getItemManager().saveItem(file, attr, stack);
                     changed = true;
@@ -167,12 +178,6 @@ public class GUIListener implements Listener {
             }
         });
     }
-
-    // ... (Keep existing handleConfirmDeleteClick, handleImportItem, handleLibraryClick, handleEditorClick, findFileByName, getPageFromTitle, BukkitRunnableWrapper) ...
-    // DO NOT REMOVE the other methods from the previous GUIListener file.
-    // Ensure you paste the FULL GUIListener file content combining the above method with the old ones.
-
-    // For completeness of this answer, here is the REST of GUIListener methods to ensure you have the full file structure:
 
     private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
         String fileName = title.substring("Confirm Delete: ".length());
@@ -320,6 +325,10 @@ public class GUIListener implements Listener {
             new EffectEnchantGUI(plugin, finalItemFile, Mode.ENCHANT).open(player);
             return;
         }
+        if (dp.contains("Edit Skills")) {
+            new SkillBindingGUI(plugin, finalItemFile).open(player);
+            return;
+        }
 
         if (dp.contains("Back to Library")) {
             new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
@@ -369,7 +378,6 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Handle normal attribute clicks
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);

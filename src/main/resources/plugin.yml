@@ -1,6 +1,6 @@
-name: ThaiRoCorePlugin # RENAMED
+name: ThaiRoCorePlugin
 version: '0.1.0-SNAPSHOT'
-main: org.rostats.ThaiRoCorePlugin # RENAMED
+main: org.rostats.ThaiRoCorePlugin
 api-version: '1.21'
 commands:
   status:
@@ -11,19 +11,19 @@ commands:
     description: Admin commands for ROStats
     usage: /roadmin <args>
     permission: rostats.admin
-  roitemedit: # ADDED from Item Editor Plugin
+  roitemedit:
     description: Open the Item Attribute Editor GUI
     usage: /roitemedit
     aliases: [riedit]
     permission: rostats.itemeditor.admin
-  roskill: # NEW COMMAND
+  roskilleditor: # CHANGED from roskill to roskilleditor
     description: Skill creation and management menu
-    usage: /roskill <editor>
+    usage: /roskilleditor
     permission: rostats.admin
 permissions:
   rostats.admin:
     description: Admin permission
     default: op
-  rostats.itemeditor.admin: # ADDED from Item Editor Plugin
+  rostats.itemeditor.admin:
     description: Permission to use the Item Attribute Editor
     default: op
