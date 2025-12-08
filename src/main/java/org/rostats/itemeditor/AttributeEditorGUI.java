@@ -84,7 +84,6 @@ public class AttributeEditorGUI {
                 "§7(แสงวิบวับและผลของ Enchant ปกติ)"
         ));
 
-        // NEW: Skill Button
         inv.setItem(24, createIcon(Material.NETHER_STAR, "§6Edit Skills / สกิล",
                 "§7Manage Active/Passive Skills.",
                 "§7(Bind skills to triggers)",
@@ -105,36 +104,84 @@ public class AttributeEditorGUI {
     }
 
     private void renderCoreStats(Inventory inv) {
-        int[] slots = {19, 20, 21, 22, 23, 24};
+        // Row 1 (9-17) & Row 2 (18-26)
         ItemAttributeType[] types = {
+                // Base Stats (Gear)
                 ItemAttributeType.STR_GEAR, ItemAttributeType.AGI_GEAR, ItemAttributeType.VIT_GEAR,
-                ItemAttributeType.INT_GEAR, ItemAttributeType.DEX_GEAR, ItemAttributeType.LUK_GEAR
+                ItemAttributeType.INT_GEAR, ItemAttributeType.DEX_GEAR, ItemAttributeType.LUK_GEAR,
+                // Combat Core
+                ItemAttributeType.HIT_BONUS_FLAT, ItemAttributeType.FLEE_BONUS_FLAT, ItemAttributeType.BASE_MSPD
         };
-        for (int i = 0; i < types.length; i++) {
-            inv.setItem(slots[i], createStatIcon(types[i]));
+
+        int slot = 19; // Start centered-ish
+        for (ItemAttributeType type : types) {
+            if (slot == 25) slot = 28; // Skip to next row if needed, basically filling nicely
+            inv.setItem(slot++, createStatIcon(type));
         }
     }
 
     private void renderOffensive(Inventory inv) {
         ItemAttributeType[] types = {
+                // Basic ATK
                 ItemAttributeType.WEAPON_PATK, ItemAttributeType.WEAPON_MATK,
+                ItemAttributeType.PATK_FLAT, ItemAttributeType.MATK_FLAT,
+
+                // Damage % & Flat
                 ItemAttributeType.PDMG_PERCENT, ItemAttributeType.MDMG_PERCENT,
-                ItemAttributeType.CRIT_DMG_PERCENT, ItemAttributeType.CRIT_RES,
+                ItemAttributeType.PDMG_FLAT, ItemAttributeType.MDMG_FLAT,
+
+                // Critical & True Dmg
+                ItemAttributeType.CRIT_DMG_PERCENT, ItemAttributeType.TRUE_DMG,
+
+                // Penetration (Pen)
+                ItemAttributeType.P_PEN_FLAT, ItemAttributeType.M_PEN_FLAT,
+                ItemAttributeType.P_PEN_PERCENT, ItemAttributeType.M_PEN_PERCENT,
+
+                // Ignore Def
+                ItemAttributeType.IGNORE_PDEF_FLAT, ItemAttributeType.IGNORE_MDEF_FLAT,
+                ItemAttributeType.IGNORE_PDEF_PERCENT, ItemAttributeType.IGNORE_MDEF_PERCENT,
+
+                // Melee / Range
+                ItemAttributeType.MELEE_PDMG_PERCENT, ItemAttributeType.RANGE_PDMG_PERCENT,
+
+                // Final Damage
+                ItemAttributeType.FINAL_DMG_PERCENT, ItemAttributeType.FINAL_PDMG_PERCENT, ItemAttributeType.FINAL_MDMG_PERCENT,
+
+                // PVE / PVP
                 ItemAttributeType.PVE_DMG_PERCENT, ItemAttributeType.PVP_DMG_PERCENT
         };
-        int slot = 18;
+
+        int slot = 9; // Fill available space from top
         for (ItemAttributeType type : types) {
+            if (slot >= 45) break;
             inv.setItem(slot++, createStatIcon(type));
         }
     }
 
     private void renderDefensive(Inventory inv) {
         ItemAttributeType[] types = {
+                // HP / SP
                 ItemAttributeType.MAXHP_PERCENT, ItemAttributeType.MAXSP_PERCENT,
+
+                // Damage Reduction
                 ItemAttributeType.PDMG_REDUCTION_PERCENT, ItemAttributeType.MDMG_REDUCTION_PERCENT,
-                ItemAttributeType.PVE_DMG_REDUCTION_PERCENT, ItemAttributeType.PVP_DMG_REDUCTION_PERCENT,
-                ItemAttributeType.SHIELD_VALUE_FLAT
+
+                // Special Resistance
+                ItemAttributeType.CRIT_RES, ItemAttributeType.CRIT_DMG_RES_PERCENT,
+
+                // Melee / Range Reduction
+                ItemAttributeType.MELEE_PDMG_REDUCTION_PERCENT, ItemAttributeType.RANGE_PDMG_REDUCTION_PERCENT,
+
+                // Final Res
+                ItemAttributeType.FINAL_DMG_RES_PERCENT,
+
+                // Shield
+                ItemAttributeType.SHIELD_VALUE_FLAT, ItemAttributeType.SHIELD_RATE_PERCENT,
+
+                // PVE / PVP
+                ItemAttributeType.PVE_DMG_REDUCTION_PERCENT, ItemAttributeType.PVP_DMG_REDUCTION_PERCENT
         };
+
         int slot = 18;
         for (ItemAttributeType type : types) {
             inv.setItem(slot++, createStatIcon(type));
@@ -143,10 +190,20 @@ public class AttributeEditorGUI {
 
     private void renderUtility(Inventory inv) {
         ItemAttributeType[] types = {
+                // Speed
                 ItemAttributeType.ASPD_PERCENT, ItemAttributeType.MSPD_PERCENT,
-                ItemAttributeType.VAR_CT_PERCENT, ItemAttributeType.FIXED_CT_PERCENT,
-                ItemAttributeType.HEALING_EFFECT_PERCENT, ItemAttributeType.LIFESTEAL_P_PERCENT
+
+                // Cast Time (Variable)
+                ItemAttributeType.VAR_CT_PERCENT, ItemAttributeType.VAR_CT_FLAT,
+
+                // Cast Time (Fixed)
+                ItemAttributeType.FIXED_CT_PERCENT, ItemAttributeType.FIXED_CT_FLAT,
+
+                // Healing & Lifesteal
+                ItemAttributeType.HEALING_EFFECT_PERCENT, ItemAttributeType.HEALING_RECEIVED_PERCENT,
+                ItemAttributeType.LIFESTEAL_P_PERCENT, ItemAttributeType.LIFESTEAL_M_PERCENT
         };
+
         int slot = 18;
         for (ItemAttributeType type : types) {
             inv.setItem(slot++, createStatIcon(type));
