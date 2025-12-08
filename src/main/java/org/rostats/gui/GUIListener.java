@@ -19,11 +19,6 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-import org.rostats.itemeditor.AttributeEditorGUI;
-import org.rostats.itemeditor.EffectEnchantGUI;
-import org.rostats.itemeditor.ItemAttribute;
-import org.rostats.itemeditor.ItemAttributeType;
-import org.rostats.itemeditor.ItemLibraryGUI;
 
 import java.io.File;
 import java.util.HashMap;
@@ -103,23 +98,27 @@ public class GUIListener implements Listener {
             }
             return;
         }
-        if (title.startsWith("Library: ")) {
-            event.setCancelled(true);
-            if (event.getClickedInventory() == event.getView().getBottomInventory()) { handleImportItem(event, player, title.substring(9)); }
-            else { handleLibraryClick(event, player, title.substring(9)); }
-            return;
-        }
-        if (title.startsWith("Editor: ")) {
-            event.setCancelled(true);
-            if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) { handleEffectEnchantClick(event, player, title); return; }
-            handleEditorClick(event, player, title);
-            return;
-        }
+
+        // [FIXED] Removed "Library: " and "Editor: " logic from here.
+        // It is now handled exclusively by org.rostats.itemeditor.GUIListener
+
         if (title.startsWith("Confirm Delete: ")) {
+            // Note: Confirm Delete might be shared or specific.
+            // If SkillLibrary uses "Skill Delete: ", then "Confirm Delete: " might be ItemLibrary only.
+            // But if SkillLibrary uses "Confirm Delete: " too, keep it.
+            // Based on previous code, SkillLibrary uses "Skill Delete: ".
+            // So "Confirm Delete: " is likely ItemLibrary only.
+            // Safest to comment out if it belongs to Item Editor, OR keep if shared.
+            // Let's check SkillLibraryGUI... it uses "Skill Delete: ".
+            // ItemLibraryGUI uses "Confirm Delete: ".
+            // So we REMOVE this too.
+            /*
             event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
             return;
+            */
         }
+
         // [FIXED] Use Constant from CharacterGUI
         if (title.contains(CharacterGUI.TITLE_HEADER)) {
             handleCharacterStatusClick(event, player, title);
@@ -503,236 +502,6 @@ public class GUIListener implements Listener {
         if (success) { plugin.getAttributeHandler().updatePlayerStats(player); plugin.getManaManager().updateBar(player); openGUI(player, Tab.BASIC_INFO); }
     }
 
-    private void handleEditorClick(InventoryClickEvent event, Player player, String title) {
-        int lastSpaceIndex = title.lastIndexOf(" [");
-        if (lastSpaceIndex == -1) return;
-        String fileName = title.substring(8, lastSpaceIndex);
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null || !itemFile.exists()) { player.closeInventory(); return; }
-        final File finalItemFile = itemFile;
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || !clicked.hasItemMeta()) return;
-        String dp = clicked.getItemMeta().getDisplayName();
-
-        if (dp.contains("Edit Effects")) { new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.EFFECT).open(player); return; }
-        if (dp.contains("Edit Enchantments")) { new EffectEnchantGUI(plugin, finalItemFile, EffectEnchantGUI.Mode.ENCHANT).open(player); return; }
-        if (dp.contains("Back to Library")) { new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player); return; }
-        for (AttributeEditorGUI.Page p : AttributeEditorGUI.Page.values()) {
-            if (dp.contains(p.name())) { new AttributeEditorGUI(plugin, itemFile).open(player, p); return; }
-        }
-        if (dp.contains("Rename Item")) {
-            plugin.getChatInputHandler().awaitInput(player, "New Name:", (str) -> {
-                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
-                org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setDisplayName(str.replace("&", "§"));
-                stack.setItemMeta(meta);
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
-                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
-                runSync(() -> new AttributeEditorGUI(plugin, finalItemFile).open(player, AttributeEditorGUI.Page.GENERAL));
-            }); return;
-        }
-        if (dp.contains("Edit Lore")) {
-            plugin.getChatInputHandler().awaitMultiLineInput(player, "Edit Lore:", (lines) -> {
-                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
-                org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setLore(lines);
-                stack.setItemMeta(meta);
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
-                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
-                runSync(() -> new AttributeEditorGUI(plugin, finalItemFile).open(player, AttributeEditorGUI.Page.GENERAL));
-            }); return;
-        }
-        if (dp.contains("Remove Vanilla")) {
-            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-            attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
-            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-            new AttributeEditorGUI(plugin, itemFile).open(player, AttributeEditorGUI.Page.GENERAL);
-            return;
-        }
-        if (dp.contains("Save to File")) {
-            player.sendMessage("§aSaved!");
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
-            return;
-        }
-        for (ItemAttributeType type : ItemAttributeType.values()) {
-            if (dp.equals(type.getDisplayName())) {
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-                double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
-                double change = 0;
-                if (event.isLeftClick()) change = type.getClickStep();
-                else if (event.isRightClick()) change = -type.getClickStep();
-                else if (event.isShiftClick() && event.isLeftClick()) change = type.getRightClickStep();
-                else if (event.isShiftClick() && event.isRightClick()) change = -type.getRightClickStep();
-                plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
-                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-                new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
-                return;
-            }
-        }
-    }
-
-    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
-        int lastBracket = title.lastIndexOf(" [");
-        if (lastBracket == -1) return;
-        String fileName = title.substring(8, lastBracket);
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null) return;
-        EffectEnchantGUI.Mode mode = title.contains("EFFECT") ? EffectEnchantGUI.Mode.EFFECT : EffectEnchantGUI.Mode.ENCHANT;
-        String metaKey = "RO_EDITOR_SEL_" + mode.name();
-        String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-        int slot = event.getSlot();
-        if (slot < 45) {
-            if (clicked.getType() == Material.AIR) return;
-            String dp = clicked.getItemMeta().getDisplayName();
-            String key = dp.length() > 2 ? dp.substring(2) : dp;
-            player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-            new EffectEnchantGUI(plugin, itemFile, mode).open(player);
-        } else if (slot == 50 && selected != null) {
-            plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
-                // [FIX] Validate Level
-                try {
-                    int lvl = Integer.parseInt(str);
-                    if (lvl < 0) throw new NumberFormatException("Negative");
-                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
-                } catch (Exception e) {
-                    player.sendMessage("§cInvalid number! Must be a positive integer.");
-                    runSync(() -> new EffectEnchantGUI(plugin, itemFile, mode).open(player));
-                }
-            });
-        } else if (slot == 51 && selected != null) {
-            applyEffectEnchant(player, itemFile, mode, selected, 1, true);
-        } else if (slot == 52 && selected != null) {
-            applyEffectEnchant(player, itemFile, mode, selected, 0, false);
-        } else if (slot == 53) {
-            player.removeMetadata(metaKey, plugin);
-            new AttributeEditorGUI(plugin, itemFile).open(player, AttributeEditorGUI.Page.GENERAL);
-        }
-    }
-
-    private void applyEffectEnchant(Player player, File file, EffectEnchantGUI.Mode mode, String key, int level, boolean add) {
-        runSync(() -> {
-            ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
-            ItemStack stack = plugin.getItemManager().loadItemStack(file);
-            boolean changed = false;
-            if (mode == EffectEnchantGUI.Mode.EFFECT) {
-                org.bukkit.potion.PotionEffectType type = org.bukkit.potion.PotionEffectType.getByName(key);
-                if (type != null) {
-                    if (add) attr.getPotionEffects().put(type, level); else attr.getPotionEffects().remove(type);
-                    plugin.getItemManager().saveItem(file, attr, stack); changed = true;
-                }
-            } else {
-                org.bukkit.enchantments.Enchantment ench = null;
-                for (org.bukkit.enchantments.Enchantment e : org.bukkit.enchantments.Enchantment.values()) {
-                    if (e.getKey().getKey().equalsIgnoreCase(key)) { ench = e; break; }
-                }
-                if (ench != null) {
-                    org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
-                    if (add) meta.addEnchant(ench, level, true); else meta.removeEnchant(ench);
-                    stack.setItemMeta(meta);
-                    plugin.getItemManager().saveItem(file, attr, stack); changed = true;
-                }
-            }
-            if (changed) {
-                player.sendMessage("§aUpdated!");
-                player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-                new EffectEnchantGUI(plugin, file, mode).open(player);
-            }
-        });
-    }
-
-    private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
-        String fileName = title.substring("Confirm Delete: ".length());
-        File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (event.getCurrentItem() == null) return;
-        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
-        if (dp.contains("CONFIRM DELETE")) {
-            if (target != null && target.exists()) {
-                File parent = target.getParentFile();
-                plugin.getItemManager().deleteFile(target);
-                player.sendMessage("§cDeleted.");
-                runSync(() -> new ItemLibraryGUI(plugin, parent).open(player));
-            }
-        } else if (dp.contains("CANCEL")) {
-            if (target != null) runSync(() -> new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
-        }
-    }
-
-    private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
-        ItemStack item = event.getCurrentItem();
-        if (item == null || item.getType() == Material.AIR) return;
-        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
-        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
-        final File finalDir = currentDir;
-        player.closeInventory();
-        plugin.getChatInputHandler().awaitInput(player, "File Name:", (name) -> {
-            String fileName = name.endsWith(".yml") ? name : name + ".yml";
-            File newFile = new File(finalDir, fileName);
-            if (newFile.exists()) { player.sendMessage("§cExists!"); return; }
-            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-            plugin.getItemManager().saveItem(newFile, attr, item);
-            runSync(() -> new ItemLibraryGUI(plugin, finalDir).open(player));
-        });
-    }
-
-    private void handleLibraryClick(InventoryClickEvent event, Player player, String relativePath) {
-        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
-        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
-        final File finalDir = currentDir;
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-        String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
-        if (clicked.getType() == Material.ARROW) { new ItemLibraryGUI(plugin, currentDir.getParentFile()).open(player); return; }
-        if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
-            plugin.getChatInputHandler().awaitInput(player, "Folder:", (str) -> {
-                plugin.getItemManager().createFolder(finalDir, str);
-                runSync(() -> new ItemLibraryGUI(plugin, finalDir).open(player));
-            }); return;
-        }
-        if (clicked.getType() == Material.EMERALD) {
-            plugin.getChatInputHandler().awaitInput(player, "Item Name:", (str) -> {
-                plugin.getItemManager().createItem(finalDir, str, Material.STONE);
-                runSync(() -> new ItemLibraryGUI(plugin, finalDir).open(player));
-            }); return;
-        }
-        File target = new File(currentDir, name + (clicked.getType() == Material.CHEST ? "" : ".yml"));
-        if (target.isDirectory()) {
-            if (event.isLeftClick() && !event.isShiftClick()) new ItemLibraryGUI(plugin, target).open(player);
-            else if (event.isShiftClick() && event.isLeftClick()) new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            else if (event.isRightClick()) {
-                plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> {
-                    plugin.getItemManager().renameFile(target, str);
-                    runSync(() -> new ItemLibraryGUI(plugin, finalDir).open(player));
-                });
-            }
-        } else {
-            if (event.isLeftClick()) new AttributeEditorGUI(plugin, target).open(player, AttributeEditorGUI.Page.GENERAL);
-            else if (event.isShiftClick() && event.isLeftClick()) new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            else if (event.isShiftClick() && event.isRightClick()) {
-                ItemStack item = plugin.getItemManager().loadItemStack(target);
-                player.getInventory().addItem(item);
-                player.sendMessage("§aGiven!");
-            }
-        }
-    }
-
-    private File findFileByName(File dir, String name) {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                if (f.isDirectory()) {
-                    File found = findFileByName(f, name);
-                    if (found != null) return found;
-                } else if (f.getName().equals(name) || f.getName().equals(name + ".yml")) {
-                    return f;
-                }
-            }
-        }
-        return null;
-    }
-
     private File findFileRecursive(File dir, String name) {
         File[] files = dir.listFiles();
         if (files == null) return null;
@@ -744,13 +513,6 @@ public class GUIListener implements Listener {
             }
         }
         return null;
-    }
-
-    private AttributeEditorGUI.Page getPageFromTitle(String title) {
-        for (AttributeEditorGUI.Page p : AttributeEditorGUI.Page.values()) {
-            if (title.contains(p.name())) return p;
-        }
-        return AttributeEditorGUI.Page.GENERAL;
     }
 
     private void runSync(Runnable r) {
