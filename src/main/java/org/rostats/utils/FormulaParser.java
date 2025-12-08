@@ -10,26 +10,26 @@ public class FormulaParser {
         // 1. Replace Variables
         if (caster != null) {
             PlayerData data = plugin.getStatManager().getData(caster.getUniqueId());
-            expression = expression.replace("MATK", String.valueOf(plugin.getStatManager().getMagicAttack(caster)));
-            expression = expression.replace("ATK", String.valueOf(plugin.getStatManager().getPhysicalAttack(caster)));
-            expression = expression.replace("STR", String.valueOf(data.getStat("STR")));
-            expression = expression.replace("INT", String.valueOf(data.getStat("INT")));
-            expression = expression.replace("DEX", String.valueOf(data.getStat("DEX")));
-            expression = expression.replace("LUK", String.valueOf(data.getStat("LUK")));
-            expression = expression.replace("AGI", String.valueOf(data.getStat("AGI")));
-            expression = expression.replace("VIT", String.valueOf(data.getStat("VIT")));
-            expression = expression.replace("LEVEL", String.valueOf(data.getBaseLevel()));
+            // [FIX] ใช้ replaceAll พร้อมกับ \\b (Word Boundary) เพื่อป้องกันการแทนค่าคำที่ซ้อนกัน
+            // เช่น "MATK" จะไม่ถูก "ATK" แทนค่าทับจนเพี้ยน
+            expression = expression.replaceAll("\\bMATK\\b", String.valueOf(plugin.getStatManager().getMagicAttack(caster)));
+            expression = expression.replaceAll("\\bATK\\b", String.valueOf(plugin.getStatManager().getPhysicalAttack(caster)));
+            expression = expression.replaceAll("\\bSTR\\b", String.valueOf(data.getStat("STR")));
+            expression = expression.replaceAll("\\bINT\\b", String.valueOf(data.getStat("INT")));
+            expression = expression.replaceAll("\\bDEX\\b", String.valueOf(data.getStat("DEX")));
+            expression = expression.replaceAll("\\bLUK\\b", String.valueOf(data.getStat("LUK")));
+            expression = expression.replaceAll("\\bAGI\\b", String.valueOf(data.getStat("AGI")));
+            expression = expression.replaceAll("\\bVIT\\b", String.valueOf(data.getStat("VIT")));
+            expression = expression.replaceAll("\\bLEVEL\\b", String.valueOf(data.getBaseLevel()));
         }
 
         // Remove spaces
-        // FIX: Assign to a new final variable to be used in the inner class
         final String finalExpression = expression.replaceAll("\\s+", "");
 
         return new Object() {
             int pos = -1, ch;
 
             void nextChar() {
-                // Use finalExpression instead of expression
                 ch = (++pos < finalExpression.length()) ? finalExpression.charAt(pos) : -1;
             }
 

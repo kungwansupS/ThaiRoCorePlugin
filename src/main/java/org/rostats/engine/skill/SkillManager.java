@@ -9,7 +9,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.*; // Import all actions (Damage, Heal, Effect, Sound, Particle, Potion, Teleport, Projectile, Area)
+import org.rostats.engine.action.impl.*; // Import all actions
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
 
@@ -28,6 +28,10 @@ public class SkillManager {
     private final ThaiRoCorePlugin plugin;
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
+
+    // [FIX] เพิ่มตัวนับความลึกของการร่ายสกิล (Recursion Guard) เพื่อป้องกัน Infinite Loop จาก AreaAction หรือการเรียกวน
+    private final ThreadLocal<Integer> recursionDepth = ThreadLocal.withInitial(() -> 0);
+    private static final int MAX_RECURSION_DEPTH = 5; // จำกัดการร่ายต่อเนื่องซ้อนกันไม่เกิน 5 ชั้น
 
     public SkillManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -181,54 +185,71 @@ public class SkillManager {
     }
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
-        SkillData skill = skillMap.get(skillId);
-        if (skill == null) return;
-
-        // --- Status Check (Silence / Stun) ---
-        if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
-            if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
+        // [FIX] Recursion Guard: Check Depth
+        int currentDepth = recursionDepth.get();
+        if (currentDepth >= MAX_RECURSION_DEPTH) {
+            plugin.getLogger().warning("Skill recursion limit reached for skill: " + skillId + " (Caster: " + caster.getName() + "). Stopping chain.");
             return;
         }
-        if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "SILENCE")) {
-            if (caster instanceof Player) caster.sendMessage("§cYou are silenced!");
-            return;
-        }
-        // -------------------------------------
 
-        // --- Cooldown and SP Check (Only for Players & Not Passive) ---
-        if (!isPassive && caster instanceof Player player) {
-            PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+        try {
+            // [FIX] Increment depth
+            recursionDepth.set(currentDepth + 1);
 
-            long now = System.currentTimeMillis();
-            long lastUse = data.getSkillCooldown(skillId);
-            double cooldownSeconds = skill.getCooldown(level);
-            long cooldownMillis = (long) (cooldownSeconds * 1000);
+            SkillData skill = skillMap.get(skillId);
+            if (skill == null) return;
 
-            if (now - lastUse < cooldownMillis) {
-                long timeLeft = (cooldownMillis - (now - lastUse)) / 1000;
-                player.sendMessage("§cSkill is on cooldown! (" + timeLeft + "s)");
+            // --- Status Check (Silence / Stun) ---
+            if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
+                if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
                 return;
             }
-
-            int spCost = skill.getSpCost(level);
-            if (data.getCurrentSP() < spCost) {
-                player.sendMessage("§cNot enough SP!");
+            if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "SILENCE")) {
+                if (caster instanceof Player) caster.sendMessage("§cYou are silenced!");
                 return;
             }
+            // -------------------------------------
 
-            data.setCurrentSP(data.getCurrentSP() - spCost);
-            data.setSkillCooldown(skillId, now);
-            plugin.getManaManager().updateBar(player);
-        }
+            // --- Cooldown and SP Check (Only for Players & Not Passive) ---
+            if (!isPassive && caster instanceof Player player) {
+                PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
-        // Execute Actions
-        for (SkillAction action : skill.getActions()) {
-            try {
-                action.execute(caster, target, level);
-            } catch (Exception e) {
-                plugin.getLogger().warning("Error executing action for skill " + skillId);
-                e.printStackTrace();
+                long now = System.currentTimeMillis();
+                long lastUse = data.getSkillCooldown(skillId);
+                double cooldownSeconds = skill.getCooldown(level);
+                long cooldownMillis = (long) (cooldownSeconds * 1000);
+
+                if (now - lastUse < cooldownMillis) {
+                    long timeLeft = (cooldownMillis - (now - lastUse)) / 1000;
+                    player.sendMessage("§cSkill is on cooldown! (" + timeLeft + "s)");
+                    return;
+                }
+
+                int spCost = skill.getSpCost(level);
+                if (data.getCurrentSP() < spCost) {
+                    player.sendMessage("§cNot enough SP!");
+                    return;
+                }
+
+                data.setCurrentSP(data.getCurrentSP() - spCost);
+                data.setSkillCooldown(skillId, now);
+                plugin.getManaManager().updateBar(player);
             }
+
+            // Execute Actions
+            for (SkillAction action : skill.getActions()) {
+                try {
+                    action.execute(caster, target, level);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Error executing action for skill " + skillId);
+                    e.printStackTrace();
+                }
+            }
+
+        } finally {
+            // [FIX] Decrement depth (Ensure it runs even if exception occurs)
+            recursionDepth.set(recursionDepth.get() - 1);
+            if (recursionDepth.get() < 0) recursionDepth.set(0); // Safety net
         }
     }
 
