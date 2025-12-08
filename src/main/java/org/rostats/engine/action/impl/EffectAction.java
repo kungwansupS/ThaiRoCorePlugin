@@ -38,14 +38,15 @@ public class EffectAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int skillLevel) {
-        // FIX: Default to self if target is null (for Buffs/Self-Cast)
+    public void execute(LivingEntity caster, LivingEntity target, int skillLevel, Map<String, Double> context) {
+        // Default to self if target is null (for Buffs/Self-Cast)
         if (target == null) target = caster;
 
         if (Math.random() > chance) return;
 
+        // ใช้ this.level (เลเวลของเอฟเฟกต์) ไม่ใช่ skillLevel (เลเวลของสกิล)
         ActiveEffect effect = new ActiveEffect(
-                effectId, type, level, power, duration, 20L, caster.getUniqueId()
+                effectId, type, this.level, power, duration, 20L, caster.getUniqueId()
         );
         if (statKey != null) effect.setStatKey(statKey);
 

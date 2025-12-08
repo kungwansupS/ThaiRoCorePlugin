@@ -26,11 +26,11 @@ public class SoundAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         try {
             Sound sound = Sound.valueOf(soundName.toUpperCase());
-            // เล่นเสียงที่ตัวคนร่าย
-            caster.getWorld().playSound(caster.getLocation(), sound, volume, pitch);
+            LivingEntity locEntity = (target != null) ? target : caster;
+            locEntity.getWorld().playSound(locEntity.getLocation(), sound, volume, pitch);
         } catch (IllegalArgumentException e) {
             // Ignore invalid sound
         }

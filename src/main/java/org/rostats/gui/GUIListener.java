@@ -131,6 +131,7 @@ public class GUIListener implements Listener {
                 ActionType type = ActionType.valueOf(typeStr);
                 SkillAction newAction = null;
 
+                // [UPDATED] ใช้ String.valueOf เพื่อรองรับ Placeholder ใน Action ต่างๆ
                 switch (type) {
                     case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
                     case HEAL:
@@ -156,11 +157,15 @@ public class GUIListener implements Listener {
                         newAction = new SoundAction(snd, vol, pit);
                         break;
                     case PARTICLE:
-                        String par = String.valueOf(data.getOrDefault("particle", "VILLAGER_HAPPY"));
-                        int cnt = Integer.parseInt(String.valueOf(data.getOrDefault("count", "5")));
-                        double spd = Double.parseDouble(String.valueOf(data.getOrDefault("speed", "0.1")));
-                        double off = Double.parseDouble(String.valueOf(data.getOrDefault("offset", "0.5")));
-                        newAction = new ParticleAction(par, cnt, spd, off);
+                        // 7 Arguments (Strings for Placeholder)
+                        newAction = new ParticleAction(plugin,
+                                (String)data.getOrDefault("particle", "VILLAGER_HAPPY"),
+                                String.valueOf(data.getOrDefault("count", "5")),
+                                String.valueOf(data.getOrDefault("speed", "0.1")),
+                                (String)data.getOrDefault("shape", "POINT"),
+                                String.valueOf(data.getOrDefault("radius", "0.5")),
+                                String.valueOf(data.getOrDefault("points", "20"))
+                        );
                         break;
                     case POTION:
                         String pot = String.valueOf(data.getOrDefault("potion", "SPEED"));
@@ -186,6 +191,28 @@ public class GUIListener implements Listener {
                         String sub = String.valueOf(data.getOrDefault("sub-skill", "none"));
                         int maxT = Integer.parseInt(String.valueOf(data.getOrDefault("max-targets", "10")));
                         newAction = new AreaAction(plugin, rad, tType, sub, maxT);
+                        break;
+                    case VELOCITY:
+                        double vx = Double.parseDouble(String.valueOf(data.getOrDefault("x", "0.0")));
+                        double vy = Double.parseDouble(String.valueOf(data.getOrDefault("y", "0.0")));
+                        double vz = Double.parseDouble(String.valueOf(data.getOrDefault("z", "0.0")));
+                        boolean add = Boolean.parseBoolean(String.valueOf(data.getOrDefault("add", true)));
+                        newAction = new VelocityAction(vx, vy, vz, add);
+                        break;
+                    case LOOP:
+                        String startExpr = String.valueOf(data.getOrDefault("start", "0"));
+                        String endExpr = String.valueOf(data.getOrDefault("end", "10"));
+                        String stepExpr = String.valueOf(data.getOrDefault("step", "1"));
+                        String varName = String.valueOf(data.getOrDefault("var", "i"));
+
+                        SkillAction originalAction = skill.getActions().get(index);
+                        if (originalAction instanceof LoopAction loop) {
+                            // [FIXED] เรียกใช้ getSubActions() เพื่อดึงรายการ Action ย่อย
+                            newAction = new LoopAction(plugin, startExpr, endExpr, stepExpr, varName, loop.getSubActions());
+                        } else {
+                            player.sendMessage("§cError: Cannot save LOOP without sub-actions.");
+                            return;
+                        }
                         break;
                 }
 
@@ -217,7 +244,7 @@ public class GUIListener implements Listener {
             Object val = data.get(fKey);
             if (val instanceof Boolean) {
                 data.put(fKey, !((Boolean) val));
-                reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType());
+                runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
             } else {
                 plugin.getChatInputHandler().awaitInput(player, "Enter value for " + fKey + ":", (str) -> {
                     try {
@@ -225,16 +252,17 @@ public class GUIListener implements Listener {
                             int intVal = Integer.parseInt(str);
                             if (intVal < 0) throw new NumberFormatException("Negative");
                             data.put(fKey, intVal);
-                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius")) {
+                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius") || fKey.equals("x") || fKey.equals("y") || fKey.equals("z") || fKey.equals("start") || fKey.equals("end") || fKey.equals("step") || fKey.equals("points")) {
                             double dVal = Double.parseDouble(str);
-                            if (dVal < 0) throw new NumberFormatException("Negative");
+                            // Allow negative values for coordinates/step, but not for others
+                            if (dVal < 0 && !fKey.equals("x") && !fKey.equals("y") && !fKey.equals("z") && !fKey.equals("start") && !fKey.equals("end") && !fKey.equals("step")) throw new NumberFormatException("Negative");
                             data.put(fKey, dVal);
                         } else {
                             data.put(fKey, str);
                         }
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     } catch (Exception e) {
-                        player.sendMessage("§cInvalid input! Must be a positive number.");
+                        player.sendMessage("§cInvalid input! Must be a valid number/string.");
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     }
@@ -246,7 +274,7 @@ public class GUIListener implements Listener {
     private void reopenPropertyGUI(Player player, String skillId, int index, Map<String, Object> data, ActionType type) {
         SkillAction tempAction = new SkillAction() {
             public ActionType getType() { return type; }
-            public void execute(org.bukkit.entity.LivingEntity c, org.bukkit.entity.LivingEntity t, int l) {}
+            public void execute(org.bukkit.entity.LivingEntity c, org.bukkit.entity.LivingEntity t, int l, Map<String, Double> context) {}
             public Map<String, Object> serialize() { return data; }
         };
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
@@ -270,11 +298,16 @@ public class GUIListener implements Listener {
                         case HEAL: action = new HealAction(plugin, "10", false, true); break;
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
                         case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
-                        case PARTICLE: action = new ParticleAction("VILLAGER_HAPPY", 5, 0.1, 0.5); break;
+                        case PARTICLE:
+                            action = new ParticleAction(plugin, "VILLAGER_HAPPY", "5", "0.1", "POINT", "0.5", "20");
+                            break;
                         case POTION: action = new PotionAction("SPEED", 60, 0, true); break;
                         case TELEPORT: action = new TeleportAction(5.0, false); break;
                         case PROJECTILE: action = new ProjectileAction(plugin, "ARROW", 1.5, "none"); break;
                         case AREA_EFFECT: action = new AreaAction(plugin, 5.0, "ENEMY", "none", 10); break;
+                        case VELOCITY: action = new VelocityAction(0.0, 0.0, 0.0, true); break;
+                        case LOOP: action = new LoopAction(plugin, "0", "10", "1", "i", Collections.emptyList()); break;
+                        case COMMAND: action = new CommandAction("say Hi %player%", false); break;
                     }
                     if (action != null) {
                         skill.addAction(action);
@@ -282,7 +315,7 @@ public class GUIListener implements Listener {
                         plugin.getSkillManager().saveSkill(skill);
                     }
                     new SkillEditorGUI(plugin, skillId).open(player);
-                } catch (Exception e) { player.sendMessage("§cError creating action."); }
+                } catch (Exception e) { player.sendMessage("§cError creating action: " + e.getMessage()); e.printStackTrace(); }
             }
         }
     }

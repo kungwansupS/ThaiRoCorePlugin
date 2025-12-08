@@ -10,6 +10,8 @@ public enum ActionType {
     POTION,
     TELEPORT,
     AREA_EFFECT,
-    DELAY,      // สำหรับหน่วงเวลา (จากรอบที่แล้ว)
-    COMMAND     // [NEW] สำหรับรันคำสั่ง
+    DELAY,
+    COMMAND,
+    VELOCITY, // สำหรับการพุ่ง/กระแทก
+    LOOP      // สำหรับการวนลูป
 }

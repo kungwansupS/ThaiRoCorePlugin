@@ -26,12 +26,19 @@ public class CommandAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         // เตรียมคำสั่งและแทนที่ตัวแปร (Placeholders)
         String finalCmd = command
                 .replace("%level%", String.valueOf(level))
                 .replace("%player%", caster.getName())
                 .replace("%player_uuid%", caster.getUniqueId().toString());
+
+        // [NEW] แทนที่ตัวแปรจาก Loop/Context (เช่น %i%, %angle%)
+        if (context != null) {
+            for (Map.Entry<String, Double> entry : context.entrySet()) {
+                finalCmd = finalCmd.replace("%" + entry.getKey() + "%", String.valueOf(entry.getValue()));
+            }
+        }
 
         // ตัวแปรเกี่ยวกับตำแหน่งผู้ร่าย
         Location loc = caster.getLocation();
@@ -50,10 +57,13 @@ public class CommandAction implements SkillAction {
                     .replace("%target_y%", String.format("%.2f", target.getLocation().getY()))
                     .replace("%target_z%", String.format("%.2f", target.getLocation().getZ()));
         } else {
-            // ถ้าไม่มีเป้าหมาย ให้ล้างค่าหรือใช้ค่าผู้ร่ายแทน (แล้วแต่ดีไซน์)
+            // ถ้าไม่มีเป้าหมาย ให้ใช้ค่าของผู้ร่ายแทน หรือเว้นว่างไว้
             finalCmd = finalCmd
                     .replace("%target%", caster.getName())
-                    .replace("%target_uuid%", caster.getUniqueId().toString());
+                    .replace("%target_uuid%", caster.getUniqueId().toString())
+                    .replace("%target_x%", String.format("%.2f", loc.getX()))
+                    .replace("%target_y%", String.format("%.2f", loc.getY()))
+                    .replace("%target_z%", String.format("%.2f", loc.getZ()));
         }
 
         // รันคำสั่ง

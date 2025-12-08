@@ -11,11 +11,13 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\DamageAc
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\DelayAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\EffectAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\HealAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\LoopAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\ParticleAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\PotionAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\ProjectileAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SoundAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\TeleportAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\VelocityAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\SkillAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\effect\ActiveEffect.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\effect\EffectManager.java

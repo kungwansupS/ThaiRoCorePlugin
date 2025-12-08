@@ -18,7 +18,7 @@ public class HealAction implements SkillAction {
     private final ThaiRoCorePlugin plugin;
     private final String formula;
     private final boolean isMana;
-    private final boolean isSelfOnly; // [FIX] New Field
+    private final boolean isSelfOnly;
 
     public HealAction(ThaiRoCorePlugin plugin, String formula, boolean isMana, boolean isSelfOnly) {
         this.plugin = plugin;
@@ -33,20 +33,14 @@ public class HealAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
-        // [FIX] ถ้า self-only เป็น true หรือไม่มีเป้าหมาย ให้ฮีลตัวเอง
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         if (isSelfOnly || target == null) {
             target = caster;
         }
 
         double amount = 0.0;
         try {
-            String calcFormula = formula.replace("LVL", String.valueOf(level));
-            if (caster instanceof Player) {
-                amount = FormulaParser.eval(calcFormula, (Player) caster, plugin);
-            } else {
-                amount = 10 * level;
-            }
+            amount = FormulaParser.eval(formula, caster, target, level, context, plugin);
         } catch (Exception e) {
             amount = 1.0;
         }
@@ -63,16 +57,12 @@ public class HealAction implements SkillAction {
                 target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
             }
         } else {
-            // [FIX] Use custom MaxHP if player, otherwise use vanilla attribute MaxHP. (Defensive Fix)
             double maxHP;
             if (target instanceof Player player) {
                 maxHP = plugin.getStatManager().getData(player.getUniqueId()).getMaxHP();
             } else {
                 maxHP = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
             }
-
-            // Ensure MaxHP respects the hard limit of 2048.0 before calculating heal,
-            // although the custom system should handle this.
             if (maxHP > 2048.0) maxHP = 2048.0;
 
             double newHP = Math.min(maxHP, target.getHealth() + amount);
@@ -88,7 +78,7 @@ public class HealAction implements SkillAction {
         map.put("type", "HEAL");
         map.put("formula", formula);
         map.put("is-mana", isMana);
-        map.put("self-only", isSelfOnly); // Save option
+        map.put("self-only", isSelfOnly);
         return map;
     }
 }

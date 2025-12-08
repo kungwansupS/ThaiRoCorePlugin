@@ -14,7 +14,7 @@ public class PotionAction implements SkillAction {
     private final String potionType;
     private final int durationTicks;
     private final int amplifier;
-    private final boolean isSelfOnly; // [FIX] New Field
+    private final boolean isSelfOnly;
 
     public PotionAction(String potionType, int durationTicks, int amplifier, boolean isSelfOnly) {
         this.potionType = potionType;
@@ -29,7 +29,7 @@ public class PotionAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         // [FIX] Logic เลือกเป้าหมาย: ถ้าเป็น Self Only หรือไม่มีเป้าหมาย ให้ใส่ตัวเอง
         if (isSelfOnly || target == null) {
             target = caster;

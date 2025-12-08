@@ -33,9 +33,8 @@ public class AreaAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
-        // ถ้ามี target (เช่นจาก Projectile ชน) ให้ใช้ location ของ target เป็นจุดศูนย์กลาง
-        // ถ้าไม่มี (เช่นกดใช้เอง) ให้ใช้ location ของ caster
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
+        // ใช้ตำแหน่งของ target เป็นจุดศูนย์กลางถ้ามี, ถ้าไม่มีใช้ของ caster
         LivingEntity centerEntity = (target != null) ? target : caster;
 
         List<Entity> nearby = centerEntity.getNearbyEntities(radius, radius, radius);
@@ -47,8 +46,8 @@ public class AreaAction implements SkillAction {
             LivingEntity victim = (LivingEntity) e;
 
             if (isValidTarget(caster, victim)) {
-                // สั่งร่ายสกิลย่อยใส่เป้าหมายที่เจอ
-                // isPassive = true เพื่อไม่ให้เช็ค CD/SP ซ้ำซ้อน (เพราะจ่ายไปแล้วตอนกดสกิลหลัก)
+                // ร่ายสกิลย่อยใส่เป้าหมาย
+                // หมายเหตุ: ปัจจุบัน castSkill ยังไม่รองรับการส่งต่อ context (ถ้าต้องการต้องแก้ SkillManager เพิ่ม)
                 plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
                 count++;
             }
@@ -56,16 +55,15 @@ public class AreaAction implements SkillAction {
     }
 
     private boolean isValidTarget(LivingEntity caster, LivingEntity victim) {
-        if (victim.equals(caster)) return false; // ไม่โดนตัวเอง (ถ้าอยากโดนต้องสร้างสกิลแยก)
+        if (victim.equals(caster)) return false;
 
         switch (targetType) {
             case "ENEMY":
-                // Logic แยกมิตร/ศัตรูแบบง่าย
-                if (caster instanceof Player && victim instanceof Player) return true; // PVP (เปิดตลอดในตัวอย่างนี้)
-                if (caster instanceof Player && !(victim instanceof Player)) return true; // Player ตี Mob
+                if (caster instanceof Player && victim instanceof Player) return true; // PVP
+                if (caster instanceof Player && !(victim instanceof Player)) return true; // PVE
                 return false;
             case "ALLY":
-                if (caster instanceof Player && victim instanceof Player) return true; // Player ช่วย Player
+                if (caster instanceof Player && victim instanceof Player) return true;
                 return false;
             case "ALL":
                 return true;

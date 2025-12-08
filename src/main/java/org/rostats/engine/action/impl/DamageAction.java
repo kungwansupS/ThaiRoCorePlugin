@@ -1,10 +1,7 @@
 package org.rostats.engine.action.impl;
 
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
-import org.bukkit.util.Vector;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
@@ -31,38 +28,32 @@ public class DamageAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
-        // Find target if active skill (target is null)
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         if (target == null) {
-            target = findTarget(caster, 10); // Use the new RayTrace finding
+            target = findTarget(caster, 10);
         }
 
-        if (target == null) return; // No target found, fail silently
+        if (target == null) return;
 
         double damage = 0.0;
         try {
-            String calcFormula = formula.replace("LVL", String.valueOf(level));
-            if (caster instanceof Player) {
-                damage = FormulaParser.eval(calcFormula, (Player) caster, plugin);
-            } else {
-                damage = 10 * level;
-            }
+            // ใช้ FormulaParser แบบใหม่ที่รองรับ context
+            damage = FormulaParser.eval(formula, caster, target, level, context, plugin);
         } catch (Exception e) {
             damage = 1.0;
         }
+
         target.damage(damage, caster);
         plugin.showDamageFCT(target.getLocation(), damage);
     }
 
-    // [FIX] Replaced the inefficient and inaccurate findTarget with a proper RayTrace
     private LivingEntity findTarget(LivingEntity caster, int range) {
-        // Use Bukkit's rayTrace which correctly checks Line-of-Sight and distance.
         RayTraceResult result = caster.getWorld().rayTraceEntities(
                 caster.getEyeLocation(),
                 caster.getEyeLocation().getDirection(),
                 range,
-                0.2, // Radius to check for entities
-                e -> e instanceof LivingEntity && !e.equals(caster) // Filter: only LivingEntity, not self
+                0.5,
+                e -> e instanceof LivingEntity && !e.equals(caster)
         );
 
         if (result != null && result.getHitEntity() instanceof LivingEntity) {

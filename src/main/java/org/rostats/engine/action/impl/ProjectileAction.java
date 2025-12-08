@@ -15,9 +15,9 @@ import java.util.Map;
 public class ProjectileAction implements SkillAction {
 
     private final ThaiRoCorePlugin plugin;
-    private final String projectileType; // ARROW, SNOWBALL, FIREBALL, etc.
+    private final String projectileType;
     private final double speed;
-    private final String onHitSkillId;   // Skill ID to cast on hit
+    private final String onHitSkillId;
 
     public ProjectileAction(ThaiRoCorePlugin plugin, String projectileType, double speed, String onHitSkillId) {
         this.plugin = plugin;
@@ -32,19 +32,20 @@ public class ProjectileAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         Class<? extends Projectile> projClass = getProjectileClass(projectileType);
         if (projClass == null) return;
 
-        Location spawnLoc = caster.getEyeLocation().add(caster.getLocation().getDirection());
+        // Launch from eye location
         Projectile proj = caster.launchProjectile(projClass);
+        if (proj == null) return;
 
         // Set Velocity
-        Vector velocity = caster.getLocation().getDirection().multiply(speed);
+        Vector velocity = caster.getEyeLocation().getDirection().multiply(speed);
         proj.setVelocity(velocity);
 
         // Inject Data for Handler
-        ProjectileHandler handler = plugin.getProjectileHandler(); // Need to add getter in Plugin class
+        ProjectileHandler handler = plugin.getProjectileHandler();
         if (handler != null) {
             proj.getPersistentDataContainer().set(handler.getSkillIdKey(), PersistentDataType.STRING, onHitSkillId);
             proj.getPersistentDataContainer().set(handler.getSkillLevelKey(), PersistentDataType.INTEGER, level);

@@ -7,8 +7,10 @@ public interface SkillAction {
 
     ActionType getType();
 
-    void execute(LivingEntity caster, LivingEntity target, int level);
+    /**
+     * @param context ตัวแปรที่ส่งมาจาก Loop หรือระบบ Placeholder (เช่น "i" -> 10.0)
+     */
+    void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context);
 
-    // NEW: แปลงข้อมูลกลับเป็น Map เพื่อบันทึกลง YAML
     Map<String, Object> serialize();
 }

@@ -26,7 +26,7 @@ public class TeleportAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         Location start = caster.getLocation();
 
         if (toTarget && target != null) {
@@ -44,7 +44,7 @@ public class TeleportAction implements SkillAction {
             }
         }
 
-        // แก้ไขตรงนี้: เรียกผ่าน World แทน
+        // เรียกผ่าน World แทน
         caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f);
     }
 

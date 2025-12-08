@@ -25,8 +25,8 @@ public class DelayAction implements SkillAction {
     }
 
     @Override
-    public void execute(LivingEntity caster, LivingEntity target, int level) {
-        // ไม่ทำอะไรในนี้ เพราะ Logic การรอจะอยู่ที่ SkillRunner
+    public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
+        // Logic การรออยู่ที่ SkillRunner
     }
 
     @Override
