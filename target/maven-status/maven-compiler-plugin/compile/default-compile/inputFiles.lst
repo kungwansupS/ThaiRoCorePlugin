@@ -8,6 +8,11 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\ActionType.ja
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\DamageAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\EffectAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\HealAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\ParticleAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\PotionAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\ProjectileAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SoundAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\TeleportAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\SkillAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\effect\ActiveEffect.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\effect\EffectManager.java
@@ -25,6 +30,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\AttributeHandler.ja
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\CombatHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\DeathHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\ManaManager.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\ProjectileHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\hook\PAPIHook.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\input\ChatInputHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\itemeditor\AttributeEditorGUI.java

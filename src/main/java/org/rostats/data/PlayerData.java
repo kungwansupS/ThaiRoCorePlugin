@@ -22,6 +22,9 @@ public class PlayerData {
     private final Map<String, Integer> stats = new HashMap<>();
     private final Map<String, Integer> pendingStats = new HashMap<>();
 
+    // NEW: Map สำหรับเก็บ Cooldown (SkillID -> Timestamp)
+    private final Map<String, Long> skillCooldowns = new HashMap<>();
+
     // Active Effects List
     private final List<ActiveEffect> activeEffects = new CopyOnWriteArrayList<>();
 
@@ -133,6 +136,16 @@ public class PlayerData {
     }
     // ---------------------------
 
+    // --- Skill Cooldown Logic ---
+    public long getSkillCooldown(String skillId) {
+        return skillCooldowns.getOrDefault(skillId, 0L);
+    }
+
+    public void setSkillCooldown(String skillId, long timestamp) {
+        skillCooldowns.put(skillId, timestamp);
+    }
+    // ----------------------------
+
     public long getBaseExpReq() {
         return getBaseExpReq(this.baseLevel);
     }
@@ -173,7 +186,7 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // --- FULL Getters and Setters ---
+    // --- FULL Getters and Setters (ละไว้ในฐานที่เข้าใจ ให้คงเดิมที่มีอยู่แล้ว) ---
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }

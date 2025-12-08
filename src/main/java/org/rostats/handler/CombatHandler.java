@@ -11,9 +11,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
@@ -43,6 +45,28 @@ public class CombatHandler implements Listener {
     public void loadValues() {
         this.jobExpRatio = plugin.getConfig().getDouble("exp-formula.job-exp-ratio", 0.75);
     }
+
+    // --- NEW: Active Skill Trigger (Right Click) ---
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            Player player = event.getPlayer();
+            ItemStack item = event.getItem();
+
+            if (item == null || item.getType() == Material.AIR) return;
+
+            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+            if (attr == null) return;
+
+            for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                if (binding.getTrigger() == TriggerType.CAST) {
+                    // Cast Skill (Target = null for now, handled by Action logic)
+                    plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), null);
+                }
+            }
+        }
+    }
+    // ----------------------------------------------
 
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
@@ -98,21 +122,19 @@ public class CombatHandler implements Listener {
             return;
         }
 
-        // --- NEW: Trigger Checks ---
-        // 1. ON_HIT (Attacker)
+        // --- Check Triggers ---
         checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
 
-        // 2. ON_DEFEND (Defender)
         if (defenderEntity instanceof Player defenderPlayer) {
             checkTriggers(defenderPlayer, attackerPlayer, TriggerType.ON_DEFEND);
         }
-        // ---------------------------
+        // ----------------------
 
         PlayerData A = plugin.getStatManager().getData(attackerPlayer.getUniqueId());
         StatManager stats = plugin.getStatManager();
         PlayerData D = (defenderEntity instanceof Player) ? plugin.getStatManager().getData(defenderEntity.getUniqueId()) : null;
 
-        // 1. HIT check (Hit vs Flee)
+        // 1. HIT check
         if (!isMagic) {
             int attackerHit = stats.getHit(attackerPlayer);
             int defenderFlee = (defenderEntity instanceof Player) ? stats.getFlee((Player) defenderEntity) : 0;
@@ -234,7 +256,6 @@ public class CombatHandler implements Listener {
         }
     }
 
-    // --- NEW: Check Triggers Logic ---
     private void checkTriggers(Player player, LivingEntity target, TriggerType type) {
         List<ItemStack> items = new ArrayList<>();
         if (player.getEquipment() != null) {

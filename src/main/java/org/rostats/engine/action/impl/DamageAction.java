@@ -1,7 +1,9 @@
 package org.rostats.engine.action.impl;
 
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
@@ -29,7 +31,13 @@ public class DamageAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level) {
-        if (target == null) return;
+        // Find target if active skill (target is null)
+        if (target == null) {
+            target = findTarget(caster, 10); // RayTrace 10 blocks
+        }
+
+        if (target == null) return; // No target found, fail silently
+
         double damage = 0.0;
         try {
             String calcFormula = formula.replace("LVL", String.valueOf(level));
@@ -43,6 +51,19 @@ public class DamageAction implements SkillAction {
         }
         target.damage(damage, caster);
         plugin.showDamageFCT(target.getLocation(), damage);
+    }
+
+    private LivingEntity findTarget(LivingEntity caster, int range) {
+        for (Entity e : caster.getNearbyEntities(range, range, range)) {
+            if (e instanceof LivingEntity && e != caster) {
+                // Simple LoS check: Is it roughly in front? (Angle < 30 degrees approx)
+                Vector toTarget = e.getLocation().toVector().subtract(caster.getLocation().toVector());
+                if (caster.getLocation().getDirection().angle(toTarget) < 0.5) {
+                    return (LivingEntity) e;
+                }
+            }
+        }
+        return null;
     }
 
     @Override

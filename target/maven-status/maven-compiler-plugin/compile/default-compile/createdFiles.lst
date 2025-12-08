@@ -10,6 +10,7 @@ org\rostats\hook\PAPIHook.class
 org\rostats\engine\action\impl\HealAction.class
 org\rostats\data\PlayerData.class
 org\rostats\engine\action\impl\EffectAction.class
+org\rostats\engine\action\impl\PotionAction.class
 org\rostats\itemeditor\ItemAttributeType.class
 org\rostats\gui\SkillEditorGUI.class
 org\rostats\data\DataManager.class
@@ -21,6 +22,7 @@ org\rostats\itemeditor\ItemLibraryGUI.class
 org\rostats\utils\FormulaParser.class
 org\rostats\gui\CharacterGUI.class
 org\rostats\itemeditor\ItemAttributeManager.class
+org\rostats\engine\action\impl\ParticleAction.class
 org\rostats\handler\ManaManager.class
 org\rostats\gui\SkillActionSelectorGUI.class
 org\rostats\ThaiRoCorePlugin$1.class
@@ -37,9 +39,11 @@ org\rostats\engine\skill\SkillManager.class
 org\rostats\itemeditor\EffectEnchantGUI.class
 org\rostats\engine\effect\EffectType.class
 org\rostats\input\ChatInputHandler$2.class
+org\rostats\engine\action\impl\TeleportAction.class
 org\rostats\gui\SkillEditorGUI$1.class
 org\rostats\gui\SkillActionPropertyGUI.class
 org\rostats\command\SkillCommand.class
+org\rostats\engine\action\impl\SoundAction.class
 org\rostats\itemeditor\AttributeEditorGUI.class
 org\rostats\engine\skill\SkillManager$1.class
 org\rostats\handler\DeathHandler.class
@@ -51,5 +55,7 @@ org\rostats\itemeditor\ItemSkillBinding.class
 org\rostats\command\AdminCommand.class
 org\rostats\engine\effect\EffectManager$1.class
 org\rostats\itemeditor\GUIListener$BukkitRunnableWrapper.class
+org\rostats\handler\ProjectileHandler.class
+org\rostats\engine\action\impl\ProjectileAction.class
 org\rostats\engine\effect\EffectManager.class
 org\rostats\itemeditor\ItemAttribute.class

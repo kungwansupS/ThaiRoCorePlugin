@@ -14,13 +14,13 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.DamageAction;
-import org.rostats.engine.action.impl.EffectAction;
-import org.rostats.engine.action.impl.HealAction;
+import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
+// เพิ่ม Import นี้
+import org.rostats.handler.ManaManager;
 import org.rostats.itemeditor.AttributeEditorGUI;
 import org.rostats.itemeditor.EffectEnchantGUI;
 import org.rostats.itemeditor.ItemAttribute;
@@ -172,14 +172,45 @@ public class GUIListener implements Listener {
                     case DAMAGE: newAction = new DamageAction(plugin, (String)data.getOrDefault("formula","ATK"), (String)data.getOrDefault("element","NEUTRAL")); break;
                     case HEAL: newAction = new HealAction(plugin, (String)data.getOrDefault("formula","10"), (boolean)data.getOrDefault("is-mana", false)); break;
                     case APPLY_EFFECT:
-                        String eid = (String)data.getOrDefault("effect-id", "unknown");
-                        EffectType et = EffectType.valueOf((String)data.getOrDefault("effect-type", "STAT_MODIFIER"));
-                        int lv = data.get("level") instanceof Number ? ((Number)data.get("level")).intValue() : 1;
-                        double pw = data.get("power") instanceof Number ? ((Number)data.get("power")).doubleValue() : 0.0;
-                        long dr = data.get("duration") instanceof Number ? ((Number)data.get("duration")).longValue() : 100;
-                        double ch = data.get("chance") instanceof Number ? ((Number)data.get("chance")).doubleValue() : 1.0;
+                        String eid = String.valueOf(data.getOrDefault("effect-id", "unknown"));
+                        EffectType et = EffectType.valueOf(String.valueOf(data.getOrDefault("effect-type", "STAT_MODIFIER")));
+                        int lv = Integer.parseInt(String.valueOf(data.getOrDefault("level", "1")));
+                        double pw = Double.parseDouble(String.valueOf(data.getOrDefault("power", "0.0")));
+                        long dr = Long.parseLong(String.valueOf(data.getOrDefault("duration", "100")));
+                        double ch = Double.parseDouble(String.valueOf(data.getOrDefault("chance", "1.0")));
                         String sk = (String)data.getOrDefault("stat-key", null);
+                        if(sk != null && sk.equals("None")) sk = null;
                         newAction = new EffectAction(plugin, eid, et, lv, pw, dr, ch, sk);
+                        break;
+                    case SOUND:
+                        String snd = String.valueOf(data.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"));
+                        float vol = Float.parseFloat(String.valueOf(data.getOrDefault("volume", "1.0")));
+                        float pit = Float.parseFloat(String.valueOf(data.getOrDefault("pitch", "1.0")));
+                        newAction = new SoundAction(snd, vol, pit);
+                        break;
+                    case PARTICLE:
+                        String par = String.valueOf(data.getOrDefault("particle", "VILLAGER_HAPPY"));
+                        int cnt = Integer.parseInt(String.valueOf(data.getOrDefault("count", "5")));
+                        double spd = Double.parseDouble(String.valueOf(data.getOrDefault("speed", "0.1")));
+                        double off = Double.parseDouble(String.valueOf(data.getOrDefault("offset", "0.5")));
+                        newAction = new ParticleAction(par, cnt, spd, off);
+                        break;
+                    case POTION:
+                        String pot = String.valueOf(data.getOrDefault("potion", "SPEED"));
+                        int dur = Integer.parseInt(String.valueOf(data.getOrDefault("duration", "60")));
+                        int amp = Integer.parseInt(String.valueOf(data.getOrDefault("amplifier", "0")));
+                        newAction = new PotionAction(pot, dur, amp);
+                        break;
+                    case TELEPORT:
+                        double rng = Double.parseDouble(String.valueOf(data.getOrDefault("range", "5.0")));
+                        boolean tgt = (boolean) data.getOrDefault("to-target", false);
+                        newAction = new TeleportAction(rng, tgt);
+                        break;
+                    case PROJECTILE:
+                        String proj = String.valueOf(data.getOrDefault("projectile", "ARROW"));
+                        double pSpd = Double.parseDouble(String.valueOf(data.getOrDefault("speed", "1.0")));
+                        String hitSkill = String.valueOf(data.getOrDefault("on-hit", "none"));
+                        newAction = new ProjectileAction(plugin, proj, pSpd, hitSkill);
                         break;
                 }
 
@@ -191,6 +222,7 @@ public class GUIListener implements Listener {
                 }
             } catch (Exception e) {
                 player.sendMessage("§cError saving action: " + e.getMessage());
+                e.printStackTrace();
             }
             editingActions.remove(player.getUniqueId());
             new SkillEditorGUI(plugin, skillId).open(player);
@@ -218,10 +250,13 @@ public class GUIListener implements Listener {
             } else {
                 plugin.getChatInputHandler().awaitInput(player, "Enter value for " + fKey + ":", (str) -> {
                     try {
-                        if (val instanceof Integer) data.put(fKey, Integer.parseInt(str));
-                        else if (val instanceof Double) data.put(fKey, Double.parseDouble(str));
-                        else if (val instanceof Long) data.put(fKey, Long.parseLong(str));
-                        else data.put(fKey, str);
+                        if (fKey.equals("level") || fKey.equals("duration") || fKey.equals("count") || fKey.equals("amplifier")) {
+                            data.put(fKey, Integer.parseInt(str));
+                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch")) {
+                            data.put(fKey, Double.parseDouble(str));
+                        } else {
+                            data.put(fKey, str);
+                        }
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     } catch (Exception e) {
                         player.sendMessage("§cInvalid format.");
@@ -262,6 +297,11 @@ public class GUIListener implements Listener {
                         case DAMAGE: action = new DamageAction(plugin, "ATK * 1.0", "NEUTRAL"); break;
                         case HEAL: action = new HealAction(plugin, "10", false); break;
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
+                        case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
+                        case PARTICLE: action = new ParticleAction("VILLAGER_HAPPY", 5, 0.1, 0.5); break;
+                        case POTION: action = new PotionAction("SPEED", 60, 0); break;
+                        case TELEPORT: action = new TeleportAction(5.0, false); break;
+                        case PROJECTILE: action = new ProjectileAction(plugin, "ARROW", 1.5, "none"); break;
                     }
                     if (action != null) {
                         skill.addAction(action);
@@ -294,7 +334,6 @@ public class GUIListener implements Listener {
             ItemStack item = event.getCurrentItem();
             if (item != null && item.getType() != Material.GRAY_STAINED_GLASS_PANE) {
                 if (event.isShiftClick() && event.isRightClick()) {
-                    // Remove Logic
                     List<String> lore = item.getItemMeta().getLore();
                     if (lore != null) {
                         for (String l : lore) {
@@ -381,7 +420,6 @@ public class GUIListener implements Listener {
             else if (event.isRightClick()) { plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> { plugin.getSkillManager().renameFile(target, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player)); }); }
         } else {
             if (event.isLeftClick() && !event.isShiftClick()) {
-                // FIX: Normalize name to ID (lowercase, no spaces)
                 String skillId = name.toLowerCase().replace(" ", "_");
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
@@ -403,10 +441,6 @@ public class GUIListener implements Listener {
             player.closeInventory();
         }
     }
-
-    // ====================================================================================
-    // CHARACTER STATUS & ITEM EDITOR HANDLERS
-    // ====================================================================================
 
     private void handleCharacterStatusClick(InventoryClickEvent event, Player player, String title) {
         event.setCancelled(true);

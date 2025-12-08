@@ -25,8 +25,8 @@ public class ManaManager implements Listener {
 
     public ManaManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
-        // Fix: Use lambda () -> regenTask() to avoid argument mismatch error
-        plugin.getServer().getScheduler().runTaskTimer(plugin, () -> regenTask(), 40L, 40L);
+        // Fix: Use lambda () -> regenTask()
+        plugin.getServer().getScheduler().runTaskTimer(plugin, this::regenTask, 40L, 40L);
     }
 
     @EventHandler

@@ -4,12 +4,12 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
+import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.DamageAction;
-import org.rostats.engine.action.impl.EffectAction;
-import org.rostats.engine.action.impl.HealAction;
+import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
 
@@ -180,6 +180,36 @@ public class SkillManager {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
 
+        // --- Cooldown and SP Check (Only for Players) ---
+        if (caster instanceof Player player) {
+            PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+
+            // 1. Cooldown
+            long now = System.currentTimeMillis();
+            long lastUse = data.getSkillCooldown(skillId);
+            double cooldownSeconds = skill.getCooldown(level);
+            long cooldownMillis = (long) (cooldownSeconds * 1000);
+
+            if (now - lastUse < cooldownMillis) {
+                long timeLeft = (cooldownMillis - (now - lastUse)) / 1000;
+                player.sendMessage("§cSkill is on cooldown! (" + timeLeft + "s)");
+                return;
+            }
+
+            // 2. SP Cost
+            int spCost = skill.getSpCost(level);
+            if (data.getCurrentSP() < spCost) {
+                player.sendMessage("§cNot enough SP!");
+                return;
+            }
+
+            // 3. Consume
+            data.setCurrentSP(data.getCurrentSP() - spCost);
+            data.setSkillCooldown(skillId, now);
+            plugin.getManaManager().updateBar(player);
+        }
+        // ----------------------------------------------------
+
         for (SkillAction action : skill.getActions()) {
             try {
                 action.execute(caster, target, level);
@@ -190,7 +220,6 @@ public class SkillManager {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void loadSkills() {
         skillMap.clear();
         loadSkillsRecursive(skillFolder);
@@ -295,6 +324,36 @@ public class SkillManager {
                 String statKey = (String) map.getOrDefault("stat-key", null);
 
                 return new EffectAction(plugin, effectId, effType, level, power, duration, chance, statKey);
+
+            case SOUND:
+                String soundName = (String) map.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP");
+                float volume = map.containsKey("volume") ? ((Number)map.get("volume")).floatValue() : 1.0f;
+                float pitch = map.containsKey("pitch") ? ((Number)map.get("pitch")).floatValue() : 1.0f;
+                return new SoundAction(soundName, volume, pitch);
+
+            case PARTICLE:
+                String particleName = (String) map.getOrDefault("particle", "VILLAGER_HAPPY");
+                int count = map.containsKey("count") ? ((Number)map.get("count")).intValue() : 5;
+                double speed = map.containsKey("speed") ? ((Number)map.get("speed")).doubleValue() : 0.1;
+                double offset = map.containsKey("offset") ? ((Number)map.get("offset")).doubleValue() : 0.5;
+                return new ParticleAction(particleName, count, speed, offset);
+
+            case POTION:
+                String potion = (String) map.getOrDefault("potion", "SPEED");
+                int pDuration = map.containsKey("duration") ? ((Number)map.get("duration")).intValue() : 60;
+                int amp = map.containsKey("amplifier") ? ((Number)map.get("amplifier")).intValue() : 0;
+                return new PotionAction(potion, pDuration, amp);
+
+            case TELEPORT:
+                double range = map.containsKey("range") ? ((Number)map.get("range")).doubleValue() : 5.0;
+                boolean toTarget = (boolean) map.getOrDefault("to-target", false);
+                return new TeleportAction(range, toTarget);
+
+            case PROJECTILE:
+                String projType = (String) map.getOrDefault("projectile", "ARROW");
+                double projSpeed = map.containsKey("speed") ? ((Number)map.get("speed")).doubleValue() : 1.0;
+                String onHit = (String) map.getOrDefault("on-hit", "none");
+                return new ProjectileAction(plugin, projType, projSpeed, onHit);
 
             default:
                 return null;

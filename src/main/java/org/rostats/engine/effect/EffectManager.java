@@ -57,29 +57,28 @@ public class EffectManager {
         }
     }
 
-    // Logic กลางสำหรับการ Tick
+    // แก้ไข: ใช้ removeIf แทน Iterator เพื่อรองรับ CopyOnWriteArrayList
     private void processEffects(LivingEntity entity, List<ActiveEffect> effects, boolean isPlayer) {
-        Iterator<ActiveEffect> effectIt = effects.iterator();
-        boolean needStatUpdate = false;
+        long currentTick = entity.getServer().getCurrentTick();
 
-        while (effectIt.hasNext()) {
-            ActiveEffect effect = effectIt.next();
+        // Tick & Trigger
+        for (ActiveEffect effect : effects) {
             effect.tick();
-
-            if (effect.isReadyToTrigger(entity.getServer().getCurrentTick())) {
+            if (effect.isReadyToTrigger(currentTick)) {
                 triggerEffect(entity, effect);
-            }
-
-            if (effect.isExpired()) {
-                removeEffectLogic(entity, effect);
-                effectIt.remove();
-                if (effect.getType() == EffectType.STAT_MODIFIER) {
-                    needStatUpdate = true;
-                }
             }
         }
 
-        if (needStatUpdate && isPlayer && entity instanceof Player) {
+        // Remove Expired
+        boolean removed = effects.removeIf(effect -> {
+            if (effect.isExpired()) {
+                removeEffectLogic(entity, effect);
+                return true;
+            }
+            return false;
+        });
+
+        if (removed && isPlayer && entity instanceof Player) {
             plugin.getAttributeHandler().updatePlayerStats((Player) entity);
         }
     }

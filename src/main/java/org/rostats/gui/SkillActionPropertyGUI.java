@@ -73,6 +73,51 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.ANVIL, "stat-key", "Stat Key (Optional)",
                     (String) data.getOrDefault("stat-key", "None"), "§eClick to edit Stat Key"));
         }
+        // --- PHASE 4 ADDITIONS ---
+        else if (type == ActionType.SOUND) {
+            inv.setItem(slot++, createPropItem(Material.NOTE_BLOCK, "sound", "Sound Name",
+                    (String) data.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"), "§eClick to edit Sound Enum"));
+            inv.setItem(slot++, createPropItem(Material.REPEATER, "volume", "Volume",
+                    data.getOrDefault("volume", 1.0).toString(), "§eClick to edit Volume"));
+            inv.setItem(slot++, createPropItem(Material.COMPARATOR, "pitch", "Pitch",
+                    data.getOrDefault("pitch", 1.0).toString(), "§eClick to edit Pitch"));
+        }
+        else if (type == ActionType.PARTICLE) {
+            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "particle", "Particle Name",
+                    (String) data.getOrDefault("particle", "VILLAGER_HAPPY"), "§eClick to edit Particle Enum"));
+            inv.setItem(slot++, createPropItem(Material.GLOWSTONE_DUST, "count", "Count",
+                    data.getOrDefault("count", 5).toString(), "§eClick to edit Count"));
+            inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed",
+                    data.getOrDefault("speed", 0.1).toString(), "§eClick to edit Speed"));
+            inv.setItem(slot++, createPropItem(Material.COMPASS, "offset", "Offset/Spread",
+                    data.getOrDefault("offset", 0.5).toString(), "§eClick to edit Offset"));
+        }
+        else if (type == ActionType.POTION) {
+            inv.setItem(slot++, createPropItem(Material.POTION, "potion", "Potion Type",
+                    (String) data.getOrDefault("potion", "SPEED"), "§eClick to edit Potion Type"));
+            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration (Ticks)",
+                    data.getOrDefault("duration", 60).toString(), "§eClick to edit Duration"));
+            inv.setItem(slot++, createPropItem(Material.GLOWSTONE, "amplifier", "Amplifier (Lv-1)",
+                    data.getOrDefault("amplifier", 0).toString(), "§eClick to edit Amplifier"));
+        }
+        else if (type == ActionType.TELEPORT) {
+            inv.setItem(slot++, createPropItem(Material.ENDER_PEARL, "range", "Range (Blocks)",
+                    data.getOrDefault("range", 5.0).toString(), "§eClick to edit Range"));
+            boolean toTarget = (boolean) data.getOrDefault("to-target", false);
+            inv.setItem(slot++, createPropItem(Material.ENDER_EYE, "to-target", "To Target?",
+                    toTarget ? "YES" : "NO", "§eClick to toggle"));
+        }
+
+        // --- NEW: PROJECTILE PROPERTIES ---
+        else if (type == ActionType.PROJECTILE) {
+            inv.setItem(slot++, createPropItem(Material.ARROW, "projectile", "Projectile Type",
+                    (String) data.getOrDefault("projectile", "ARROW"), "§eClick to edit (ARROW, SNOWBALL, etc.)"));
+            inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed",
+                    data.getOrDefault("speed", 1.0).toString(), "§eClick to edit Speed"));
+            inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "on-hit", "On-Hit Skill ID",
+                    (String) data.getOrDefault("on-hit", "none"), "§eClick to edit Skill ID to cast on hit"));
+        }
+        // ---------------------------------
 
         // --- Controls ---
         inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE CHANGES",
@@ -103,7 +148,6 @@ public class SkillActionPropertyGUI {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
         meta.setLore(Arrays.asList(lore));
-        // FIX: Removed HIDE_POTION_EFFECTS
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;

@@ -9,6 +9,8 @@ import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.utils.FormulaParser;
+// Import นี้จำเป็นเพื่อให้เรียก updateBar ได้
+import org.rostats.handler.ManaManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,6 +54,7 @@ public class HealAction implements SkillAction {
                 PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
                 double newSP = Math.min(data.getMaxSP(), data.getCurrentSP() + amount);
                 data.setCurrentSP(newSP);
+                // เรียกใช้เมธอด updateBar
                 plugin.getManaManager().updateBar(player);
                 plugin.showHealSPFCT(player.getLocation(), amount);
                 target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
