@@ -55,8 +55,8 @@ public class AttributeHandler implements Listener {
         if (event.getWhoClicked() instanceof Player player) {
             // [FIXED] Performance Check: Update stats only if armor/offhand slots are involved
             if (event.getSlotType() == InventoryType.SlotType.ARMOR ||
-                    event.getSlotType() == InventoryType.SlotType.QUICKBAR || // Main hand is in quickbar
-                    event.getSlot() == 40) { // 40 is usually offhand in generic inventory views
+                    event.getSlotType() == InventoryType.SlotType.QUICKBAR ||
+                    event.getSlot() == 40) {
 
                 plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
             }

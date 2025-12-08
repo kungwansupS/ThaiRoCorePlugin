@@ -68,8 +68,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.floatingTextKey = new NamespacedKey(this, "RO_FLOATING_TEXT");
 
         // [FIXED] Removed heavy entity iteration on main thread to prevent lag on startup
-        // Old floating texts will disappear naturally or when chunks unload/load if managed properly.
-        // getServer().getScheduler().runTask(this, () -> { ... });
 
         this.statManager = new StatManager(this);
         this.dataManager = new DataManager(this);

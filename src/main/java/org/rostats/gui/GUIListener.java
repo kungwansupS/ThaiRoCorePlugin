@@ -592,6 +592,7 @@ public class GUIListener implements Listener {
             new EffectEnchantGUI(plugin, itemFile, mode).open(player);
         } else if (slot == 50 && selected != null) {
             plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
+                // [FIX] Validate Level
                 try {
                     int lvl = Integer.parseInt(str);
                     if (lvl < 0) throw new NumberFormatException("Negative");
