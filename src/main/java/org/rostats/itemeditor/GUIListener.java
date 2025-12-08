@@ -378,6 +378,7 @@ public class GUIListener implements Listener {
             return;
         }
 
+        // Handle normal attribute clicks
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);

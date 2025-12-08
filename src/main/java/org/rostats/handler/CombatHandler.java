@@ -46,7 +46,7 @@ public class CombatHandler implements Listener {
         this.jobExpRatio = plugin.getConfig().getDouble("exp-formula.job-exp-ratio", 0.75);
     }
 
-    // --- NEW: Active Skill Trigger (Right Click) ---
+    // --- Active Skill Trigger (Right Click) ---
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
@@ -55,12 +55,13 @@ public class CombatHandler implements Listener {
 
             if (item == null || item.getType() == Material.AIR) return;
 
+            // Use ItemAttributeManager to read attributes which include skills
             ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
             if (attr == null) return;
 
             for (ItemSkillBinding binding : attr.getSkillBindings()) {
                 if (binding.getTrigger() == TriggerType.CAST) {
-                    // Cast Skill (Target = null for now, handled by Action logic)
+                    // Cast Skill (Target = null handled by SkillAction logic)
                     plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), null);
                 }
             }

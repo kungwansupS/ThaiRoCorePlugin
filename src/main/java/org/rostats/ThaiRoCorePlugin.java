@@ -102,7 +102,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
-        // FIXED: Register new command name
+        // UPDATED: ใช้ชื่อคำสั่งใหม่ roskilleditor
         PluginCommand skillCmd = getCommand("roskilleditor");
         if (skillCmd != null) {
             skillCmd.setExecutor(new SkillCommand(this));
@@ -209,7 +209,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         showCombatFloatingText(loc, color + "-" + String.format("%.0f", value));
     }
 
-    // --- Getters ---
     public StatManager getStatManager() { return statManager; }
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }

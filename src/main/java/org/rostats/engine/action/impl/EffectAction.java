@@ -39,7 +39,9 @@ public class EffectAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int skillLevel) {
-        if (target == null) return;
+        // FIX: Default to self if target is null (for Buffs/Self-Cast)
+        if (target == null) target = caster;
+
         if (Math.random() > chance) return;
 
         ActiveEffect effect = new ActiveEffect(

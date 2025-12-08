@@ -16,7 +16,7 @@ commands:
     usage: /roitemedit
     aliases: [riedit]
     permission: rostats.itemeditor.admin
-  roskilleditor: # CHANGED from roskill to roskilleditor
+  roskilleditor: # เปลี่ยนชื่อคำสั่งตามที่ขอ
     description: Skill creation and management menu
     usage: /roskilleditor
     permission: rostats.admin

@@ -50,7 +50,7 @@ public class ItemAttributeManager {
             attr.setCustomModelData(meta.getCustomModelData());
         }
 
-        // Read Potion Effects from PDC
+        // Read Potion Effects
         NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
         if (pdc.has(effectKey, PersistentDataType.STRING)) {
             String encoded = pdc.get(effectKey, PersistentDataType.STRING);
@@ -178,6 +178,7 @@ public class ItemAttributeManager {
     }
 
     public void setAttributeToObj(ItemAttribute attr, ItemAttributeType type, double val) {
+        // ... (คงเดิม) ...
         switch (type) {
             case STR_GEAR: attr.setStrGear((int)val); break;
             case AGI_GEAR: attr.setAgiGear((int)val); break;
@@ -240,6 +241,7 @@ public class ItemAttributeManager {
     }
 
     public double getAttributeValueFromAttrObject(ItemAttribute attr, ItemAttributeType type) {
+        // ... (คงเดิม) ...
         switch (type) {
             case STR_GEAR: return attr.getStrGear();
             case AGI_GEAR: return attr.getAgiGear();
@@ -344,11 +346,9 @@ public class ItemAttributeManager {
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
-        // Check Potion Effects
         NamespacedKey effectKey = new NamespacedKey(plugin, "RO_EFFECTS");
         if (pdc.has(effectKey, PersistentDataType.STRING)) hasStats = true;
 
-        // Check Skill Bindings
         NamespacedKey skillKey = new NamespacedKey(plugin, "RO_SKILLS");
         if (pdc.has(skillKey, PersistentDataType.STRING)) hasStats = true;
 
@@ -384,7 +384,6 @@ public class ItemAttributeManager {
                 if (encoded != null && !encoded.isEmpty()) {
                     String[] parts = encoded.split(",");
                     for (String part : parts) {
-                        // id:trigger:lv:chance
                         String[] d = part.split(":");
                         if (d.length == 4) {
                             newLore.add("§6Skill: §e" + d[0] + " §7(Lv." + d[2] + ") [" + d[1] + "]");

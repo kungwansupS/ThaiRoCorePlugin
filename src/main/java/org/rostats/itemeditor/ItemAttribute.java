@@ -11,6 +11,7 @@ import java.util.Map;
 
 public class ItemAttribute {
 
+    // ... (Fields เดิมทั้งหมด ยังคงอยู่) ...
     // Gear Stats
     private int strGear;
     private int agiGear;
@@ -40,13 +41,11 @@ public class ItemAttribute {
     private double finalPDmgPercent;
     private double finalMDmgPercent;
 
-    // PvP / PvE Bonus & Reduction
     private double pveDmgPercent;
     private double pvpDmgPercent;
     private double pveDmgReductionPercent;
     private double pvpDmgReductionPercent;
 
-    // Defensive & Misc
     private double maxHPPercent;
     private double maxSPPercent;
     private double shieldValueFlat;
@@ -67,26 +66,21 @@ public class ItemAttribute {
     private double pDmgReductionPercent;
     private double mDmgReductionPercent;
 
-    // Ignore Def
     private double ignorePDefPercent;
     private double ignoreMDefPercent;
     private double ignorePDefFlat;
     private double ignoreMDefFlat;
 
-    // Melee / Range
     private double meleePDmgPercent;
     private double rangePDmgPercent;
     private double meleePDReductionPercent;
     private double rangePDReductionPercent;
 
-    // True Damage
     private double trueDamageFlat;
 
-    // Cosmetic / System
     private boolean removeVanillaAttribute;
     private Integer customModelData;
 
-    // Potion Effects
     private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
 
     // NEW: Skill Bindings (Triggers)
@@ -108,7 +102,7 @@ public class ItemAttribute {
         ConfigurationSection att = root.getConfigurationSection("attributes");
         if (att == null) return attr;
 
-        // Load Attributes
+        // ... (Load ตัวแปรเดิมทั้งหมด) ...
         attr.strGear = att.getInt("str", 0);
         attr.agiGear = att.getInt("agi", 0);
         attr.vitGear = att.getInt("vit", 0);
@@ -215,6 +209,7 @@ public class ItemAttribute {
     }
 
     public void saveToConfig(ConfigurationSection section) {
+        // ... (Save ตัวแปรเดิมทั้งหมด) ...
         if (strGear != 0) section.set("str", strGear);
         if (agiGear != 0) section.set("agi", agiGear);
         if (vitGear != 0) section.set("vit", vitGear);
@@ -311,7 +306,7 @@ public class ItemAttribute {
         }
     }
 
-    // Getters and Setters
+    // Getters Setters เดิม (ตัดย่อให้เห็นภาพ)
     public int getStrGear() { return strGear; }
     public void setStrGear(int strGear) { this.strGear = strGear; }
     public int getAgiGear() { return agiGear; }
