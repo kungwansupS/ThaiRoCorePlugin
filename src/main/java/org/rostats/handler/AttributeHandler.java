@@ -8,9 +8,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent; // [NEW] Import สำหรับเปลี่ยนโลก
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent; // [NEW] Import สำหรับเกิดใหม่
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -38,7 +40,8 @@ public class AttributeHandler implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        updatePlayerStats(event.getPlayer());
+        // [FIX] ใช้ runTask เพื่อรอ 1 tick ให้ Inventory โหลดเสร็จสมบูรณ์ก่อนคำนวณ
+        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
     @EventHandler
@@ -49,22 +52,36 @@ public class AttributeHandler implements Listener {
         cachedTriggers.remove(uuid);
     }
 
+    // [FIX] เพิ่ม Event เมื่อผู้เล่นเปลี่ยนโลก (ข้ามโลกแล้ว Stat หาย)
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        // Minecraft จะรีเซ็ตค่า Attribute บางอย่างเมื่อเปลี่ยนโลก จึงต้องคำนวณใหม่
+        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
+    }
+
+    // [FIX] เพิ่ม Event เมื่อผู้เล่นเกิดใหม่ (กรณีตายแล้วของยังอยู่ หรือใส่ของใหม่)
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getWhoClicked() instanceof Player player) {
-            // [FIXED] Removed restrictive slot check to ensure Shift-Click updates stats correctly
-            // The overhead is minimal because applyAllEquipmentAttributes only iterates over 6 items.
+            // คำนวณใหม่เมื่อมีการขยับของในกระเป๋า
             plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
         }
     }
 
     @EventHandler
     public void onItemHeld(PlayerItemHeldEvent event) {
+        // คำนวณใหม่เมื่อเปลี่ยนช่องถือของ
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
     @EventHandler
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
+        // คำนวณใหม่เมื่อสลับมือ (F)
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
@@ -81,6 +98,7 @@ public class AttributeHandler implements Listener {
             Map<PotionEffectType, Integer> potions = cachedPassivePotions.get(uuid);
             if (potions != null && !potions.isEmpty()) {
                 for (Map.Entry<PotionEffectType, Integer> entry : potions.entrySet()) {
+                    // Apply Potion ตลอดเวลา (Duration 60 ticks = 3 วิ กันหมด)
                     player.addPotionEffect(new PotionEffect(entry.getKey(), 60, entry.getValue() - 1, true, false, true));
                 }
             }
@@ -115,20 +133,25 @@ public class AttributeHandler implements Listener {
         for (ItemStack item : items) {
             if (item != null && item.getType() != Material.AIR) {
                 ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+
+                // บวกค่า Stat จากไอเทมเข้า PlayerData
                 applyItemAttributes(player, attr);
 
+                // เก็บ Potion Effect
                 if (!attr.getPotionEffects().isEmpty()) {
                     for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
                         newPassivePotions.merge(entry.getKey(), entry.getValue(), Math::max);
                     }
                 }
 
+                // เก็บ Skill Trigger
                 if (!attr.getSkillBindings().isEmpty()) {
                     for (ItemSkillBinding binding : attr.getSkillBindings()) {
                         TriggerType t = binding.getTrigger();
                         if (t == TriggerType.PASSIVE_TICK) {
                             newPassiveSkills.add(binding);
                         } else if (t == TriggerType.PASSIVE_APPLY) {
+                            // ร่ายทันทีเมื่อสวมใส่
                             plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
                         } else if (t == TriggerType.ON_HIT || t == TriggerType.ON_DEFEND || t == TriggerType.ON_KILL) {
                             newTriggers.computeIfAbsent(t, k -> new ArrayList<>()).add(binding);
@@ -138,6 +161,7 @@ public class AttributeHandler implements Listener {
             }
         }
 
+        // อัปเดต Cache
         cachedPassiveSkills.put(uuid, newPassiveSkills);
         cachedPassivePotions.put(uuid, newPassivePotions);
         cachedTriggers.put(uuid, newTriggers);
@@ -224,24 +248,31 @@ public class AttributeHandler implements Listener {
     }
 
     public void updatePlayerStats(Player player) {
+        // 1. อ่านค่าจากไอเทมทั้งหมดใส่ PlayerData
         applyAllEquipmentAttributes(player);
 
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
+        // 2. คำนวณและตั้งค่า Max HP
         double finalMaxHealth = data.getMaxHP();
-        if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0;
+        if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0; // Bukkit Limit cap
         setAttribute(player, Attribute.GENERIC_MAX_HEALTH, finalMaxHealth);
 
+        // 3. คำนวณและตั้งค่า Walk Speed
         double speedBonus = data.getBaseMSPD() + (data.getMSpdPercent() / 100.0);
         double finalSpeed = Math.min(1.0, speedBonus);
         setAttribute(player, Attribute.GENERIC_MOVEMENT_SPEED, finalSpeed);
 
+        // 4. คำนวณและตั้งค่า Attack Speed (ใช้ Modifier เพื่อความสมจริง)
         double aspdMultiplier = plugin.getStatManager().getAspdBonus(player);
+        // Base ASPD Minecraft = 4.0 (generic), เราปรับ base เป็น 4.0 * multiplier
         setAttribute(player, Attribute.GENERIC_ATTACK_SPEED, 4.0 * aspdMultiplier);
 
+        // 5. คำนวณและตั้งค่า Armor (Visual/Vanilla Reduction)
         double softDef = plugin.getStatManager().getSoftDef(player);
         setAttribute(player, Attribute.GENERIC_ARMOR, softDef);
 
+        // Heal ถ้าเลือดเกิน Max ใหม่
         if (player.getHealth() > finalMaxHealth) {
             player.setHealth(finalMaxHealth);
         }

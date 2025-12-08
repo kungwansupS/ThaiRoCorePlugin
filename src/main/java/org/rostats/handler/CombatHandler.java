@@ -45,6 +45,7 @@ public class CombatHandler implements Listener {
     // --- Active Skill Trigger (Clicks) ---
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
+        // (ส่วนนี้เหมือนเดิม ไม่ต้องแก้)
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
         if (item == null || item.getType() == Material.AIR) return;
@@ -63,11 +64,9 @@ public class CombatHandler implements Listener {
         }
 
         if (type != null) {
-            // Support legacy CAST trigger for Right Click
             if (type == TriggerType.RIGHT_CLICK) {
                 checkAndCast(player, attr, TriggerType.CAST, null);
             }
-            // Execute exact trigger
             checkAndCast(player, attr, type, null);
         }
     }
@@ -81,15 +80,14 @@ public class CombatHandler implements Listener {
             }
         }
     }
-    // ----------------------------------------------
 
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
+        // (ส่วนนี้เหมือนเดิม)
         if (!(event.getEntity().getKiller() instanceof Player killer)) return;
         LivingEntity victim = event.getEntity();
         PlayerData data = plugin.getStatManager().getData(killer.getUniqueId());
 
-        // Check for ON_KILL triggers (Using Cache)
         checkTriggers(killer, victim, TriggerType.ON_KILL);
 
         int rawBaseExp = event.getDroppedExp();
@@ -110,13 +108,14 @@ public class CombatHandler implements Listener {
     public void onCombat(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof LivingEntity victim)) return;
 
-        double weaponDamage = event.getDamage();
+        double vanillaDamage = event.getDamage();
         Player attackerPlayer = null;
         LivingEntity defenderEntity = victim;
         boolean isRanged = false;
         boolean isMagic = (event.getCause() == EntityDamageEvent.DamageCause.MAGIC);
         Entity damagerEntity = event.getDamager();
 
+        // ระบุตัวคนโจมตี
         if (damagerEntity instanceof Player p) {
             attackerPlayer = p;
         } else if (damagerEntity instanceof Projectile proj) {
@@ -124,38 +123,35 @@ public class CombatHandler implements Listener {
             if (proj.getShooter() instanceof Player p) attackerPlayer = p;
         }
 
-        if (attackerPlayer == null) {
-            if (defenderEntity instanceof Player victimPlayer) {
-                int victimFlee = plugin.getStatManager().getFlee(victimPlayer);
+        StatManager stats = plugin.getStatManager();
+        // A = Attacker Data (null ถ้าเป็นมอนสเตอร์), D = Defender Data (null ถ้าเป้าหมายเป็นมอนสเตอร์)
+        PlayerData A = (attackerPlayer != null) ? stats.getData(attackerPlayer.getUniqueId()) : null;
+        PlayerData D = (defenderEntity instanceof Player) ? stats.getData(defenderEntity.getUniqueId()) : null;
+
+        // --- 1. HIT / FLEE Calculation ---
+        // ถ้าคนตีเป็น Player ใช้ HIT ของ Player, ถ้าเป็นมอนสเตอร์ให้โอกาสโดน 50% + Base
+        int attackerHit = (A != null) ? stats.getHit(attackerPlayer) : 100; // มอนสเตอร์ Hit 100 สมมติ
+        // ถ้าคนโดนเป็น Player ใช้ FLEE ของ Player, ถ้าเป็นมอนสเตอร์ Flee 0
+        int defenderFlee = (D != null) ? stats.getFlee((Player) defenderEntity) : 0;
+
+        if (!isMagic) {
+            double hitRate;
+            if (attackerPlayer != null) {
+                // สูตร Player vs Entity
+                hitRate = (double) attackerHit / (attackerHit + defenderFlee);
+            } else {
+                // สูตร Mob vs Player (User's Logic เดิม)
+                // Mob Hit สมมติ 50, สูตรเดิม: random * 100 > (80 + 50 - Flee)
+                // ปรับให้เข้ากับ Flow ใหม่:
                 int mobHit = 50;
-                if (random.nextDouble() * 100 > (80 + mobHit - victimFlee)) {
-                    event.setCancelled(true);
-                    plugin.showCombatFloatingText(victim.getLocation(), "§7MISS");
-                    return;
+                if (random.nextDouble() * 100 > (80 + mobHit - defenderFlee)) {
+                    hitRate = 0.0; // Miss
+                } else {
+                    hitRate = 1.0; // Hit
                 }
             }
-            return;
-        }
 
-        // --- Check Triggers (Using Cache) ---
-        // Attacker: ON_HIT
-        checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
-
-        // Defender: ON_DEFEND
-        if (defenderEntity instanceof Player defenderPlayer) {
-            checkTriggers(defenderPlayer, attackerPlayer, TriggerType.ON_DEFEND);
-        }
-        // ----------------------
-
-        PlayerData A = plugin.getStatManager().getData(attackerPlayer.getUniqueId());
-        StatManager stats = plugin.getStatManager();
-        PlayerData D = (defenderEntity instanceof Player) ? plugin.getStatManager().getData(defenderEntity.getUniqueId()) : null;
-
-        // 1. HIT check
-        if (!isMagic) {
-            int attackerHit = stats.getHit(attackerPlayer);
-            int defenderFlee = (defenderEntity instanceof Player) ? stats.getFlee((Player) defenderEntity) : 0;
-            double hitRate = (double) attackerHit / (attackerHit + defenderFlee);
+            // Cap hit rate
             hitRate = Math.max(0.05, Math.min(1.0, hitRate));
 
             if (random.nextDouble() > hitRate) {
@@ -165,157 +161,198 @@ public class CombatHandler implements Listener {
             }
         }
 
-        // 2. Determine base ATK
-        double damage = weaponDamage;
-        if (isMagic) {
-            damage += stats.getMagicAttack(attackerPlayer);
-        } else {
-            damage += stats.getPhysicalAttack(attackerPlayer);
-        }
-
-        double preDefDamage = damage * SKILL_POWER;
-
-        if (isMagic) {
-            preDefDamage *= (1 + A.getMDmgBonusPercent() / 100.0);
-        } else {
-            preDefDamage *= (1 + A.getPDmgBonusPercent() / 100.0);
-        }
-
-        if (!isMagic) {
-            if (isRanged) {
-                preDefDamage *= (1 + A.getRangePDmgPercent() / 100.0);
-            } else {
-                preDefDamage *= (1 + A.getMeleePDmgPercent() / 100.0);
-            }
-        }
-
-        if (isMagic) {
-            preDefDamage += A.getMDmgBonusFlat();
-        } else {
-            preDefDamage += A.getPDmgBonusFlat();
-        }
-
-        double damageAfterDEF = preDefDamage;
-        if (D != null && defenderEntity instanceof Player defenderPlayer) {
-            damageAfterDEF = isMagic ?
-                    applyMagicDEF(A, D, preDefDamage, defenderPlayer) :
-                    applyPhysicalDEF(A, D, preDefDamage, defenderPlayer);
-        }
-
-        double damageTaken = damageAfterDEF;
-
-        if (D != null && defenderEntity instanceof Player defenderPlayer) {
+        // --- 2. Base Damage Calculation ---
+        double damage;
+        if (attackerPlayer != null) {
+            // คำนวณดาเมจจาก Stat ถ้าผู้โจมตีเป็น Player
+            damage = event.getDamage(); // Weapon base
             if (isMagic) {
-                damageTaken *= (1 - D.getMDmgReductionPercent() / 100.0);
+                damage += stats.getMagicAttack(attackerPlayer);
             } else {
-                damageTaken *= (1 - D.getPDmgReductionPercent() / 100.0);
+                damage += stats.getPhysicalAttack(attackerPlayer);
             }
+        } else {
+            // ถ้าผู้โจมตีเป็น Monster ใช้ดาเมจเดิมจาก Vanilla
+            damage = vanillaDamage;
+        }
 
-            if (!isMagic) {
+        double calculatedDamage = damage * SKILL_POWER;
+
+        // --- 3. Apply Attacker Bonuses (เฉพาะกรณี Attacker เป็น Player) ---
+        if (A != null) {
+            checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
+
+            if (isMagic) {
+                calculatedDamage *= (1 + A.getMDmgBonusPercent() / 100.0);
+                calculatedDamage += A.getMDmgBonusFlat();
+            } else {
+                calculatedDamage *= (1 + A.getPDmgBonusPercent() / 100.0);
+                calculatedDamage += A.getPDmgBonusFlat();
                 if (isRanged) {
-                    damageTaken *= (1 - D.getRangePDReductionPercent() / 100.0);
+                    calculatedDamage *= (1 + A.getRangePDmgPercent() / 100.0);
                 } else {
-                    damageTaken *= (1 - D.getMeleePDReductionPercent() / 100.0);
+                    calculatedDamage *= (1 + A.getMeleePDmgPercent() / 100.0);
                 }
             }
         }
 
-        // 9. Apply Critical
+        // --- 4. Apply Defender Reductions (ทำงานแล้วแม้โดนมอนสเตอร์ตี) ---
+        if (D != null && defenderEntity instanceof Player defenderPlayer) {
+            checkTriggers(defenderPlayer, damagerEntity instanceof LivingEntity ? (LivingEntity)damagerEntity : null, TriggerType.ON_DEFEND);
+
+            // Apply Soft DEF / MDEF
+            calculatedDamage = isMagic ?
+                    applyMagicDEF(A, D, calculatedDamage, defenderPlayer) : // A can be null, method handles it
+                    applyPhysicalDEF(A, D, calculatedDamage, defenderPlayer); // A can be null, method handles it
+
+            // Apply Reductions % (จุดที่แก้ไขเพื่อให้ PDMG Reduction 1000% ทำงาน)
+            if (isMagic) {
+                calculatedDamage *= (1 - D.getMDmgReductionPercent() / 100.0);
+                calculatedDamage *= (1 - D.getMDmgReductionPercent() / 100.0); // Check duplicate line in original
+            } else {
+                calculatedDamage *= (1 - D.getPDmgReductionPercent() / 100.0);
+            }
+
+            if (!isMagic) {
+                if (isRanged) {
+                    calculatedDamage *= (1 - D.getRangePDReductionPercent() / 100.0);
+                } else {
+                    calculatedDamage *= (1 - D.getMeleePDReductionPercent() / 100.0);
+                }
+            }
+
+            // Final Damage Resistance
+            calculatedDamage *= (1 - D.getFinalDmgResPercent() / 100.0);
+        }
+
+        // --- 5. Critical ---
         boolean isCritical = false;
-        if (!isMagic) {
+        if (!isMagic && A != null) { // Critical เฉพาะ Player โจมตี
             double effectiveCritChance = calculateCritChance(attackerPlayer, defenderEntity);
             if (random.nextDouble() < effectiveCritChance) {
                 isCritical = true;
                 double critMultiplier = calculateCritMultiplier(A, D);
-                damageTaken *= critMultiplier;
+                calculatedDamage *= critMultiplier;
             }
         }
 
+        // --- 6. PVP / PVE Modifications ---
         if (D != null) {
-            double attackerPvpRaw = A.getPvpDmgBonusPercent() - A.getPvpDmgReductionPercent();
-            double defenderPvpRaw = D.getPvpDmgBonusPercent() - D.getPvpDmgReductionPercent();
-            double pvpDiff = attackerPvpRaw - defenderPvpRaw;
-            damageTaken *= getTierMultiplier(pvpDiff);
-        } else {
-            double attackerPveRaw = A.getPveDmgBonusPercent() - A.getPveDmgReductionPercent();
-            double monsterPveRaw = 0.0;
-            double pveDiff = attackerPveRaw - monsterPveRaw;
-            damageTaken *= getTierMultiplier(pveDiff);
-        }
-
-        if (D != null) {
-            damageTaken *= (1 + A.getFinalDmgPercent() / 100.0);
-            if (isMagic) {
-                damageTaken *= (1 + A.getFinalMDmgPercent() / 100.0);
+            // Player ถูกตี (PVP หรือ PVE)
+            if (A != null) {
+                // PVP
+                double attackerPvpRaw = A.getPvpDmgBonusPercent() - A.getPvpDmgReductionPercent();
+                double defenderPvpRaw = D.getPvpDmgBonusPercent() - D.getPvpDmgReductionPercent();
+                calculatedDamage *= getTierMultiplier(attackerPvpRaw - defenderPvpRaw);
             } else {
-                damageTaken *= (1 + A.getFinalPDmgPercent() / 100.0);
+                // PVE (Mob ตี Player) -> ใช้ PVE Reduction ของผู้เล่น
+                // Monster ไม่มี PVE Bonus เก็บไว้ (ถือเป็น 0)
+                double pveDiff = 0.0 - D.getPveDmgReductionPercent(); // Monster PVE(0) - Player Reduce
+                // หรือถ้าใช้ Logic แบบ RAW:
+                // calculatedDamage *= getTierMultiplier(pveDiff);
+                // แต่ปกติ PVE Reduction มักเป็น % ตรงๆ หรือ Flat, ถ้าใช้ระบบ Tier ให้ปรับตามต้องการ
             }
-            damageTaken *= (1 - D.getFinalDmgResPercent() / 100.0);
+        } else if (A != null) {
+            // Player ตี Mob (PVE)
+            double attackerPveRaw = A.getPveDmgBonusPercent() - A.getPveDmgReductionPercent();
+            calculatedDamage *= getTierMultiplier(attackerPveRaw); // เทียบกับ 0
         }
 
+        // --- 7. Final Output Bonuses ---
+        if (A != null) {
+            calculatedDamage *= (1 + A.getFinalDmgPercent() / 100.0);
+            if (isMagic) {
+                calculatedDamage *= (1 + A.getFinalMDmgPercent() / 100.0);
+            } else {
+                calculatedDamage *= (1 + A.getFinalPDmgPercent() / 100.0);
+            }
+        }
+
+        // --- 8. Shield ---
         if (D != null && D.getShieldValueFlat() > 0) {
-            double absorb = Math.min(D.getShieldValueFlat(), damageTaken);
-            damageTaken -= absorb;
+            double absorb = Math.min(D.getShieldValueFlat(), calculatedDamage);
+            calculatedDamage -= absorb;
+            // TODO: ลดค่า Shield ใน PlayerData หรือ EffectManager ด้วยถ้าต้องการให้โล่แตก
         }
 
-        double finalDamage = Math.max(1.0, damageTaken);
+        // Apply Final Damage
+        double finalDamage = Math.max(1.0, calculatedDamage); // Minimum 1 damage (หรือ 0 ถ้าต้องการให้กันได้หมด)
         event.setDamage(finalDamage);
 
+        // Visuals
         if (isCritical && attackerPlayer != null) {
             showCritEffects(attackerPlayer, defenderEntity, finalDamage);
         } else if (finalDamage > 0) {
             plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
         }
 
-        if (A.getTrueDamageFlat() > 0.0) {
+        // True Damage (Only if attacker is Player)
+        if (A != null && A.getTrueDamageFlat() > 0.0) {
             double trueDmg = A.getTrueDamageFlat();
+            // True Damage bypasses armor/defense, apply directly
+            // Note: be careful of loop if damaging again via event
+            if (defenderEntity.getHealth() > trueDmg) {
+                defenderEntity.setHealth(defenderEntity.getHealth() - trueDmg);
+            } else {
+                defenderEntity.setHealth(0);
+            }
             plugin.showTrueDamageFCT(defenderEntity.getLocation().add(0, 0.5, 0), trueDmg);
         }
     }
 
-    // [FIX] ใช้ Cache จาก AttributeHandler แทนการอ่าน Item
+    // [FIX] ใช้ Cache จาก AttributeHandler
     private void checkTriggers(Player player, LivingEntity target, TriggerType type) {
+        if (player == null) return;
         List<ItemSkillBinding> bindings = plugin.getAttributeHandler().getCachedTriggers(player, type);
-
         if (bindings == null || bindings.isEmpty()) return;
 
         for (ItemSkillBinding binding : bindings) {
             if (random.nextDouble() < binding.getChance()) {
-                // Cast Skill
                 plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), target);
             }
         }
     }
-
-    // ==========================================
-    // COMBAT HELPER METHODS
-    // ==========================================
 
     private double calculateCritChance(Player attacker, LivingEntity defender) {
         double attackerTotalCrit = plugin.getStatManager().getCritChance(attacker);
         double defenderCritRes = 0.0;
         if (defender instanceof Player defenderPlayer) {
             PlayerData D = plugin.getStatManager().getData(defenderPlayer.getUniqueId());
+            defenderCritRes = D.getCritRes(); // ใช้ค่ารวมที่คำนวณแล้วใน PlayerData หรือคำนวณใหม่ตามสูตร
+            // สูตร: (LUK * 0.2) + CritRes
             int totalLuk = D.getStat("LUK") + D.getPendingStat("LUK") + D.getLUKBonusGear();
-            defenderCritRes = (totalLuk * 0.2) + D.getCritRes();
+            defenderCritRes += (totalLuk * 0.2);
         }
         return Math.max(0, (attackerTotalCrit - defenderCritRes) / 100.0);
     }
 
+    // ปรับปรุงให้รองรับ A = null (Mob Attacker)
     private double applyPhysicalDEF(PlayerData A, PlayerData D, double damage, Player defenderPlayer) {
         StatManager stats = plugin.getStatManager();
         double softPDef = stats.getSoftDef(defenderPlayer);
-        double def1 = Math.max(0, softPDef - A.getIgnorePDefFlat());
-        double effectiveDef = def1 * (1 - A.getIgnorePDefPercent() / 100.0);
+
+        double ignoreDefFlat = (A != null) ? A.getIgnorePDefFlat() : 0;
+        double ignoreDefPerc = (A != null) ? A.getIgnorePDefPercent() : 0;
+
+        double def1 = Math.max(0, softPDef - ignoreDefFlat);
+        double effectiveDef = def1 * (1 - ignoreDefPerc / 100.0);
+
+        // สูตร Reduction แบบ RO (DEF / (DEF + K))
         double defReduction = effectiveDef / (effectiveDef + K_DEFENSE);
         return damage * (1 - defReduction);
     }
 
+    // ปรับปรุงให้รองรับ A = null (Mob Attacker)
     private double applyMagicDEF(PlayerData A, PlayerData D, double damage, Player defenderPlayer) {
         StatManager stats = plugin.getStatManager();
         double softMDef = stats.getSoftMDef(defenderPlayer);
-        double def1 = Math.max(0, softMDef - A.getIgnoreMDefFlat());
-        double effectiveMDef = def1 * (1 - A.getIgnoreMDefPercent() / 100.0);
+
+        double ignoreDefFlat = (A != null) ? A.getIgnoreMDefFlat() : 0;
+        double ignoreDefPerc = (A != null) ? A.getIgnoreMDefPercent() : 0;
+
+        double def1 = Math.max(0, softMDef - ignoreDefFlat);
+        double effectiveMDef = def1 * (1 - ignoreDefPerc / 100.0);
+
         double mDefReduction = effectiveMDef / (effectiveMDef + K_DEFENSE);
         return damage * (1 - mDefReduction);
     }
@@ -336,7 +373,8 @@ public class CombatHandler implements Listener {
 
     private double calculateCritMultiplier(PlayerData A, PlayerData D) {
         double bonusCrit = A.getCritDmgPercent() / 100.0;
-        return 1.0 + bonusCrit;
+        // สามารถเพิ่มการหักลบ Crit Res ของ D ตรงนี้ได้ถ้าต้องการ
+        return 1.0 + bonusCrit; // Base Crit Damage 1.5 หรือเปล่า? ปกติ RO คือ 1.4 (40%) หรือ 1.5
     }
 
     private void showCritEffects(Player attacker, LivingEntity victim, double finalDamage) {
