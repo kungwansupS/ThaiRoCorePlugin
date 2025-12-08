@@ -9,7 +9,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.*;
+import org.rostats.engine.action.impl.*; // Import all actions including AreaAction
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
 
@@ -40,7 +40,9 @@ public class SkillManager {
     }
 
     // --- File Management ---
-    public File getRootDir() { return skillFolder; }
+    public File getRootDir() {
+        return skillFolder;
+    }
 
     public String getRelativePath(File file) {
         String rootPath = skillFolder.getAbsolutePath();
@@ -118,6 +120,7 @@ public class SkillManager {
         loadSkills();
     }
 
+    // --- Save Skill Logic ---
     public void saveSkill(SkillData skill) {
         File file = findFileBySkillId(skill.getId());
         if (file == null) {
@@ -172,21 +175,17 @@ public class SkillManager {
         return null;
     }
 
-    // Default cast (checks requirements)
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target) {
         castSkill(caster, skillId, level, target, false);
     }
 
-    // --- NEW: Overloaded castSkill with isPassive flag ---
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
 
-        // Check Cooldown and SP ONLY if NOT passive
         if (!isPassive && caster instanceof Player player) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
-            // 1. Cooldown
             long now = System.currentTimeMillis();
             long lastUse = data.getSkillCooldown(skillId);
             double cooldownSeconds = skill.getCooldown(level);
@@ -198,20 +197,17 @@ public class SkillManager {
                 return;
             }
 
-            // 2. SP Cost
             int spCost = skill.getSpCost(level);
             if (data.getCurrentSP() < spCost) {
                 player.sendMessage("§cNot enough SP!");
                 return;
             }
 
-            // 3. Consume
             data.setCurrentSP(data.getCurrentSP() - spCost);
             data.setSkillCooldown(skillId, now);
             plugin.getManaManager().updateBar(player);
         }
 
-        // Execute Actions
         for (SkillAction action : skill.getActions()) {
             try {
                 action.execute(caster, target, level);
@@ -221,7 +217,6 @@ public class SkillManager {
             }
         }
     }
-    // ----------------------------------------------------
 
     public void loadSkills() {
         skillMap.clear();
@@ -232,12 +227,15 @@ public class SkillManager {
     private void loadSkillsRecursive(File dir) {
         File[] files = dir.listFiles();
         if (files == null) return;
+
         for (File file : files) {
             if (file.isDirectory()) {
                 loadSkillsRecursive(file);
                 continue;
             }
+
             if (!file.getName().endsWith(".yml")) continue;
+
             try {
                 YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                 for (String key : config.getKeys(false)) {
@@ -256,13 +254,10 @@ public class SkillManager {
 
             SkillData skill = new SkillData(key);
             skill.setDisplayName(section.getString("display-name", key));
-
             String iconName = section.getString("icon", "BOOK");
             Material icon = Material.getMaterial(iconName);
             skill.setIcon(icon != null ? icon : Material.BOOK);
-
             skill.setMaxLevel(section.getInt("max-level", 1));
-
             String triggerStr = section.getString("trigger", "CAST");
             try {
                 skill.setTrigger(TriggerType.valueOf(triggerStr));
@@ -308,7 +303,8 @@ public class SkillManager {
                 return new HealAction(plugin, (String) map.getOrDefault("formula", "10"), (boolean) map.getOrDefault("is-mana", false));
             case APPLY_EFFECT:
                 String eid = (String) map.getOrDefault("effect-id", "unknown");
-                EffectType effType = EffectType.valueOf((String) map.getOrDefault("effect-type", "STAT_MODIFIER"));
+                String effTypeStr = (String) map.getOrDefault("effect-type", "STAT_MODIFIER");
+                EffectType effType = EffectType.valueOf(effTypeStr);
                 int lv = map.containsKey("level") ? ((Number)map.get("level")).intValue() : 1;
                 double pw = map.containsKey("power") ? ((Number)map.get("power")).doubleValue() : 0.0;
                 long dr = map.containsKey("duration") ? ((Number)map.get("duration")).longValue() : 100L;
@@ -340,13 +336,28 @@ public class SkillManager {
                 double projSpeed = map.containsKey("speed") ? ((Number)map.get("speed")).doubleValue() : 1.0;
                 String onHit = (String) map.getOrDefault("on-hit", "none");
                 return new ProjectileAction(plugin, projType, projSpeed, onHit);
+
+            // --- NEW: AREA EFFECT PARSING ---
+            case AREA_EFFECT:
+                double radius = map.containsKey("radius") ? ((Number)map.get("radius")).doubleValue() : 5.0;
+                String tType = (String) map.getOrDefault("target-type", "ENEMY");
+                String subSkill = (String) map.getOrDefault("sub-skill", "none");
+                int maxT = map.containsKey("max-targets") ? ((Number)map.get("max-targets")).intValue() : 10;
+                return new AreaAction(plugin, radius, tType, subSkill, maxT);
+            // --------------------------------
+
             default:
                 return null;
         }
     }
 
-    public SkillData getSkill(String id) { return skillMap.get(id); }
-    public Map<String, SkillData> getSkills() { return skillMap; }
+    public SkillData getSkill(String id) {
+        return skillMap.get(id);
+    }
+
+    public Map<String, SkillData> getSkills() {
+        return skillMap;
+    }
 
     private void createExampleSkill() {
         File example = new File(skillFolder, "example_skill.yml");
@@ -354,19 +365,24 @@ public class SkillManager {
         try {
             example.createNewFile();
             YamlConfiguration config = YamlConfiguration.loadConfiguration(example);
+
             String key = "fireball";
             config.set(key + ".display-name", "Fireball");
             config.set(key + ".icon", "BLAZE_POWDER");
             config.set(key + ".max-level", 10);
             config.set(key + ".trigger", "CAST");
+
             config.set(key + ".conditions.cooldown", 5.0);
             config.set(key + ".conditions.sp-cost", 20);
+
             List<Map<String, Object>> actions = new ArrayList<>();
+
             Map<String, Object> damage = new HashMap<>();
             damage.put("type", "DAMAGE");
             damage.put("formula", "(MATK * 1.5) + (INT * 5)");
             damage.put("element", "FIRE");
             actions.add(damage);
+
             Map<String, Object> burn = new HashMap<>();
             burn.put("type", "APPLY_EFFECT");
             burn.put("effect-id", "burn_dot");
@@ -375,7 +391,9 @@ public class SkillManager {
             burn.put("duration", 100);
             burn.put("chance", 0.5);
             actions.add(burn);
+
             config.set(key + ".actions", actions);
+
             config.save(example);
         } catch (Exception e) {
             e.printStackTrace();

@@ -9,10 +9,8 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.engine.action.ActionType;
 
 import java.util.Arrays;
-import java.util.List;
 
 public class SkillActionSelectorGUI {
 
@@ -26,39 +24,30 @@ public class SkillActionSelectorGUI {
 
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("ActionSelector: " + skillId));
-
-        // Display Action Types
         int slot = 0;
 
-        // --- Combat Actions ---
-        inv.setItem(slot++, createGuiItem(Material.IRON_SWORD, "§cDAMAGE / สร้างความเสียหาย",
-                "§7Deal damage to target.", "§8---------------", "§7ทำดาเมจใส่เป้าหมาย", "ActionType: DAMAGE"));
+        inv.setItem(slot++, createGuiItem(Material.IRON_SWORD, "§cDAMAGE", "§7Deal damage.", "ActionType: DAMAGE"));
+        inv.setItem(slot++, createGuiItem(Material.GOLDEN_APPLE, "§cHEAL", "§7Heal HP/SP.", "ActionType: HEAL"));
+        inv.setItem(slot++, createGuiItem(Material.POTION, "§9APPLY_EFFECT", "§7Apply stats/dot.", "ActionType: APPLY_EFFECT"));
 
-        inv.setItem(slot++, createGuiItem(Material.GOLDEN_APPLE, "§cHEAL / ฟื้นฟู",
-                "§7Heal HP or SP.", "§8---------------", "§7ฟื้นฟูเลือดหรือมานา", "ActionType: HEAL"));
+        inv.setItem(slot++, createGuiItem(Material.NOTE_BLOCK, "§eSOUND", "§7Play sound.", "ActionType: SOUND"));
+        inv.setItem(slot++, createGuiItem(Material.BLAZE_POWDER, "§ePARTICLE", "§7Show particles.", "ActionType: PARTICLE"));
+        inv.setItem(slot++, createGuiItem(Material.ARROW, "§bPROJECTILE", "§7Shoot projectile.", "ActionType: PROJECTILE"));
 
-        inv.setItem(slot++, createGuiItem(Material.POTION, "§9APPLY_EFFECT / สถานะ",
-                "§7Apply buff/debuff/dot.", "§8---------------", "§7ยัดสถานะใส่เป้าหมาย", "ActionType: APPLY_EFFECT"));
+        inv.setItem(slot++, createGuiItem(Material.ENDER_PEARL, "§dTELEPORT", "§7Dash/Warp.", "ActionType: TELEPORT"));
+        inv.setItem(slot++, createGuiItem(Material.GLASS_BOTTLE, "§fPOTION", "§7Vanilla Potion.", "ActionType: POTION"));
 
-        // --- Visual Actions (Placeholder for now, but enum exists) ---
-        inv.setItem(slot++, createGuiItem(Material.NOTE_BLOCK, "§eSOUND / เสียง",
-                "§7Play sound effect.", "§8---------------", "§7เล่นเสียงเอฟเฟกต์", "ActionType: SOUND"));
+        // --- NEW BUTTON ---
+        inv.setItem(slot++, createGuiItem(Material.TNT, "§c§lAREA EFFECT",
+                "§7Trigger skills on nearby targets.",
+                "§7(AOE Damage, Buffs, etc.)",
+                "ActionType: AREA_EFFECT"));
+        // ------------------
 
-        inv.setItem(slot++, createGuiItem(Material.BLAZE_POWDER, "§ePARTICLE / ละออง",
-                "§7Play particle effect.", "§8---------------", "§7แสดงเอฟเฟกต์ละออง", "ActionType: PARTICLE"));
+        inv.setItem(53, createGuiItem(Material.ARROW, "§cBack", "§7Cancel"));
 
-        inv.setItem(slot++, createGuiItem(Material.ARROW, "§bPROJECTILE / ลูกพลัง",
-                "§7Launch projectile.", "§8---------------", "§7ยิงลูกพลังออกไป", "ActionType: PROJECTILE"));
-
-        // Back Button
-        inv.setItem(53, createGuiItem(Material.ARROW, "§cBack / กลับ", "§7Cancel selection"));
-
-        // Fill
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 54; i++) {
-            if (inv.getItem(i) == null) inv.setItem(i, bg);
-        }
-
+        for (int i = 0; i < 54; i++) { if (inv.getItem(i) == null) inv.setItem(i, bg); }
         player.openInventory(inv);
     }
 

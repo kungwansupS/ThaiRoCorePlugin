@@ -19,7 +19,6 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-// เพิ่ม Import นี้
 import org.rostats.handler.ManaManager;
 import org.rostats.itemeditor.AttributeEditorGUI;
 import org.rostats.itemeditor.EffectEnchantGUI;
@@ -73,7 +72,6 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // --- SKILL SYSTEM LOGIC ---
         if (title.startsWith("SkillLib: ")) {
             event.setCancelled(true);
             handleSkillLibraryClick(event, player, title.substring(10));
@@ -105,23 +103,15 @@ public class GUIListener implements Listener {
             }
             return;
         }
-
-        // --- ITEM EDITOR LOGIC ---
         if (title.startsWith("Library: ")) {
             event.setCancelled(true);
-            if (event.getClickedInventory() == event.getView().getBottomInventory()) {
-                handleImportItem(event, player, title.substring(9));
-            } else {
-                handleLibraryClick(event, player, title.substring(9));
-            }
+            if (event.getClickedInventory() == event.getView().getBottomInventory()) { handleImportItem(event, player, title.substring(9)); }
+            else { handleLibraryClick(event, player, title.substring(9)); }
             return;
         }
         if (title.startsWith("Editor: ")) {
             event.setCancelled(true);
-            if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
-                handleEffectEnchantClick(event, player, title);
-                return;
-            }
+            if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) { handleEffectEnchantClick(event, player, title); return; }
             handleEditorClick(event, player, title);
             return;
         }
@@ -130,17 +120,11 @@ public class GUIListener implements Listener {
             handleConfirmDeleteClick(event, player, title);
             return;
         }
-
-        // --- CHARACTER STATUS LOGIC ---
         if (title.contains("Character Status (ROO)")) {
             handleCharacterStatusClick(event, player, title);
             return;
         }
     }
-
-    // ====================================================================================
-    // SKILL SYSTEM HANDLERS
-    // ====================================================================================
 
     private void handleActionPropertyClick(InventoryClickEvent event, Player player, String skillId, int index) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);
@@ -156,21 +140,21 @@ public class GUIListener implements Listener {
         }
         final Map<String, Object> data = tempMap;
 
-        if (clicked.getType() == Material.RED_CONCRETE) { // Cancel
+        if (clicked.getType() == Material.RED_CONCRETE) {
             editingActions.remove(player.getUniqueId());
             new SkillEditorGUI(plugin, skillId).open(player);
             return;
         }
 
-        if (clicked.getType() == Material.EMERALD_BLOCK) { // Save
+        if (clicked.getType() == Material.EMERALD_BLOCK) {
             try {
                 String typeStr = (String) data.get("type");
                 ActionType type = ActionType.valueOf(typeStr);
-
                 SkillAction newAction = null;
+
                 switch (type) {
-                    case DAMAGE: newAction = new DamageAction(plugin, (String)data.getOrDefault("formula","ATK"), (String)data.getOrDefault("element","NEUTRAL")); break;
-                    case HEAL: newAction = new HealAction(plugin, (String)data.getOrDefault("formula","10"), (boolean)data.getOrDefault("is-mana", false)); break;
+                    case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
+                    case HEAL: newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), (boolean)data.getOrDefault("is-mana", false)); break;
                     case APPLY_EFFECT:
                         String eid = String.valueOf(data.getOrDefault("effect-id", "unknown"));
                         EffectType et = EffectType.valueOf(String.valueOf(data.getOrDefault("effect-type", "STAT_MODIFIER")));
@@ -212,6 +196,15 @@ public class GUIListener implements Listener {
                         String hitSkill = String.valueOf(data.getOrDefault("on-hit", "none"));
                         newAction = new ProjectileAction(plugin, proj, pSpd, hitSkill);
                         break;
+                    // --- NEW: AREA EFFECT SAVE ---
+                    case AREA_EFFECT:
+                        double rad = Double.parseDouble(String.valueOf(data.getOrDefault("radius", "5.0")));
+                        String tType = String.valueOf(data.getOrDefault("target-type", "ENEMY"));
+                        String sub = String.valueOf(data.getOrDefault("sub-skill", "none"));
+                        int maxT = Integer.parseInt(String.valueOf(data.getOrDefault("max-targets", "10")));
+                        newAction = new AreaAction(plugin, rad, tType, sub, maxT);
+                        break;
+                    // -----------------------------
                 }
 
                 if (newAction != null) {
@@ -233,26 +226,22 @@ public class GUIListener implements Listener {
         String key = null;
         if (lore != null) {
             for (String l : lore) {
-                if (l.startsWith("§0Key:")) {
-                    key = l.substring(6);
-                    break;
-                }
+                if (l.startsWith("§0Key:")) { key = l.substring(6); break; }
             }
         }
 
         if (key != null) {
             final String fKey = key;
             Object val = data.get(fKey);
-
             if (val instanceof Boolean) {
                 data.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType());
             } else {
                 plugin.getChatInputHandler().awaitInput(player, "Enter value for " + fKey + ":", (str) -> {
                     try {
-                        if (fKey.equals("level") || fKey.equals("duration") || fKey.equals("count") || fKey.equals("amplifier")) {
+                        if (fKey.equals("level") || fKey.equals("duration") || fKey.equals("count") || fKey.equals("amplifier") || fKey.equals("max-targets")) {
                             data.put(fKey, Integer.parseInt(str));
-                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch")) {
+                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius")) {
                             data.put(fKey, Double.parseDouble(str));
                         } else {
                             data.put(fKey, str);
@@ -279,11 +268,7 @@ public class GUIListener implements Listener {
     private void handleActionSelectorClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-
-        if (clicked.getType() == Material.ARROW) {
-            new SkillEditorGUI(plugin, skillId).open(player);
-            return;
-        }
+        if (clicked.getType() == Material.ARROW) { new SkillEditorGUI(plugin, skillId).open(player); return; }
 
         List<String> lore = clicked.getItemMeta().getLore();
         if (lore != null && !lore.isEmpty()) {
@@ -302,6 +287,7 @@ public class GUIListener implements Listener {
                         case POTION: action = new PotionAction("SPEED", 60, 0); break;
                         case TELEPORT: action = new TeleportAction(5.0, false); break;
                         case PROJECTILE: action = new ProjectileAction(plugin, "ARROW", 1.5, "none"); break;
+                        case AREA_EFFECT: action = new AreaAction(plugin, 5.0, "ENEMY", "none", 10); break;
                     }
                     if (action != null) {
                         skill.addAction(action);
@@ -313,6 +299,8 @@ public class GUIListener implements Listener {
             }
         }
     }
+
+    // ... (Remaining methods: handleSkillEditorClick, handleSkillLibraryClick, etc. SAME AS BEFORE) ...
 
     private void handleSkillEditorClick(InventoryClickEvent event, Player player, String skillId) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);

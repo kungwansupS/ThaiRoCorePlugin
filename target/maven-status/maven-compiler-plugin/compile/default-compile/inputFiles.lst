@@ -5,6 +5,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\data\DataManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\data\PlayerData.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\data\StatManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\ActionType.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\AreaAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\DamageAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\EffectAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\HealAction.java

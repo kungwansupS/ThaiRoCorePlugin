@@ -88,7 +88,7 @@ public class AttributeHandler implements Listener {
                         for (ItemSkillBinding binding : attr.getSkillBindings()) {
                             // Check for PASSIVE_TICK or PASSIVE_APPLY
                             if (binding.getTrigger() == TriggerType.PASSIVE_TICK || binding.getTrigger() == TriggerType.PASSIVE_APPLY) {
-                                // Cast Skill with isPassive=true (No CD/SP)
+                                // Cast Skill with isPassive=true (No CD/SP checks)
                                 // Target = player (Self)
                                 plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
                             }
