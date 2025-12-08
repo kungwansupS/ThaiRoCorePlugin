@@ -26,8 +26,11 @@ public class SkillActionSelectorGUI {
 
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("ActionSelector: " + skillId));
+
+        // Display Action Types
         int slot = 0;
 
+        // --- Combat Actions ---
         inv.setItem(slot++, createGuiItem(Material.IRON_SWORD, "§cDAMAGE / สร้างความเสียหาย",
                 "§7Deal damage to target.", "§8---------------", "§7ทำดาเมจใส่เป้าหมาย", "ActionType: DAMAGE"));
 
@@ -37,7 +40,7 @@ public class SkillActionSelectorGUI {
         inv.setItem(slot++, createGuiItem(Material.POTION, "§9APPLY_EFFECT / สถานะ",
                 "§7Apply buff/debuff/dot.", "§8---------------", "§7ยัดสถานะใส่เป้าหมาย", "ActionType: APPLY_EFFECT"));
 
-        // --- Visual Actions (ACTIVE) ---
+        // --- Visual Actions (Placeholder for now, but enum exists) ---
         inv.setItem(slot++, createGuiItem(Material.NOTE_BLOCK, "§eSOUND / เสียง",
                 "§7Play sound effect.", "§8---------------", "§7เล่นเสียงเอฟเฟกต์", "ActionType: SOUND"));
 
@@ -47,8 +50,10 @@ public class SkillActionSelectorGUI {
         inv.setItem(slot++, createGuiItem(Material.ARROW, "§bPROJECTILE / ลูกพลัง",
                 "§7Launch projectile.", "§8---------------", "§7ยิงลูกพลังออกไป", "ActionType: PROJECTILE"));
 
+        // Back Button
         inv.setItem(53, createGuiItem(Material.ARROW, "§cBack / กลับ", "§7Cancel selection"));
 
+        // Fill
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);

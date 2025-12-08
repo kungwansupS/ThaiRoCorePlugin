@@ -35,52 +35,53 @@ public class SkillActionPropertyGUI {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("ActionEdit: " + skillId + " #" + actionIndex));
         int slot = 0;
 
+        // --- Properties Display ---
         if (type == ActionType.DAMAGE) {
-            inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Formula", (String) data.getOrDefault("formula", "ATK"), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "element", "Element", (String) data.getOrDefault("element", "NEUTRAL"), "§eClick to edit"));
+            inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Formula / สูตร",
+                    (String) data.getOrDefault("formula", "ATK"), "§eClick to edit formula"));
+
+            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "element", "Element / ธาตุ",
+                    (String) data.getOrDefault("element", "NEUTRAL"), "§eClick to edit element"));
         }
         else if (type == ActionType.HEAL) {
-            inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Amount", (String) data.getOrDefault("formula", "10"), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.REDSTONE, "is-mana", "Is Mana?", data.getOrDefault("is-mana", false).toString(), "§eClick to toggle"));
+            inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Amount Formula / สูตรการฮีล",
+                    (String) data.getOrDefault("formula", "10"), "§eClick to edit"));
+
+            boolean isMana = (boolean) data.getOrDefault("is-mana", false);
+            inv.setItem(slot++, createPropItem(isMana ? Material.LAPIS_LAZULI : Material.REDSTONE, "is-mana", "Type / ประเภท",
+                    isMana ? "MANA (SP)" : "HEALTH (HP)", "§eClick to toggle"));
         }
         else if (type == ActionType.APPLY_EFFECT) {
-            inv.setItem(slot++, createPropItem(Material.NAME_TAG, "effect-id", "Effect ID", (String) data.getOrDefault("effect-id", "unknown"), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.POTION, "effect-type", "Type", (String) data.getOrDefault("effect-type", "STAT_MODIFIER"), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.EXPERIENCE_BOTTLE, "level", "Level", data.getOrDefault("level", 1).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration", 100).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.FEATHER, "chance", "Chance", data.getOrDefault("chance", 1.0).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.IRON_SWORD, "power", "Power", data.getOrDefault("power", 0.0).toString(), "§eClick to edit"));
-        }
-        // NEW PROPERTIES
-        else if (type == ActionType.SOUND) {
-            inv.setItem(slot++, createPropItem(Material.NOTE_BLOCK, "sound", "Sound Name",
-                    (String) data.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"), "§eClick to edit Enum"));
-            inv.setItem(slot++, createPropItem(Material.REPEATER, "volume", "Volume",
-                    data.getOrDefault("volume", 1.0f).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.COMPARATOR, "pitch", "Pitch",
-                    data.getOrDefault("pitch", 1.0f).toString(), "§eClick to edit"));
-        }
-        else if (type == ActionType.PARTICLE) {
-            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "particle", "Particle Type",
-                    (String) data.getOrDefault("particle", "VILLAGER_HAPPY"), "§eClick to edit Enum"));
-            inv.setItem(slot++, createPropItem(Material.SLIME_BALL, "count", "Count",
-                    data.getOrDefault("count", 10).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed",
-                    data.getOrDefault("speed", 0.1).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createPropItem(Material.PISTON, "y-offset", "Y Offset",
-                    data.getOrDefault("y-offset", 1.0).toString(), "§eClick to edit"));
-        }
-        else if (type == ActionType.PROJECTILE) {
-            inv.setItem(slot++, createPropItem(Material.ARROW, "projectile-type", "Projectile Type",
-                    (String) data.getOrDefault("projectile-type", "ARROW"), "§eClick to edit Enum"));
-            inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed",
-                    data.getOrDefault("speed", 1.0).toString(), "§eClick to edit"));
-            inv.setItem(slot++, createGuiItem(Material.CHEST, "§6§lOn-Hit Actions", "§eEdit in YAML file."));
+            inv.setItem(slot++, createPropItem(Material.NAME_TAG, "effect-id", "Effect ID",
+                    (String) data.getOrDefault("effect-id", "unknown"), "§eClick to edit ID"));
+
+            inv.setItem(slot++, createPropItem(Material.POTION, "effect-type", "Effect Type",
+                    (String) data.getOrDefault("effect-type", "STAT_MODIFIER"), "§eClick to edit Type Enum"));
+
+            inv.setItem(slot++, createPropItem(Material.EXPERIENCE_BOTTLE, "level", "Level",
+                    data.getOrDefault("level", 1).toString(), "§eClick to edit Level"));
+
+            inv.setItem(slot++, createPropItem(Material.IRON_SWORD, "power", "Power/Value",
+                    data.getOrDefault("power", 0.0).toString(), "§eClick to edit Power"));
+
+            inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration (Ticks)",
+                    data.getOrDefault("duration", 100).toString(), "§eClick to edit Duration (20 = 1s)"));
+
+            inv.setItem(slot++, createPropItem(Material.FEATHER, "chance", "Chance (0.0-1.0)",
+                    data.getOrDefault("chance", 1.0).toString(), "§eClick to edit Chance"));
+
+            inv.setItem(slot++, createPropItem(Material.ANVIL, "stat-key", "Stat Key (Optional)",
+                    (String) data.getOrDefault("stat-key", "None"), "§eClick to edit Stat Key"));
         }
 
-        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE CHANGES", "§7Apply changes.", "§8---------------", "§7บันทึก"));
-        inv.setItem(53, createGuiItem(Material.RED_CONCRETE, "§cCancel", "§7Discard."));
+        // --- Controls ---
+        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE CHANGES",
+                "§7Apply changes to skill.", "§8---------------", "§7บันทึกการแก้ไข"));
 
+        inv.setItem(53, createGuiItem(Material.RED_CONCRETE, "§cCancel / ยกเลิก",
+                "§7Discard changes."));
+
+        // Fill
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
@@ -90,7 +91,11 @@ public class SkillActionPropertyGUI {
     }
 
     private ItemStack createPropItem(Material mat, String key, String display, String value, String hint) {
-        return createGuiItem(mat, "§e" + display, "§7Value: §f" + value, "§8---------------", hint, "§0Key:" + key);
+        return createGuiItem(mat, "§e" + display,
+                "§7Value: §f" + value,
+                "§8---------------",
+                hint,
+                "§0Key:" + key);
     }
 
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
@@ -98,6 +103,7 @@ public class SkillActionPropertyGUI {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
         meta.setLore(Arrays.asList(lore));
+        // FIX: Removed HIDE_POTION_EFFECTS
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;

@@ -1,16 +1,15 @@
 package org.rostats.engine.skill;
 
 import org.bukkit.Material;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.action.impl.*;
+import org.rostats.engine.action.impl.DamageAction;
+import org.rostats.engine.action.impl.EffectAction;
+import org.rostats.engine.action.impl.HealAction;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
 
@@ -41,7 +40,9 @@ public class SkillManager {
     }
 
     // --- File Management ---
-    public File getRootDir() { return skillFolder; }
+    public File getRootDir() {
+        return skillFolder;
+    }
 
     public String getRelativePath(File file) {
         String rootPath = skillFolder.getAbsolutePath();
@@ -82,32 +83,45 @@ public class SkillManager {
         String fileName = skillName.endsWith(".yml") ? skillName : skillName + ".yml";
         File file = new File(parent, fileName);
         if (file.exists()) return;
+
         try {
             file.createNewFile();
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             String id = skillName.replace(".yml", "").toLowerCase().replace(" ", "_");
+
+            // Default Template
             config.set(id + ".display-name", skillName);
             config.set(id + ".icon", "BOOK");
             config.set(id + ".max-level", 1);
             config.set(id + ".trigger", "CAST");
             config.set(id + ".conditions.cooldown", 1.0);
+
             config.save(file);
             loadSkills();
-        } catch (IOException e) { e.printStackTrace(); }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void deleteFile(File file) {
-        if (file.isDirectory()) { File[] contents = file.listFiles(); if (contents != null) for (File sub : contents) deleteFile(sub); }
-        file.delete(); loadSkills();
+        if (file.isDirectory()) {
+            File[] contents = file.listFiles();
+            if (contents != null) {
+                for (File sub : contents) deleteFile(sub);
+            }
+        }
+        file.delete();
+        loadSkills();
     }
 
     public void renameFile(File file, String newName) {
         String finalName = file.isDirectory() ? newName : (newName.endsWith(".yml") ? newName : newName + ".yml");
         File dest = new File(file.getParentFile(), finalName);
-        file.renameTo(dest); loadSkills();
+        file.renameTo(dest);
+        loadSkills();
     }
 
-    // --- Save Skill ---
+    // --- Save Skill Logic ---
     public void saveSkill(SkillData skill) {
         File file = findFileBySkillId(skill.getId());
         if (file == null) {
@@ -165,8 +179,14 @@ public class SkillManager {
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target) {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
+
         for (SkillAction action : skill.getActions()) {
-            try { action.execute(caster, target, level); } catch (Exception e) { e.printStackTrace(); }
+            try {
+                action.execute(caster, target, level);
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error executing action for skill " + skillId);
+                e.printStackTrace();
+            }
         }
     }
 
@@ -180,9 +200,15 @@ public class SkillManager {
     private void loadSkillsRecursive(File dir) {
         File[] files = dir.listFiles();
         if (files == null) return;
+
         for (File file : files) {
-            if (file.isDirectory()) { loadSkillsRecursive(file); continue; }
+            if (file.isDirectory()) {
+                loadSkillsRecursive(file);
+                continue;
+            }
+
             if (!file.getName().endsWith(".yml")) continue;
+
             try {
                 YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                 for (String key : config.getKeys(false)) {
@@ -201,11 +227,19 @@ public class SkillManager {
 
             SkillData skill = new SkillData(key);
             skill.setDisplayName(section.getString("display-name", key));
+
             String iconName = section.getString("icon", "BOOK");
             Material icon = Material.getMaterial(iconName);
             skill.setIcon(icon != null ? icon : Material.BOOK);
+
             skill.setMaxLevel(section.getInt("max-level", 1));
-            try { skill.setTrigger(TriggerType.valueOf(section.getString("trigger", "CAST"))); } catch(Exception e) { skill.setTrigger(TriggerType.CAST); }
+
+            String triggerStr = section.getString("trigger", "CAST");
+            try {
+                skill.setTrigger(TriggerType.valueOf(triggerStr));
+            } catch (IllegalArgumentException e) {
+                skill.setTrigger(TriggerType.CAST);
+            }
 
             ConfigurationSection cond = section.getConfigurationSection("conditions");
             if (cond != null) {
@@ -225,63 +259,94 @@ public class SkillManager {
                         ActionType type = ActionType.valueOf(typeStr);
                         SkillAction action = parseAction(type, actionMap);
                         if (action != null) skill.addAction(action);
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Invalid action structure in skill " + key);
+                    }
                 }
             }
+
             skillMap.put(key, skill);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to load skill key: " + key);
+        }
     }
 
     private SkillAction parseAction(ActionType type, Map<String, Object> map) {
         switch (type) {
             case DAMAGE:
-                return new DamageAction(plugin, (String) map.getOrDefault("formula", "ATK"), (String) map.getOrDefault("element", "NEUTRAL"));
+                String formula = (String) map.getOrDefault("formula", "ATK");
+                String element = (String) map.getOrDefault("element", "NEUTRAL");
+                return new DamageAction(plugin, formula, element);
+
             case HEAL:
-                return new HealAction(plugin, (String) map.getOrDefault("formula", "10"), (boolean) map.getOrDefault("is-mana", false));
+                String healFormula = (String) map.getOrDefault("formula", "10");
+                boolean isMana = (boolean) map.getOrDefault("is-mana", false);
+                return new HealAction(plugin, healFormula, isMana);
+
             case APPLY_EFFECT:
-                String effId = (String) map.getOrDefault("effect-id", "unknown");
-                EffectType effType = EffectType.valueOf((String) map.getOrDefault("effect-type", "STAT_MODIFIER"));
-                int lvl = map.containsKey("level") ? ((Number)map.get("level")).intValue() : 1;
-                double pwr = map.containsKey("power") ? ((Number)map.get("power")).doubleValue() : 0.0;
-                long dur = map.containsKey("duration") ? ((Number)map.get("duration")).longValue() : 100L;
+                String effectId = (String) map.getOrDefault("effect-id", "unknown");
+                String effTypeStr = (String) map.getOrDefault("effect-type", "STAT_MODIFIER");
+                EffectType effType = EffectType.valueOf(effTypeStr);
+
+                int level = map.containsKey("level") ? ((Number)map.get("level")).intValue() : 1;
+                double power = map.containsKey("power") ? ((Number)map.get("power")).doubleValue() : 0.0;
+                long duration = map.containsKey("duration") ? ((Number)map.get("duration")).longValue() : 100L;
                 double chance = map.containsKey("chance") ? ((Number)map.get("chance")).doubleValue() : 1.0;
-                String sk = (String) map.getOrDefault("stat-key", null);
-                return new EffectAction(plugin, effId, effType, lvl, pwr, dur, chance, sk);
+                String statKey = (String) map.getOrDefault("stat-key", null);
 
-            // --- NEW ACTIONS ---
-            case SOUND:
-                Sound sound = Sound.valueOf((String) map.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"));
-                float vol = ((Number) map.getOrDefault("volume", 1.0)).floatValue();
-                float pit = ((Number) map.getOrDefault("pitch", 1.0)).floatValue();
-                return new SoundAction(sound, vol, pit);
+                return new EffectAction(plugin, effectId, effType, level, power, duration, chance, statKey);
 
-            case PARTICLE:
-                Particle part = Particle.valueOf((String) map.getOrDefault("particle", "VILLAGER_HAPPY"));
-                int count = ((Number) map.getOrDefault("count", 10)).intValue();
-                double speed = ((Number) map.getOrDefault("speed", 0.1)).doubleValue();
-                double yOff = ((Number) map.getOrDefault("y-offset", 1.0)).doubleValue();
-                return new ParticleAction(part, count, speed, yOff);
-
-            case PROJECTILE:
-                EntityType pType = EntityType.valueOf((String) map.getOrDefault("projectile-type", "ARROW"));
-                double pSpeed = ((Number) map.getOrDefault("speed", 1.0)).doubleValue();
-                List<SkillAction> onHit = new ArrayList<>();
-                if (map.containsKey("on-hit")) {
-                    List<Map<String, Object>> hitList = (List<Map<String, Object>>) map.get("on-hit");
-                    for (Map<String, Object> hitMap : hitList) {
-                        String hitTypeStr = (String) hitMap.get("type");
-                        SkillAction hitAction = parseAction(ActionType.valueOf(hitTypeStr), hitMap);
-                        if (hitAction != null) onHit.add(hitAction);
-                    }
-                }
-                return new ProjectileAction(plugin, pType, pSpeed, onHit);
-
-            default: return null;
+            default:
+                return null;
         }
     }
 
-    public SkillData getSkill(String id) { return skillMap.get(id); }
-    public Map<String, SkillData> getSkills() { return skillMap; }
+    public SkillData getSkill(String id) {
+        return skillMap.get(id);
+    }
 
-    private void createExampleSkill() { /* Keep existing implementation */ }
+    public Map<String, SkillData> getSkills() {
+        return skillMap;
+    }
+
+    private void createExampleSkill() {
+        File example = new File(skillFolder, "example_skill.yml");
+        if (example.exists()) return;
+        try {
+            example.createNewFile();
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(example);
+
+            String key = "fireball";
+            config.set(key + ".display-name", "Fireball");
+            config.set(key + ".icon", "BLAZE_POWDER");
+            config.set(key + ".max-level", 10);
+            config.set(key + ".trigger", "CAST");
+
+            config.set(key + ".conditions.cooldown", 5.0);
+            config.set(key + ".conditions.sp-cost", 20);
+
+            List<Map<String, Object>> actions = new ArrayList<>();
+
+            Map<String, Object> damage = new HashMap<>();
+            damage.put("type", "DAMAGE");
+            damage.put("formula", "(MATK * 1.5) + (INT * 5)");
+            damage.put("element", "FIRE");
+            actions.add(damage);
+
+            Map<String, Object> burn = new HashMap<>();
+            burn.put("type", "APPLY_EFFECT");
+            burn.put("effect-id", "burn_dot");
+            burn.put("effect-type", "PERIODIC_DAMAGE");
+            burn.put("power", 10.0);
+            burn.put("duration", 100);
+            burn.put("chance", 0.5);
+            actions.add(burn);
+
+            config.set(key + ".actions", actions);
+
+            config.save(example);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
