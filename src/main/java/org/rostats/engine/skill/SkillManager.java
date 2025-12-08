@@ -224,13 +224,13 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    // Supports Placeholder & Shapes
+                    // Supports Placeholder & Shapes (Updated)
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
                             String.valueOf(map.getOrDefault("speed", "0.1")),
                             (String) map.getOrDefault("shape", "POINT"),
-                            String.valueOf(map.getOrDefault("radius", "1.0")),
+                            String.valueOf(map.getOrDefault("radius", "0.5")),
                             String.valueOf(map.getOrDefault("points", "20"))
                     );
 
@@ -290,6 +290,17 @@ public class SkillManager {
                     String cmd = (String) map.getOrDefault("command", "say Hi %player%");
                     boolean console = (boolean) map.getOrDefault("as-console", false);
                     return new CommandAction(cmd, console);
+
+                case RAYCAST: // [NEW] RaycastAction
+                    String rangeExpr = String.valueOf(map.getOrDefault("range", "10.0"));
+                    String subSkillId = (String) map.getOrDefault("sub-skill", "none");
+                    String targetType = (String) map.getOrDefault("target-type", "SINGLE");
+                    return new RaycastAction(plugin, rangeExpr, subSkillId, targetType);
+
+                case SPAWN_ENTITY: // [NEW] SpawnEntityAction
+                    String entityType = (String) map.getOrDefault("entity-type", "LIGHTNING_BOLT");
+                    String onSpawnSkill = (String) map.getOrDefault("skill-id", "none");
+                    return new SpawnEntityAction(plugin, entityType, onSpawnSkill);
 
                 default:
                     return null;
@@ -353,7 +364,12 @@ public class SkillManager {
             config.set(id + ".icon", "BOOK");
             config.set(id + ".max-level", 1);
             config.set(id + ".trigger", "CAST");
+
             config.set(id + ".conditions.cooldown", 1.0);
+            config.set(id + ".conditions.sp-cost", 0);
+            config.set(id + ".conditions.required-level", 1);
+
+            config.set(id + ".actions", new ArrayList<>());
 
             config.save(file);
             loadSkills();

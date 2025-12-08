@@ -15,7 +15,9 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\LoopActi
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\ParticleAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\PotionAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\ProjectileAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\RaycastAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SoundAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SpawnEntityAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\TeleportAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\VelocityAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\SkillAction.java

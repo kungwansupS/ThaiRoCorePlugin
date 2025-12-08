@@ -13,5 +13,7 @@ public enum ActionType {
     DELAY,
     COMMAND,
     VELOCITY, // สำหรับการพุ่ง/กระแทก
-    LOOP      // สำหรับการวนลูป
+    LOOP,      // สำหรับการวนลูป
+    RAYCAST,    // [NEW] สำหรับการโจมตีแบบ Hitscan / Line-of-sight
+    SPAWN_ENTITY // [NEW] สำหรับการสร้าง Entity (เช่น Lightning Bolt, Mob)
 }

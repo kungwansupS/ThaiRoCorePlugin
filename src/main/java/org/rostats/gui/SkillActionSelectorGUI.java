@@ -37,11 +37,37 @@ public class SkillActionSelectorGUI {
         inv.setItem(slot++, createGuiItem(Material.ENDER_PEARL, "§dTELEPORT", "§7Dash/Warp.", "ActionType: TELEPORT"));
         inv.setItem(slot++, createGuiItem(Material.GLASS_BOTTLE, "§fPOTION", "§7Vanilla Potion.", "ActionType: POTION"));
 
-        // [ADDED] Area Effect
         inv.setItem(slot++, createGuiItem(Material.TNT, "§c§lAREA EFFECT",
                 "§7Trigger skills on nearby targets.",
                 "§7(AOE Damage, Buffs, etc.)",
                 "ActionType: AREA_EFFECT"));
+
+        // 10. RAYCAST (Simulates HITSCAN_ENTITIES / MOB_AROUND)
+        inv.setItem(slot++, createGuiItem(Material.DIAMOND_SWORD, "§6RAYCAST",
+                "§7Execute a skill on a line-of-sight target or AOE.",
+                "§7(Simulates HITSCAN_ENTITIES / MOB_AROUND)",
+                "ActionType: RAYCAST"));
+
+        // 11. SPAWN_ENTITY (Simulates SPAWN_ENTITY)
+        inv.setItem(slot++, createGuiItem(Material.EGG, "§6SPAWN_ENTITY",
+                "§7Spawn a non-projectile entity (Lightning/Mob).",
+                "§7(Simulates SPAWN_ENTITY)",
+                "ActionType: SPAWN_ENTITY"));
+
+        // 12. VELOCITY
+        inv.setItem(slot++, createGuiItem(Material.FEATHER, "§dVELOCITY",
+                "§7Apply force to move the target.",
+                "ActionType: VELOCITY"));
+
+        // 13. LOOP
+        inv.setItem(slot++, createGuiItem(Material.REPEATER, "§bLOOP",
+                "§7Execute sub-actions multiple times.",
+                "ActionType: LOOP"));
+
+        // 14. COMMAND
+        inv.setItem(slot++, createGuiItem(Material.COMMAND_BLOCK, "§bCOMMAND",
+                "§7Execute a console/player command.",
+                "ActionType: COMMAND"));
 
         inv.setItem(53, createGuiItem(Material.ARROW, "§cBack", "§7Cancel"));
 

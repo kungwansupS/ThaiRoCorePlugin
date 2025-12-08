@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class GUIListener implements Listener {
 
@@ -157,7 +158,7 @@ public class GUIListener implements Listener {
                         newAction = new SoundAction(snd, vol, pit);
                         break;
                     case PARTICLE:
-                        // 7 Arguments (Strings for Placeholder)
+                        // 7 Arguments (Strings for Placeholder + 3 new for shape/radius/points)
                         newAction = new ParticleAction(plugin,
                                 (String)data.getOrDefault("particle", "VILLAGER_HAPPY"),
                                 String.valueOf(data.getOrDefault("count", "5")),
@@ -214,6 +215,25 @@ public class GUIListener implements Listener {
                             return;
                         }
                         break;
+
+                    case COMMAND:
+                        String command = String.valueOf(data.getOrDefault("command", "say Hi %player%"));
+                        boolean console = Boolean.parseBoolean(String.valueOf(data.getOrDefault("as-console", false)));
+                        newAction = new CommandAction(command, console);
+                        break;
+
+                    case RAYCAST: // [NEW]
+                        String rangeExpr = String.valueOf(data.getOrDefault("range", "10.0"));
+                        String subSkillId = String.valueOf(data.getOrDefault("sub-skill", "none"));
+                        String targetType = String.valueOf(data.getOrDefault("target-type", "SINGLE"));
+                        newAction = new RaycastAction(plugin, rangeExpr, subSkillId, targetType);
+                        break;
+
+                    case SPAWN_ENTITY: // [NEW]
+                        String entityType = String.valueOf(data.getOrDefault("entity-type", "LIGHTNING_BOLT"));
+                        String onSpawnSkill = String.valueOf(data.getOrDefault("skill-id", "none"));
+                        newAction = new SpawnEntityAction(plugin, entityType, onSpawnSkill);
+                        break;
                 }
 
                 if (newAction != null) {
@@ -252,11 +272,14 @@ public class GUIListener implements Listener {
                             int intVal = Integer.parseInt(str);
                             if (intVal < 0) throw new NumberFormatException("Negative");
                             data.put(fKey, intVal);
-                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius") || fKey.equals("x") || fKey.equals("y") || fKey.equals("z") || fKey.equals("start") || fKey.equals("end") || fKey.equals("step") || fKey.equals("points")) {
+                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius") || fKey.equals("x") || fKey.equals("y") || fKey.equals("z")) {
                             double dVal = Double.parseDouble(str);
-                            // Allow negative values for coordinates/step, but not for others
-                            if (dVal < 0 && !fKey.equals("x") && !fKey.equals("y") && !fKey.equals("z") && !fKey.equals("start") && !fKey.equals("end") && !fKey.equals("step")) throw new NumberFormatException("Negative");
+                            // Allow negative values for coordinates, but not for others
+                            if (dVal < 0 && !fKey.equals("x") && !fKey.equals("y") && !fKey.equals("z")) throw new NumberFormatException("Negative");
                             data.put(fKey, dVal);
+                        } else if (fKey.equals("start") || fKey.equals("end") || fKey.equals("step") || fKey.equals("points")) {
+                            // Allow number strings for expression fields
+                            data.put(fKey, str);
                         } else {
                             data.put(fKey, str);
                         }
@@ -287,8 +310,8 @@ public class GUIListener implements Listener {
 
         List<String> lore = clicked.getItemMeta().getLore();
         if (lore != null && !lore.isEmpty()) {
-            String last = lore.get(lore.size() - 1);
-            if (last.startsWith("ActionType: ")) {
+            String last = lore.stream().filter(l -> l.startsWith("ActionType: ")).findFirst().orElse(null);
+            if (last != null) {
                 try {
                     ActionType type = ActionType.valueOf(last.substring(12));
                     SkillData skill = plugin.getSkillManager().getSkill(skillId);
@@ -299,6 +322,7 @@ public class GUIListener implements Listener {
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
                         case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
                         case PARTICLE:
+                            // [UPDATED] Default Particle Action
                             action = new ParticleAction(plugin, "VILLAGER_HAPPY", "5", "0.1", "POINT", "0.5", "20");
                             break;
                         case POTION: action = new PotionAction("SPEED", 60, 0, true); break;
@@ -308,6 +332,9 @@ public class GUIListener implements Listener {
                         case VELOCITY: action = new VelocityAction(0.0, 0.0, 0.0, true); break;
                         case LOOP: action = new LoopAction(plugin, "0", "10", "1", "i", Collections.emptyList()); break;
                         case COMMAND: action = new CommandAction("say Hi %player%", false); break;
+
+                        case RAYCAST: action = new RaycastAction(plugin, "10.0", "none", "SINGLE"); break; // [NEW]
+                        case SPAWN_ENTITY: action = new SpawnEntityAction(plugin, "LIGHTNING_BOLT", "none"); break; // [NEW]
                     }
                     if (action != null) {
                         skill.addAction(action);

@@ -14,6 +14,7 @@ org\rostats\data\PlayerData.class
 org\rostats\engine\action\impl\EffectAction.class
 org\rostats\engine\action\impl\PotionAction.class
 org\rostats\engine\skill\SkillRunner$QueueEntry.class
+org\rostats\engine\action\impl\SpawnEntityAction.class
 org\rostats\itemeditor\ItemAttributeType.class
 org\rostats\gui\SkillEditorGUI.class
 org\rostats\engine\skill\SkillRunner$1.class
@@ -37,6 +38,7 @@ org\rostats\gui\SkillActionSelectorGUI.class
 org\rostats\ThaiRoCorePlugin$1.class
 org\rostats\gui\GUIListener$1.class
 org\rostats\ThaiRoCorePlugin.class
+org\rostats\engine\action\impl\RaycastAction.class
 org\rostats\engine\effect\ActiveEffect.class
 org\rostats\engine\trigger\TriggerType.class
 org\rostats\itemeditor\GUIListener.class
