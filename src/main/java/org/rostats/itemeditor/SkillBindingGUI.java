@@ -9,7 +9,6 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.engine.trigger.TriggerType;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -27,6 +26,7 @@ public class SkillBindingGUI {
     }
 
     public void open(Player player) {
+        // Title ต้องตรงกับที่ GUIListener เช็ค
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("Editor: " + itemFile.getName() + " [SKILLS]"));
 
         ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
@@ -47,10 +47,10 @@ public class SkillBindingGUI {
             inv.setItem(slot++, createGuiItem(Material.ENCHANTED_BOOK, "§6" + binding.getSkillId(), lore));
         }
 
-        // Add Button
+        // Add Button -> เปลี่ยน Description
         inv.setItem(49, createGuiItem(Material.LIME_DYE, "§a§lAdd Skill / เพิ่มสกิล",
-                "§7Bind a new skill to this item.",
-                "§7Requires Skill ID, Trigger, Level, Chance."
+                "§7Click to select a skill from Library.",
+                "§7คลิกเพื่อเลือกสกิลจากคลัง"
         ));
 
         // Back Button
@@ -63,48 +63,6 @@ public class SkillBindingGUI {
         }
 
         player.openInventory(inv);
-    }
-
-    public void openAddSkillSelector(Player player) {
-        // Simple implementation: Use Chat Input for all 4 parameters sequentially
-        // 1. Skill ID
-        plugin.getChatInputHandler().awaitInput(player, "Enter Skill ID (must exist in /roskilleditor):", (skillId) -> {
-            // 2. Trigger Type
-            StringBuilder triggerList = new StringBuilder();
-            for (TriggerType t : TriggerType.values()) triggerList.append(t.name()).append(", ");
-
-            plugin.getChatInputHandler().awaitInput(player, "Enter Trigger Type (" + triggerList + "):", (triggerStr) -> {
-                try {
-                    TriggerType trigger = TriggerType.valueOf(triggerStr.toUpperCase());
-
-                    // 3. Level
-                    plugin.getChatInputHandler().awaitInput(player, "Enter Skill Level:", (lvlStr) -> {
-                        try {
-                            int level = Integer.parseInt(lvlStr);
-
-                            // 4. Chance
-                            plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0 - 1.0):", (chanceStr) -> {
-                                try {
-                                    double chance = Double.parseDouble(chanceStr);
-
-                                    // Save
-                                    ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-                                    ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
-                                    attr.getSkillBindings().add(new ItemSkillBinding(skillId, trigger, level, chance));
-                                    plugin.getItemManager().saveItem(itemFile, attr, stack);
-
-                                    player.sendMessage("§aSkill bound successfully!");
-
-                                    // Re-open GUI (Sync)
-                                    plugin.getServer().getScheduler().runTask(plugin, () -> open(player));
-
-                                } catch (Exception e) { player.sendMessage("§cInvalid Chance"); }
-                            });
-                        } catch (Exception e) { player.sendMessage("§cInvalid Level"); }
-                    });
-                } catch (Exception e) { player.sendMessage("§cInvalid Trigger Type"); }
-            });
-        });
     }
 
     private ItemStack createGuiItem(Material mat, String name, List<String> lore) {

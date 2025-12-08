@@ -14,6 +14,7 @@ org\rostats\engine\action\impl\EffectAction.class
 org\rostats\engine\action\impl\PotionAction.class
 org\rostats\itemeditor\ItemAttributeType.class
 org\rostats\gui\SkillEditorGUI.class
+org\rostats\itemeditor\TriggerSelectorGUI.class
 org\rostats\data\DataManager.class
 org\rostats\engine\action\impl\AreaAction.class
 org\rostats\utils\FormulaParser$1.class

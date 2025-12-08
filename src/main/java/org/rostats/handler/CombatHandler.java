@@ -42,22 +42,41 @@ public class CombatHandler implements Listener {
         this.jobExpRatio = plugin.getConfig().getDouble("exp-formula.job-exp-ratio", 0.75);
     }
 
-    // --- Active Skill Trigger (Right Click) ---
-    // Right-Click uses item in hand, still needs NBT reading as it's an active action
+    // --- Active Skill Trigger (Clicks) ---
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            Player player = event.getPlayer();
-            ItemStack item = event.getItem();
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+        if (item == null || item.getType() == Material.AIR) return;
 
-            if (item == null || item.getType() == Material.AIR) return;
+        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+        if (attr == null) return;
 
-            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-            if (attr == null) return;
+        TriggerType type = null;
+        Action action = event.getAction();
+        boolean isSneaking = player.isSneaking();
 
-            for (ItemSkillBinding binding : attr.getSkillBindings()) {
-                if (binding.getTrigger() == TriggerType.CAST) {
-                    plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), null);
+        if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+            type = isSneaking ? TriggerType.SHIFT_RIGHT_CLICK : TriggerType.RIGHT_CLICK;
+        } else if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+            type = isSneaking ? TriggerType.SHIFT_LEFT_CLICK : TriggerType.LEFT_CLICK;
+        }
+
+        if (type != null) {
+            // Support legacy CAST trigger for Right Click
+            if (type == TriggerType.RIGHT_CLICK) {
+                checkAndCast(player, attr, TriggerType.CAST, null);
+            }
+            // Execute exact trigger
+            checkAndCast(player, attr, type, null);
+        }
+    }
+
+    private void checkAndCast(Player player, ItemAttribute attr, TriggerType type, LivingEntity target) {
+        for (ItemSkillBinding binding : attr.getSkillBindings()) {
+            if (binding.getTrigger() == type) {
+                if (random.nextDouble() < binding.getChance()) {
+                    plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), target);
                 }
             }
         }

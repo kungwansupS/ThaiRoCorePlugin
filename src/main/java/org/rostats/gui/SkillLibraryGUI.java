@@ -3,6 +3,7 @@ package org.rostats.gui;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
@@ -11,6 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -25,8 +27,18 @@ public class SkillLibraryGUI {
     }
 
     public void open(Player player) {
+        open(player, false);
+    }
+
+    public void openSelectMode(Player player) {
+        open(player, true);
+    }
+
+    private void open(Player player, boolean selectMode) {
         String pathDisplay = plugin.getSkillManager().getRelativePath(currentDir);
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("SkillLib: " + pathDisplay));
+        // ถ้าเป็น selectMode ให้ใช้ Title ต่างออกไป เพื่อให้ GUIListener ดักจับได้
+        String title = (selectMode ? "SkillSelect: " : "SkillLib: ") + pathDisplay;
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text(title));
 
         // 1. Navigation
         if (!currentDir.equals(plugin.getSkillManager().getRootDir())) {
@@ -43,17 +55,24 @@ public class SkillLibraryGUI {
             ));
         }
 
-        inv.setItem(4, createGuiItem(Material.CHEST, "§aNew Folder / สร้างโฟลเดอร์",
-                "§7Create a new folder.",
-                "§8---------------",
-                "§7สร้างโฟลเดอร์ใหม่เพื่อจัดหมวดหมู่"
-        ));
+        if (!selectMode) {
+            inv.setItem(4, createGuiItem(Material.CHEST, "§aNew Folder / สร้างโฟลเดอร์",
+                    "§7Create a new folder.",
+                    "§8---------------",
+                    "§7สร้างโฟลเดอร์ใหม่เพื่อจัดหมวดหมู่"
+            ));
 
-        inv.setItem(8, createGuiItem(Material.WRITABLE_BOOK, "§aNew Skill / สร้างสกิล",
-                "§7Create a new skill file.",
-                "§8---------------",
-                "§7สร้างไฟล์สกิลใหม่ในโฟลเดอร์นี้"
-        ));
+            inv.setItem(8, createGuiItem(Material.WRITABLE_BOOK, "§aNew Skill / สร้างสกิล",
+                    "§7Create a new skill file.",
+                    "§8---------------",
+                    "§7สร้างไฟล์สกิลใหม่ในโฟลเดอร์นี้"
+            ));
+        } else {
+            inv.setItem(4, createGuiItem(Material.COMPASS, "§bSelect Mode",
+                    "§7Click a skill to select it.",
+                    "§7คลิกที่สกิลเพื่อเลือก"
+            ));
+        }
 
         // 2. Content Grid
         List<File> files = plugin.getSkillManager().listContents(currentDir);
@@ -65,21 +84,43 @@ public class SkillLibraryGUI {
             if (file.isDirectory()) {
                 inv.setItem(slot, createGuiItem(Material.CHEST, "§6§l" + file.getName(),
                         "§eLEFT CLICK §7to Open",
-                        "§bSHIFT+RIGHT §7to Rename",
-                        "§cSHIFT+LEFT §7to Delete",
+                        selectMode ? "" : "§bSHIFT+RIGHT §7to Rename",
+                        selectMode ? "" : "§cSHIFT+LEFT §7to Delete",
                         "§8---------------",
-                        "§eคลิกซ้าย §7เพื่อเปิดโฟลเดอร์",
-                        "§bShift+ขวา §7เพื่อเปลี่ยนชื่อ",
-                        "§cShift+ซ้าย §7เพื่อลบ"
+                        "§eคลิกซ้าย §7เพื่อเปิดโฟลเดอร์"
                 ));
             } else {
-                inv.setItem(slot, createGuiItem(Material.BOOK, "§f" + file.getName().replace(".yml", ""),
-                        "§eLEFT CLICK §7to Edit",
-                        "§cSHIFT+LEFT §7to Delete",
-                        "§8---------------",
-                        "§eคลิกซ้าย §7เพื่อแก้ไขสกิล",
-                        "§cShift+ซ้าย §7เพื่อลบ"
-                ));
+                // Load Skill Data for preview
+                String skillId = file.getName().replace(".yml", "");
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+
+                // Try to find the root key which is usually the skillId
+                String displayName = config.getString(skillId + ".display-name", skillId);
+                String iconName = config.getString(skillId + ".icon", "BOOK");
+                Material iconMat = Material.getMaterial(iconName);
+                if (iconMat == null) iconMat = Material.BOOK;
+
+                double cooldown = config.getDouble(skillId + ".conditions.cooldown", 0);
+                int spCost = config.getInt(skillId + ".conditions.sp-cost", 0);
+                int reqLevel = config.getInt(skillId + ".conditions.required-level", 1);
+                String trigger = config.getString(skillId + ".trigger", "CAST");
+
+                List<String> lore = new ArrayList<>();
+                lore.add("§8ID: " + skillId);
+                lore.add("§7Type: §f" + trigger);
+                lore.add("§7Cooldown: §f" + cooldown + "s");
+                lore.add("§7SP Cost: §f" + spCost);
+                lore.add("§7Req Lv: §f" + reqLevel);
+                lore.add("§8---------------");
+
+                if (selectMode) {
+                    lore.add("§a§lCLICK TO SELECT / คลิกเพื่อเลือก");
+                } else {
+                    lore.add("§eLEFT CLICK §7to Edit");
+                    lore.add("§cSHIFT+LEFT §7to Delete");
+                }
+
+                inv.setItem(slot, createGuiItem(iconMat, "§f" + displayName, lore));
             }
             slot++;
         }
@@ -93,40 +134,29 @@ public class SkillLibraryGUI {
         player.openInventory(inv);
     }
 
+    // ... (confirmDelete method same as before) ...
     public void openConfirmDelete(Player player, File fileToDelete) {
         Inventory inv = Bukkit.createInventory(null, 27, Component.text("Skill Delete: " + fileToDelete.getName()));
-
-        ItemStack yes = createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE / ยืนยัน",
-                "§7File: " + fileToDelete.getName(),
-                "§cCannot be undone!",
-                "§8---------------",
-                "§7ไฟล์: " + fileToDelete.getName(),
-                "§cไม่สามารถกู้คืนได้!"
-        );
-
-        ItemStack no = createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL / ยกเลิก",
-                "§7Return to library",
-                "§8---------------",
-                "§7กลับไปหน้าคลังสกิล"
-        );
-
+        ItemStack yes = createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE", "§7File: " + fileToDelete.getName());
+        ItemStack no = createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL");
         inv.setItem(11, yes);
         inv.setItem(15, no);
-
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
-        for (int i=0; i<27; i++) {
-            if (inv.getItem(i) == null) inv.setItem(i, bg);
-        }
-
+        for (int i=0; i<27; i++) { if (inv.getItem(i) == null) inv.setItem(i, bg); }
         player.openInventory(inv);
     }
 
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
+        return createGuiItem(mat, name, Arrays.asList(lore));
+    }
+
+    private ItemStack createGuiItem(Material mat, String name, List<String> lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
-        meta.setLore(Arrays.asList(lore));
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        meta.setLore(lore);
+        // [FIX] ใช้ HIDE_ADDITIONAL_TOOLTIP แทน HIDE_POTION_EFFECTS สำหรับ 1.21
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         item.setItemMeta(meta);
         return item;
     }
