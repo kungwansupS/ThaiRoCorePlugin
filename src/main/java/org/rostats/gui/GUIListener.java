@@ -19,7 +19,6 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-import org.rostats.handler.ManaManager;
 import org.rostats.itemeditor.AttributeEditorGUI;
 import org.rostats.itemeditor.EffectEnchantGUI;
 import org.rostats.itemeditor.ItemAttribute;
@@ -154,13 +153,10 @@ public class GUIListener implements Listener {
 
                 switch (type) {
                     case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
-
-                    // [FIXED] เพิ่ม self-only argument (4 ตัว)
                     case HEAL:
                         boolean hSelf = (boolean) data.getOrDefault("self-only", true);
                         newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), (boolean)data.getOrDefault("is-mana", false), hSelf);
                         break;
-
                     case APPLY_EFFECT:
                         String eid = String.valueOf(data.getOrDefault("effect-id", "unknown"));
                         EffectType et = EffectType.valueOf(String.valueOf(data.getOrDefault("effect-type", "STAT_MODIFIER")));
@@ -185,8 +181,6 @@ public class GUIListener implements Listener {
                         double off = Double.parseDouble(String.valueOf(data.getOrDefault("offset", "0.5")));
                         newAction = new ParticleAction(par, cnt, spd, off);
                         break;
-
-                    // [FIXED] เพิ่ม self-only argument (4 ตัว)
                     case POTION:
                         String pot = String.valueOf(data.getOrDefault("potion", "SPEED"));
                         int dur = Integer.parseInt(String.valueOf(data.getOrDefault("duration", "60")));
@@ -194,7 +188,6 @@ public class GUIListener implements Listener {
                         boolean pSelf = (boolean) data.getOrDefault("self-only", true);
                         newAction = new PotionAction(pot, dur, amp, pSelf);
                         break;
-
                     case TELEPORT:
                         double rng = Double.parseDouble(String.valueOf(data.getOrDefault("range", "5.0")));
                         boolean tgt = (boolean) data.getOrDefault("to-target", false);
@@ -248,15 +241,21 @@ public class GUIListener implements Listener {
                 plugin.getChatInputHandler().awaitInput(player, "Enter value for " + fKey + ":", (str) -> {
                     try {
                         if (fKey.equals("level") || fKey.equals("duration") || fKey.equals("count") || fKey.equals("amplifier") || fKey.equals("max-targets")) {
-                            data.put(fKey, Integer.parseInt(str));
+                            int intVal = Integer.parseInt(str);
+                            if (intVal < 0) throw new NumberFormatException("Negative"); // Validate
+                            data.put(fKey, intVal);
                         } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius")) {
-                            data.put(fKey, Double.parseDouble(str));
+                            double dVal = Double.parseDouble(str);
+                            if (dVal < 0) throw new NumberFormatException("Negative"); // Validate
+                            data.put(fKey, dVal);
                         } else {
                             data.put(fKey, str);
                         }
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     } catch (Exception e) {
-                        player.sendMessage("§cInvalid format.");
+                        // [FIX] Improved Error Feedback
+                        player.sendMessage("§cInvalid input! Must be a positive number.");
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
                         runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
                     }
                 });
@@ -288,12 +287,10 @@ public class GUIListener implements Listener {
                     SkillAction action = null;
                     switch (type) {
                         case DAMAGE: action = new DamageAction(plugin, "ATK * 1.0", "NEUTRAL"); break;
-                        // [FIXED] Default values for 4 args
                         case HEAL: action = new HealAction(plugin, "10", false, true); break;
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
                         case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
                         case PARTICLE: action = new ParticleAction("VILLAGER_HAPPY", 5, 0.1, 0.5); break;
-                        // [FIXED] Default values for 4 args
                         case POTION: action = new PotionAction("SPEED", 60, 0, true); break;
                         case TELEPORT: action = new TeleportAction(5.0, false); break;
                         case PROJECTILE: action = new ProjectileAction(plugin, "ARROW", 1.5, "none"); break;
@@ -309,6 +306,8 @@ public class GUIListener implements Listener {
             }
         }
     }
+
+    // ... (ส่วนอื่นๆ ของคลาสที่ไม่ได้เปลี่ยนแปลง คงเดิม) ...
 
     private void handleSkillEditorClick(InventoryClickEvent event, Player player, String skillId) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);
@@ -594,8 +593,15 @@ public class GUIListener implements Listener {
             new EffectEnchantGUI(plugin, itemFile, mode).open(player);
         } else if (slot == 50 && selected != null) {
             plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
-                try { int lvl = Integer.parseInt(str); applyEffectEnchant(player, itemFile, mode, selected, lvl, true); }
-                catch (NumberFormatException e) { player.sendMessage("§cInvalid"); runSync(() -> new EffectEnchantGUI(plugin, itemFile, mode).open(player)); }
+                // [FIX] Validate Level
+                try {
+                    int lvl = Integer.parseInt(str);
+                    if (lvl < 0) throw new NumberFormatException("Negative");
+                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
+                } catch (Exception e) {
+                    player.sendMessage("§cInvalid number! Must be a positive integer.");
+                    runSync(() -> new EffectEnchantGUI(plugin, itemFile, mode).open(player));
+                }
             });
         } else if (slot == 51 && selected != null) {
             applyEffectEnchant(player, itemFile, mode, selected, 1, true);

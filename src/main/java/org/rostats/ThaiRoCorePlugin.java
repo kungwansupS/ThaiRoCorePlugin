@@ -55,7 +55,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private EffectManager effectManager;
     private SkillManager skillManager;
 
-    // [FIX] Set สำหรับเก็บ Entity ที่สร้างไว้ (เพื่อลบตอนปิด Server)
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -122,7 +121,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         // 7. Tasks
         getServer().getScheduler().runTaskTimer(this, () -> {
             for (Player player : getServer().getOnlinePlayers()) {
-                dataManager.savePlayerData(player);
+                // Auto-save: Async is fine
+                dataManager.savePlayerData(player, true);
             }
             getLogger().info("💾 Auto-Saved all player data.");
         }, 6000L, 6000L);
@@ -140,12 +140,12 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public void onDisable() {
         if (dataManager != null) {
             for (Player player : getServer().getOnlinePlayers()) {
-                dataManager.savePlayerData(player);
+                // [FIX] Force Sync Save on Disable
+                dataManager.savePlayerData(player, false);
                 if (manaManager != null) manaManager.removeBar(player);
             }
         }
 
-        // [FIX] Cleanup Floating Texts
         for (Entity entity : activeFloatingTexts) {
             if (entity != null && entity.isValid()) {
                 entity.remove();
@@ -170,9 +170,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        dataManager.savePlayerData(event.getPlayer());
+        // [FIX] Async save on quit is fine
+        dataManager.savePlayerData(event.getPlayer(), true);
 
-        // [FIX] Clean up memory
         statManager.removeData(event.getPlayer().getUniqueId());
         if (manaManager != null) {
             manaManager.removeBar(event.getPlayer());
@@ -181,7 +181,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // --- Floating Text Helpers ---
     public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
@@ -201,7 +200,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.customName(Component.text(text));
             stand.setSmall(true);
 
-            // [FIX] Add to cleanup list
             activeFloatingTexts.add(stand);
 
             BukkitTask[] task = new BukkitTask[1];
@@ -213,7 +211,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
                 public void run() {
                     if (stand.isDead() || ticks >= 20) {
                         stand.remove();
-                        // [FIX] Remove from cleanup list
                         activeFloatingTexts.remove(stand);
 
                         if (task[0] != null) task[0].cancel();

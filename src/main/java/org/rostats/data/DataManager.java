@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class DataManager {
 
@@ -25,78 +26,88 @@ public class DataManager {
 
     public void loadPlayerData(Player player) {
         UUID uuid = player.getUniqueId();
-        PlayerData data = plugin.getStatManager().getData(uuid);
-
-        File file = new File(plugin.getDataFolder(), "userdata/" + uuid + ".yml");
-
-        if (file.exists()) {
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            data.setBaseLevel(config.getInt("base-level", 1));
-            data.setBaseExp(config.getLong("base-exp", 0));
-            data.setJobLevel(config.getInt("job-level", 1));
-            data.setJobExp(config.getLong("job-exp", 0));
-            data.setStatPoints(config.getInt("points", 0));
-            data.setSkillPoints(config.getInt("skill-points", 0));
-            data.setResetCount(config.getInt("reset-count", 0));
-
-            data.setStat("STR", config.getInt("stats.STR", 1));
-            data.setStat("AGI", config.getInt("stats.AGI", 1));
-            data.setStat("VIT", config.getInt("stats.VIT", 1));
-            data.setStat("INT", config.getInt("stats.INT", 1));
-            data.setStat("DEX", config.getInt("stats.DEX", 1));
-            data.setStat("LUK", config.getInt("stats.LUK", 1));
-
-            data.calculateMaxSP();
-            if (config.contains("current-sp")) {
-                data.setCurrentSP(config.getDouble("current-sp"));
-            } else {
-                data.setCurrentSP(data.getMaxSP());
+        // [FIX] Run File IO Asynchronously
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            File file = new File(plugin.getDataFolder(), "userdata/" + uuid + ".yml");
+            if (!file.exists()) {
+                // If new player, just save defaults (Async is safer here too)
+                savePlayerData(player, true);
+                return;
             }
 
-            // --- Load Active Effects ---
-            data.getActiveEffects().clear();
-            if (config.contains("active-effects")) {
-                ConfigurationSection effSec = config.getConfigurationSection("active-effects");
-                for (String key : effSec.getKeys(false)) {
-                    ConfigurationSection s = effSec.getConfigurationSection(key);
-                    try {
-                        String id = s.getString("id");
-                        EffectType type = EffectType.valueOf(s.getString("type"));
-                        int level = s.getInt("level");
-                        double power = s.getDouble("power");
-                        long duration = s.getLong("duration");
-                        long interval = s.getLong("interval", 0);
-                        String sourceStr = s.getString("source");
-                        UUID source = (sourceStr != null && !sourceStr.isEmpty()) ? UUID.fromString(sourceStr) : null;
-                        String statKey = s.getString("stat-key", null);
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
-                        ActiveEffect effect = new ActiveEffect(id, type, level, power, duration, interval, source);
-                        if (statKey != null) effect.setStatKey(statKey);
+            // [FIX] Apply data on Main Thread
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return; // Player might have quit during load
 
-                        data.addActiveEffect(effect);
-                    } catch (Exception e) {
-                        plugin.getLogger().warning("Failed to load effect: " + key + " for " + player.getName());
+                PlayerData data = plugin.getStatManager().getData(uuid);
+
+                data.setBaseLevel(config.getInt("base-level", 1));
+                data.setBaseExp(config.getLong("base-exp", 0));
+                data.setJobLevel(config.getInt("job-level", 1));
+                data.setJobExp(config.getLong("job-exp", 0));
+                data.setStatPoints(config.getInt("points", 0));
+                data.setSkillPoints(config.getInt("skill-points", 0));
+                data.setResetCount(config.getInt("reset-count", 0));
+
+                data.setStat("STR", config.getInt("stats.STR", 1));
+                data.setStat("AGI", config.getInt("stats.AGI", 1));
+                data.setStat("VIT", config.getInt("stats.VIT", 1));
+                data.setStat("INT", config.getInt("stats.INT", 1));
+                data.setStat("DEX", config.getInt("stats.DEX", 1));
+                data.setStat("LUK", config.getInt("stats.LUK", 1));
+
+                data.calculateMaxSP();
+                if (config.contains("current-sp")) {
+                    data.setCurrentSP(config.getDouble("current-sp"));
+                } else {
+                    data.setCurrentSP(data.getMaxSP());
+                }
+
+                // Load Active Effects
+                data.getActiveEffects().clear();
+                if (config.contains("active-effects")) {
+                    ConfigurationSection effSec = config.getConfigurationSection("active-effects");
+                    for (String key : effSec.getKeys(false)) {
+                        ConfigurationSection s = effSec.getConfigurationSection(key);
+                        try {
+                            String id = s.getString("id");
+                            EffectType type = EffectType.valueOf(s.getString("type"));
+                            int level = s.getInt("level");
+                            double power = s.getDouble("power");
+                            long duration = s.getLong("duration");
+                            long interval = s.getLong("interval", 0);
+                            String sourceStr = s.getString("source");
+                            UUID source = (sourceStr != null && !sourceStr.isEmpty()) ? UUID.fromString(sourceStr) : null;
+                            String statKey = s.getString("stat-key", null);
+
+                            ActiveEffect effect = new ActiveEffect(id, type, level, power, duration, interval, source);
+                            if (statKey != null) effect.setStatKey(statKey);
+
+                            data.addActiveEffect(effect);
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Failed to load effect: " + key + " for " + player.getName());
+                        }
                     }
                 }
-            }
-            // ---------------------------
 
-            plugin.getLogger().info("📄 Loaded data for " + player.getName());
-        } else {
-            savePlayerData(player);
-        }
-        plugin.getAttributeHandler().updatePlayerStats(player);
-        plugin.getManaManager().updateBar(player);
-        plugin.getManaManager().updateBaseExpBar(player);
-        plugin.getManaManager().updateJobExpBar(player);
+                plugin.getAttributeHandler().updatePlayerStats(player);
+                plugin.getManaManager().updateBar(player);
+                plugin.getManaManager().updateBaseExpBar(player);
+                plugin.getManaManager().updateJobExpBar(player);
+                plugin.getLogger().info("📄 Loaded data for " + player.getName());
+            });
+        });
     }
 
-    public void savePlayerData(Player player) {
+    public void savePlayerData(Player player, boolean async) {
         UUID uuid = player.getUniqueId();
-        File file = new File(plugin.getDataFolder(), "userdata/" + uuid + ".yml");
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-
         PlayerData data = plugin.getStatManager().getData(uuid);
+
+        // [FIX] Prepare data on Main Thread to avoid concurrency modification exceptions
+        // Create a temporary config object in memory
+        YamlConfiguration config = new YamlConfiguration();
 
         config.set("name", player.getName());
         config.set("base-level", data.getBaseLevel());
@@ -115,8 +126,6 @@ public class DataManager {
         config.set("stats.DEX", data.getStat("DEX"));
         config.set("stats.LUK", data.getStat("LUK"));
 
-        // --- Save Active Effects ---
-        config.set("active-effects", null); // Clear old
         int idx = 0;
         for (ActiveEffect effect : data.getActiveEffects()) {
             String path = "active-effects." + idx;
@@ -125,22 +134,31 @@ public class DataManager {
             config.set(path + ".level", effect.getLevel());
             config.set(path + ".power", effect.getPower());
             config.set(path + ".duration", effect.getDurationTicks());
-            // interval is private, assume standard for now or make getter if critical (omitted for simplicity if not generic)
-            // But we have constructor for it, let's assume we don't save interval for simple effects or add getter later.
-            // Wait, ActiveEffect doesn't expose intervalTicks getter in Phase 1 code.
-            // For now, save what we can.
-            // FIX: If we need to save interval, we need getter. Assuming default interval or re-config on load for skills.
-            // But for now let's save source.
             if (effect.getSource() != null) config.set(path + ".source", effect.getSource().toString());
             if (effect.getStatKey() != null) config.set(path + ".stat-key", effect.getStatKey());
             idx++;
         }
-        // ---------------------------
 
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            e.printStackTrace();
+        // Define the save task
+        Runnable saveTask = () -> {
+            try {
+                File file = new File(plugin.getDataFolder(), "userdata/" + uuid + ".yml");
+                config.save(file);
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not save data for " + player.getName(), e);
+            }
+        };
+
+        // [FIX] Execute based on async flag
+        if (async) {
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, saveTask);
+        } else {
+            saveTask.run(); // Run immediately (Sync) for onDisable
         }
+    }
+
+    // Overload for backward compatibility (default async for safety in runtime)
+    public void savePlayerData(Player player) {
+        savePlayerData(player, true);
     }
 }

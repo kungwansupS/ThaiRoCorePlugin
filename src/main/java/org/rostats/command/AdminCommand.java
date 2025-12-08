@@ -20,22 +20,18 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
     private final ThaiRoCorePlugin plugin;
 
-    // Define all top-level sub-commands
     private static final List<String> MAIN_COMMANDS = Arrays.asList(
-            "check", "reset", "set", "add", "save", "reload" // Added reload
+            "check", "reset", "set", "add", "save", "reload"
     );
 
-    // Define all reset sub-sub-commands
     private static final List<String> RESET_COMMANDS = Arrays.asList(
             "blevel", "jlevel", "stat"
     );
 
-    // Define the types that can be SET or ADDED
     private static final List<String> SET_ADD_TYPES = Arrays.asList(
             "blevel", "jlevel", "points", "bexp", "jexp", "stat"
     );
 
-    // Define stat keys
     private static final List<String> STAT_KEYS = Arrays.asList(
             "STR", "AGI", "VIT", "INT", "DEX", "LUK"
     );
@@ -59,9 +55,9 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[0].toLowerCase();
 
-        // 1. Handle Global Commands (save, reload)
         if (sub.equals("save")) {
-            for (Player p : Bukkit.getOnlinePlayers()) plugin.getDataManager().savePlayerData(p);
+            // [FIX] Save async via command is safe and preferred
+            for (Player p : Bukkit.getOnlinePlayers()) plugin.getDataManager().savePlayerData(p, true);
             sender.sendMessage("§aSaved data.");
             return true;
         }
@@ -72,7 +68,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 2. All other commands require a target player (args[1])
         if (args.length < 2) {
             sendHelp(sender);
             return true;
@@ -87,14 +82,14 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         PlayerData data = plugin.getStatManager().getData(target.getUniqueId());
 
         switch (sub) {
-            case "check": // /roadmin check <player>
+            case "check":
                 sender.sendMessage("§6--- " + target.getName() + " ---");
                 sender.sendMessage("§eBase Lv: " + data.getBaseLevel() + " (" + data.getBaseExp() + "/" + data.getBaseExpReq() + ")");
                 sender.sendMessage("§eJob Lv: " + data.getJobLevel() + " (" + data.getJobExp() + "/" + data.getJobExpReq() + ")");
                 sender.sendMessage("§eStat Points: " + data.getStatPoints() + " | Skill Points: " + data.getSkillPoints());
                 break;
 
-            case "add": // /roadmin add (bexp|jexp|points|stat) <player> <value> [stat_key]
+            case "add":
                 if (args.length < 4) return true;
                 String addType = args[2].toLowerCase();
 
@@ -111,13 +106,12 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                         int intVal = Integer.parseInt(args[3]);
                         data.setStatPoints(data.getStatPoints() + intVal);
                         sender.sendMessage("§aAdded " + intVal + " Stat Points.");
-                    } else if (addType.equals("stat")) { // /roadmin add stat <player> <STAT> <value>
+                    } else if (addType.equals("stat")) {
                         if (args.length < 5) return true;
                         String statKey = args[3].toUpperCase();
                         int addVal = Integer.parseInt(args[4]);
 
                         if (STAT_KEYS.contains(statKey)) {
-                            // Directly modify stat value
                             plugin.getStatManager().setStat(target.getUniqueId(), statKey, data.getStat(statKey) + addVal);
                             sender.sendMessage("§aAdded " + addVal + " to " + statKey + ".");
                         } else {
@@ -125,7 +119,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                             return true;
                         }
                     } else {
-                        return true; // Invalid addType
+                        return true;
                     }
                     update(target);
                 } catch (NumberFormatException e) {
@@ -133,7 +127,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                 }
                 break;
 
-            case "set": // /roadmin set (blevel|jlevel|points|stat) <player> <value> [stat_key]
+            case "set":
                 if (args.length < 4) return true;
                 String setType = args[2].toLowerCase();
 
@@ -143,7 +137,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                     if (setType.equals("blevel")) data.setBaseLevel(val);
                     else if (setType.equals("jlevel")) data.setJobLevel(val);
                     else if (setType.equals("points")) data.setStatPoints(val);
-                    else if (setType.equals("stat")) { // /roadmin set stat <player> <STAT> <value>
+                    else if (setType.equals("stat")) {
                         if (args.length < 5) return true;
                         String statKey = args[3].toUpperCase();
                         int setVal = Integer.parseInt(args[4]);
@@ -155,7 +149,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                             return true;
                         }
                     } else {
-                        return true; // Invalid setType
+                        return true;
                     }
 
                     sender.sendMessage("§aValue set.");
@@ -165,7 +159,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                 }
                 break;
 
-            case "reset": // /roadmin reset (blevel|jlevel|stat) <player>
+            case "reset":
                 if (args.length < 3) return true;
                 String resetType = args[2].toLowerCase();
 
@@ -181,12 +175,12 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                     data.setSkillPoints(0);
                     sender.sendMessage("§aJob Level reset to 1. Skill points cleared.");
                     update(target);
-                } else if (resetType.equals("stat")) { // /roadmin reset stat <player>
-                    data.resetStats(); // Resets stats to 1 and recalculates points
+                } else if (resetType.equals("stat")) {
+                    data.resetStats();
                     sender.sendMessage("§aStats reset to 1. Points recalculated.");
                     update(target);
                 } else {
-                    return true; // Invalid resetType
+                    return true;
                 }
                 break;
         }
@@ -214,11 +208,9 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         List<String> completions = new ArrayList<>();
 
-        // Arg 1: Main Commands
         if (args.length == 1) {
             StringUtil.copyPartialMatches(args[0], MAIN_COMMANDS, completions);
         }
-        // Arg 2: Player Names (for all player-based commands)
         else if (args.length == 2 && MAIN_COMMANDS.contains(args[0].toLowerCase())) {
             if (!args[0].equalsIgnoreCase("save") && !args[0].equalsIgnoreCase("reload")) {
                 List<String> playerNames = Bukkit.getOnlinePlayers().stream()
@@ -227,7 +219,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                 StringUtil.copyPartialMatches(args[1], playerNames, completions);
             }
         }
-        // Arg 3: Context-sensitive argument (reset/set/add type)
         else if (args.length == 3) {
             String sub = args[0].toLowerCase();
             if (sub.equals("reset")) {
@@ -236,7 +227,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                 StringUtil.copyPartialMatches(args[2], SET_ADD_TYPES, completions);
             }
         }
-        // Arg 4: STAT key or Value (for set/add level/exp/points)
         else if (args.length == 4) {
             String sub = args[0].toLowerCase();
             String type = args[2].toLowerCase();
@@ -246,19 +236,16 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             } else if (sub.equals("add") && type.equals("stat")) {
                 StringUtil.copyPartialMatches(args[3], STAT_KEYS, completions);
             } else if ((sub.equals("set") || sub.equals("add")) && (type.equals("blevel") || type.equals("jlevel") || type.equals("points"))) {
-                // Suggest common values for levels/points
                 completions.add("1");
                 completions.add("50");
                 completions.add("100");
                 completions.add("500");
             } else if ((sub.equals("set") || sub.equals("add")) && (type.equals("bexp") || type.equals("jexp"))) {
-                // Suggest common values for EXP
                 completions.add("1000");
                 completions.add("10000");
                 completions.add("100000");
             }
         }
-        // Arg 5: Value for set/add stat
         else if (args.length == 5) {
             String sub = args[0].toLowerCase();
             String type = args[2].toLowerCase();
