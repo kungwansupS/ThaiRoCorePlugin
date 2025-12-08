@@ -3,6 +3,7 @@ package org.rostats.engine.action.impl;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
@@ -33,7 +34,7 @@ public class DamageAction implements SkillAction {
     public void execute(LivingEntity caster, LivingEntity target, int level) {
         // Find target if active skill (target is null)
         if (target == null) {
-            target = findTarget(caster, 10); // RayTrace 10 blocks
+            target = findTarget(caster, 10); // Use the new RayTrace finding
         }
 
         if (target == null) return; // No target found, fail silently
@@ -53,15 +54,19 @@ public class DamageAction implements SkillAction {
         plugin.showDamageFCT(target.getLocation(), damage);
     }
 
+    // [FIX] Replaced the inefficient and inaccurate findTarget with a proper RayTrace
     private LivingEntity findTarget(LivingEntity caster, int range) {
-        for (Entity e : caster.getNearbyEntities(range, range, range)) {
-            if (e instanceof LivingEntity && e != caster) {
-                // Simple LoS check: Is it roughly in front? (Angle < 30 degrees approx)
-                Vector toTarget = e.getLocation().toVector().subtract(caster.getLocation().toVector());
-                if (caster.getLocation().getDirection().angle(toTarget) < 0.5) {
-                    return (LivingEntity) e;
-                }
-            }
+        // Use Bukkit's rayTrace which correctly checks Line-of-Sight and distance.
+        RayTraceResult result = caster.getWorld().rayTraceEntities(
+                caster.getEyeLocation(),
+                caster.getEyeLocation().getDirection(),
+                range,
+                0.2, // Radius to check for entities
+                e -> e instanceof LivingEntity && !e.equals(caster) // Filter: only LivingEntity, not self
+        );
+
+        if (result != null && result.getHitEntity() instanceof LivingEntity) {
+            return (LivingEntity) result.getHitEntity();
         }
         return null;
     }

@@ -3,6 +3,7 @@ package org.rostats;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World; // [NEW] Import World
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -36,6 +37,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.NamespacedKey; // [NEW]
+import org.bukkit.persistence.PersistentDataType; // [NEW]
 
 public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
@@ -56,10 +59,25 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private SkillManager skillManager;
 
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
+    private NamespacedKey floatingTextKey; // [NEW]
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+
+        // [NEW] Initialize Key for Floating Text Cleanup
+        this.floatingTextKey = new NamespacedKey(this, "RO_FLOATING_TEXT");
+
+        // [NEW] Cleanup old ArmorStands (Run on Main thread first)
+        getServer().getScheduler().runTask(this, () -> {
+            for (World world : getServer().getWorlds()) {
+                world.getEntities().stream()
+                        .filter(e -> e instanceof ArmorStand)
+                        .filter(e -> e.getPersistentDataContainer().has(floatingTextKey, PersistentDataType.STRING))
+                        .forEach(Entity::remove);
+            }
+        });
+
 
         // 1. Initialize Core Managers
         this.statManager = new StatManager(this);
@@ -105,6 +123,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
         PluginCommand itemEditCmd = getCommand("roitemedit");
         if (itemEditCmd != null) {
+            // [FIXED] ใช้ Constructor ที่ถูกต้อง (new ItemEditorCommand(this))
             itemEditCmd.setExecutor(new ItemEditorCommand(this));
         }
 
@@ -199,6 +218,11 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             stand.setCustomNameVisible(true);
             stand.customName(Component.text(text));
             stand.setSmall(true);
+
+            // [NEW]: Tag the ArmorStand for cleanup
+            if (floatingTextKey != null) {
+                stand.getPersistentDataContainer().set(floatingTextKey, PersistentDataType.STRING, "true");
+            }
 
             activeFloatingTexts.add(stand);
 

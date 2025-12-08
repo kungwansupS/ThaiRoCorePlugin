@@ -18,9 +18,12 @@ public class ItemEditorCommand implements CommandExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player player)) return true;
-        if (!player.hasPermission("rostats.itemeditor.admin")) return true;
+        if (!player.hasPermission("rostats.itemeditor.admin")) {
+            player.sendMessage("§cNo Permission.");
+            return true;
+        }
 
-        // Open Root Library
+        // Open Root Library GUI
         new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player);
         return true;
     }

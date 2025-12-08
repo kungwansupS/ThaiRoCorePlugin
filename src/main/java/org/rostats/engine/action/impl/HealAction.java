@@ -63,7 +63,18 @@ public class HealAction implements SkillAction {
                 target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
             }
         } else {
-            double maxHP = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            // [FIX] Use custom MaxHP if player, otherwise use vanilla attribute MaxHP. (Defensive Fix)
+            double maxHP;
+            if (target instanceof Player player) {
+                maxHP = plugin.getStatManager().getData(player.getUniqueId()).getMaxHP();
+            } else {
+                maxHP = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            }
+
+            // Ensure MaxHP respects the hard limit of 2048.0 before calculating heal,
+            // although the custom system should handle this.
+            if (maxHP > 2048.0) maxHP = 2048.0;
+
             double newHP = Math.min(maxHP, target.getHealth() + amount);
             target.setHealth(newHP);
             plugin.showHealHPFCT(target.getLocation(), amount);
