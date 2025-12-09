@@ -24,7 +24,11 @@ public class SkillData {
 
     private double castTime;
 
-    // [NEW] Required Level
+    // [NEW] Motion & Global Cooldown (From SkillEditor)
+    private double preMotion;
+    private double postMotion;
+
+    // Required Level
     private int requiredLevel = 1;
 
     // Actions List (Sequence of logic)
@@ -75,7 +79,12 @@ public class SkillData {
     public double getCastTime() { return castTime; }
     public void setCastTime(double castTime) { this.castTime = castTime; }
 
-    // [NEW] Required Level Getter/Setter
+    public double getPreMotion() { return preMotion; }
+    public void setPreMotion(double preMotion) { this.preMotion = preMotion; }
+
+    public double getPostMotion() { return postMotion; }
+    public void setPostMotion(double postMotion) { this.postMotion = postMotion; }
+
     public int getRequiredLevel() { return requiredLevel; }
     public void setRequiredLevel(int requiredLevel) { this.requiredLevel = requiredLevel; }
 

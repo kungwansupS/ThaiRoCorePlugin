@@ -12,7 +12,7 @@ import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
-import org.rostats.engine.action.impl.DelayAction; // ADDED
+import org.rostats.engine.action.impl.DelayAction;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,9 +25,6 @@ public class SkillManager {
     private final ThaiRoCorePlugin plugin;
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
-
-    // [NEW] Global Cooldown Constant (0.5 seconds = 500ms)
-    private static final long GLOBAL_COOLDOWN_MILLIS = 500L;
 
     public SkillManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -74,23 +71,25 @@ public class SkillManager {
             // 2. Cooldown Check (Skill CD & Global CD)
             long now = System.currentTimeMillis();
 
-            // --- NEW: Global Cooldown Check ---
-            long lastGlobalUse = data.getLastGlobalSkillUse();
-            if (now - lastGlobalUse < GLOBAL_COOLDOWN_MILLIS) {
-                // Calculate remaining time for display
-                double remainingSeconds = (GLOBAL_COOLDOWN_MILLIS - (now - lastGlobalUse)) / 1000.0;
+            // --- Global Cooldown Check ---
+            long gcdEnd = data.getGlobalCooldownEndTime();
+            if (now < gcdEnd) {
+                double remainingSeconds = (gcdEnd - now) / 1000.0;
                 player.sendMessage("§cGlobal Cooldown active! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
-                return; // Global Cooldown (GCD) active
+                return; // Global Cooldown active
             }
-            // ----------------------------------
 
-            // --- MODIFIED: Skill Cooldown Check (Applying Player Reduction) ---
+            // --- Skill Cooldown Check (Flat + Percent) ---
             long lastUse = data.getSkillCooldown(skillId);
             double baseCooldownSeconds = skill.getCooldown(level);
 
-            // Calculate final skill cooldown applying player's CD reduction (from base stats + gear/effect)
-            double skillCDReduction = data.getSkillCooldownReductionPercent() + data.getEffectBonus("SKILL_CD_PERCENT");
-            double finalCooldownSeconds = baseCooldownSeconds * Math.max(0.0, 1.0 - (skillCDReduction / 100.0));
+            // Apply Reductions: (Base - Flat) * (1 - %)
+            double flatRed = data.getSkillCooldownReductionFlat() + data.getEffectBonus("SKILL_CD_FLAT");
+            double pctRed = data.getSkillCooldownReductionPercent() + data.getEffectBonus("SKILL_CD_PERCENT");
+
+            double cdAfterFlat = Math.max(0.0, baseCooldownSeconds - flatRed);
+            double finalCooldownSeconds = cdAfterFlat * Math.max(0.0, 1.0 - (pctRed / 100.0));
+
             long cooldownMillis = (long) (finalCooldownSeconds * 1000);
 
             if (now - lastUse < cooldownMillis) {
@@ -98,7 +97,6 @@ public class SkillManager {
                 player.sendMessage("§cSkill is on cooldown! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
                 return; // On cooldown
             }
-            // -----------------------------------------------------------------
 
             // 3. SP Cost Check
             int spCost = skill.getSpCost(level);
@@ -107,22 +105,34 @@ public class SkillManager {
                 return;
             }
 
-            // 4. CAST TIME CALCULATION (FIX for INT CT Reduction)
+            // 4. CAST TIME & MOTION (Handling Pre-Motion + Cast Time)
+            // Order logic: Pre-Motion -> Cast Time -> Actions
+            double preMotion = skill.getPreMotion();
             double baseCastTimeSeconds = skill.getCastTime();
-            if (baseCastTimeSeconds > 0.0) {
-                double finalCastTimeSeconds = data.getFinalCastTime(baseCastTimeSeconds); // Use new method
 
+            // Add Cast Time Delay
+            if (baseCastTimeSeconds > 0.0) {
+                double finalCastTimeSeconds = data.getFinalCastTime(baseCastTimeSeconds);
                 if (finalCastTimeSeconds > 0.0) {
-                    long castTimeTicks = (long) (finalCastTimeSeconds * 20.0);
-                    // Prepend the calculated delay to the action list.
-                    finalActions.add(0, new DelayAction(castTimeTicks));
+                    finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
                 }
             }
 
-            // 5. Deduct SP & Set Cooldown
+            // Add Pre-Motion Delay (Animation windup) - added LAST so it becomes FIRST in list (add(0))
+            if (preMotion > 0.0) {
+                finalActions.add(0, new DelayAction((long) (preMotion * 20.0)));
+            }
+
+            // 5. Deduct SP & Set Cooldowns
             data.setCurrentSP(data.getCurrentSP() - spCost);
             data.setSkillCooldown(skillId, now);
-            data.setLastGlobalSkillUse(now); // [NEW] Set Global Cooldown
+
+            // Set Global Cooldown based on Skill's Post-Motion
+            double postMotion = skill.getPostMotion();
+            if (postMotion > 0.0) {
+                data.setGlobalCooldownEndTime(now + (long)(postMotion * 1000));
+            }
+
             plugin.getManaManager().updateBar(player);
         }
 
@@ -152,8 +162,6 @@ public class SkillManager {
         loadSkillsRecursive(skillFolder);
         plugin.getLogger().info("Loaded " + skillMap.size() + " skills.");
     }
-
-    // --- Loading & Parsing ---
 
     private void loadSkillsRecursive(File dir) {
         File[] files = dir.listFiles();
@@ -207,6 +215,10 @@ public class SkillManager {
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
                 skill.setCastTime(cond.getDouble("cast-time", 0));
                 skill.setRequiredLevel(cond.getInt("required-level", 1));
+
+                // [NEW] Load Motions from YML
+                skill.setPreMotion(cond.getDouble("pre-motion", 0.0));
+                skill.setPostMotion(cond.getDouble("post-motion", 0.0));
             }
 
             if (section.contains("actions")) {
@@ -265,7 +277,6 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    // Supports Placeholder & Shapes (Updated)
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
@@ -332,13 +343,13 @@ public class SkillManager {
                     boolean console = (boolean) map.getOrDefault("as-console", false);
                     return new CommandAction(cmd, console);
 
-                case RAYCAST: // [NEW] RaycastAction
+                case RAYCAST:
                     String rangeExpr = String.valueOf(map.getOrDefault("range", "10.0"));
                     String subSkillId = (String) map.getOrDefault("sub-skill", "none");
                     String targetType = (String) map.getOrDefault("target-type", "SINGLE");
                     return new RaycastAction(plugin, rangeExpr, subSkillId, targetType);
 
-                case SPAWN_ENTITY: // [NEW] SpawnEntityAction
+                case SPAWN_ENTITY:
                     String entityType = (String) map.getOrDefault("entity-type", "LIGHTNING_BOLT");
                     String onSpawnSkill = (String) map.getOrDefault("skill-id", "none");
                     return new SpawnEntityAction(plugin, entityType, onSpawnSkill);
@@ -352,7 +363,7 @@ public class SkillManager {
         }
     }
 
-    // --- File Utils (Same as before) ---
+    // --- File Utils ---
 
     public File getRootDir() { return skillFolder; }
 
@@ -459,6 +470,10 @@ public class SkillManager {
         config.set(key + ".conditions.cast-time", skill.getCastTime());
         config.set(key + ".conditions.required-level", skill.getRequiredLevel());
 
+        // [NEW] Save Motions
+        config.set(key + ".conditions.pre-motion", skill.getPreMotion());
+        config.set(key + ".conditions.post-motion", skill.getPostMotion());
+
         List<Map<String, Object>> serializedActions = new ArrayList<>();
         for (SkillAction action : skill.getActions()) {
             serializedActions.add(action.serialize());
@@ -508,6 +523,8 @@ public class SkillManager {
             config.set(key + ".conditions.cooldown", 5.0);
             config.set(key + ".conditions.sp-cost", 20);
             config.set(key + ".conditions.required-level", 1);
+            config.set(key + ".conditions.pre-motion", 0.0);
+            config.set(key + ".conditions.post-motion", 0.5);
 
             List<Map<String, Object>> actions = new ArrayList<>();
 

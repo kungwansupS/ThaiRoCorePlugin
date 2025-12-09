@@ -23,7 +23,6 @@ public class PlayerData {
     private final Map<String, Integer> stats = new HashMap<>();
     private final Map<String, Integer> pendingStats = new HashMap<>();
 
-    // [FIXED] Use ConcurrentHashMap for thread safety
     private final Map<String, Long> skillCooldowns = new ConcurrentHashMap<>();
 
     private final List<ActiveEffect> activeEffects = new CopyOnWriteArrayList<>();
@@ -80,9 +79,10 @@ public class PlayerData {
     private double fixedCTPercent = 0.0;
     private double fixedCTFlat = 0.0;
 
-    // [NEW] Skill Cooldown Reduction and Global Cooldown Tracking
+    // [NEW] Skill Cooldown & Global Cooldown
     private double skillCooldownReductionPercent = 0.0;
-    private long lastGlobalSkillUse = 0L;
+    private double skillCooldownReductionFlat = 0.0;
+    private long globalCooldownEndTime = 0L;
 
     private double healingEffectPercent = 0.0;
     private double healingReceivedPercent = 0.0;
@@ -132,15 +132,12 @@ public class PlayerData {
     }
 
     public long getSkillCooldown(String skillId) {
-        // cleanupExpiredCooldowns(); // [FIXED] Remove buggy call
         return skillCooldowns.getOrDefault(skillId, 0L);
     }
 
     public void setSkillCooldown(String skillId, long timestamp) {
         skillCooldowns.put(skillId, timestamp);
     }
-
-    // [FIXED] Removed cleanupExpiredCooldowns method as it was buggy.
 
     public long getBaseExpReq() { return getBaseExpReq(this.baseLevel); }
     public long getJobExpReq() { return getJobExpReq(this.jobLevel); }
@@ -165,7 +162,11 @@ public class PlayerData {
         this.aSpdPercent = 0; this.mSpdPercent = 0; this.baseMSPD = 0.1;
         this.varCTPercent = 0; this.varCTFlat = 0;
         this.fixedCTPercent = 0; this.fixedCTFlat = 0;
-        this.skillCooldownReductionPercent = 0; // [NEW] Reset Skill CD Reduction
+
+        // Reset Cooldown Stats
+        this.skillCooldownReductionPercent = 0;
+        this.skillCooldownReductionFlat = 0;
+
         this.healingEffectPercent = 0; this.healingReceivedPercent = 0;
         this.lifestealPPercent = 0; this.lifestealMPercent = 0;
         this.hitBonusFlat = 0; this.fleeBonusFlat = 0;
@@ -178,6 +179,17 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
+    // Getters/Setters for Cooldown Stats
+    public double getSkillCooldownReductionPercent() { return skillCooldownReductionPercent; }
+    public void setSkillCooldownReductionPercent(double v) { this.skillCooldownReductionPercent = v; }
+
+    public double getSkillCooldownReductionFlat() { return skillCooldownReductionFlat; }
+    public void setSkillCooldownReductionFlat(double v) { this.skillCooldownReductionFlat = v; }
+
+    public long getGlobalCooldownEndTime() { return globalCooldownEndTime; }
+    public void setGlobalCooldownEndTime(long timestamp) { this.globalCooldownEndTime = timestamp; }
+
+    // --- (Standard Getters/Setters omitted for brevity but should be here) ---
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -269,14 +281,6 @@ public class PlayerData {
     public void setFixedCTPercent(double v) { this.fixedCTPercent = v; }
     public double getFixedCTFlat() { return fixedCTFlat; }
     public void setFixedCTFlat(double v) { this.fixedCTFlat = v; }
-
-    // [NEW] Skill Cooldown Reduction Getter/Setter
-    public double getSkillCooldownReductionPercent() { return skillCooldownReductionPercent; }
-    public void setSkillCooldownReductionPercent(double v) { this.skillCooldownReductionPercent = v; }
-
-    // [NEW] Global Cooldown Tracking Getter/Setter
-    public long getLastGlobalSkillUse() { return lastGlobalSkillUse; }
-    public void setLastGlobalSkillUse(long v) { this.lastGlobalSkillUse = v; }
 
     public double getHealingEffectPercent() { return healingEffectPercent; }
     public void setHealingEffectPercent(double v) { this.healingEffectPercent = v; }
@@ -434,42 +438,23 @@ public class PlayerData {
     public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
     public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
 
-    // --- NEW: V-CT Calculation Helpers (for fixing INT casting reduction) ---
-
     private double getVariableCastTimeReduction() {
-        // Use the combined stat values (base + pending + gear + effect)
-        // Note: We use getStat() + getPendingStat() + getSTATBonusGear() to get the *total* effective base stat
         int totalDex = getStat("DEX") + getPendingStat("DEX") + getDEXBonusGear() + (int)getEffectBonus("DEX");
         int totalInt = getStat("INT") + getPendingStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
-
-        // Common RO formula for V-CT Reduction % = (DEX / 2) + (INT / 4)
         double statReduction = (totalDex / 2.0) + (totalInt / 4.0);
-        double gearReduction = getVarCTPercent() + getEffectBonus("VAR_CT_PERCENT"); // Gear % reduction
-
+        double gearReduction = getVarCTPercent() + getEffectBonus("VAR_CT_PERCENT");
         return statReduction + gearReduction;
     }
 
     public double getFinalCastTime(double baseCastTime) {
         if (baseCastTime <= 0) return 0;
-
-        // 1. Calculate Variable Cast Time (V-CT) Reduction Multiplier
         double reduction = getVariableCastTimeReduction();
         double multiplier = Math.max(0.0, 1.0 - (reduction / 100.0));
-
-        // 2. Apply V-CT Reduction to base cast time
         double castTimeAfterVarReduction = baseCastTime * multiplier;
-
-        // 3. Apply Flat Cast Time (Fixed Cast Time is usually fixed, but here we treat it as flat V-CT reduction for a simple formula)
-        // Fixed CT Flat Reduction (from gear/effects)
         double fixedCTFlatReduction = getFixedCTFlat() + getEffectBonus("FIXED_CT_FLAT");
-
-        // We apply the flat fixed reduction to the remaining cast time
         double finalCastTime = castTimeAfterVarReduction - fixedCTFlatReduction;
-
         return Math.max(0.0, finalCastTime);
     }
-    // --- END NEW CT Logic ---
-
 
     public int getBaseLevel() { return baseLevel; }
     public void setBaseLevel(int l) { this.baseLevel = l; calculateMaxSP(); }
