@@ -19,12 +19,16 @@ public class SkillData {
     private double cooldownBase;
     private double cooldownPerLevel;
 
+    // [NEW] Global Cooldown
+    private double globalCooldownBase;
+    private double globalCooldownPerLevel;
+
     private int spCostBase;
     private int spCostPerLevel;
 
     private double castTime;
 
-    // [NEW] Required Level
+    // Required Level
     private int requiredLevel = 1;
 
     // Actions List (Sequence of logic)
@@ -38,6 +42,10 @@ public class SkillData {
 
     public double getCooldown(int level) {
         return Math.max(0, cooldownBase + (cooldownPerLevel * (level - 1)));
+    }
+
+    public double getGlobalCooldown(int level) {
+        return Math.max(0, globalCooldownBase + (globalCooldownPerLevel * (level - 1)));
     }
 
     public int getSpCost(int level) {
@@ -66,6 +74,13 @@ public class SkillData {
     public double getCooldownPerLevel() { return cooldownPerLevel; }
     public void setCooldownPerLevel(double cooldownPerLevel) { this.cooldownPerLevel = cooldownPerLevel; }
 
+    // [NEW] Global Cooldown Getters/Setters
+    public double getGlobalCooldownBase() { return globalCooldownBase; }
+    public void setGlobalCooldownBase(double globalCooldownBase) { this.globalCooldownBase = globalCooldownBase; }
+
+    public double getGlobalCooldownPerLevel() { return globalCooldownPerLevel; }
+    public void setGlobalCooldownPerLevel(double globalCooldownPerLevel) { this.globalCooldownPerLevel = globalCooldownPerLevel; }
+
     public int getSpCostBase() { return spCostBase; }
     public void setSpCostBase(int spCostBase) { this.spCostBase = spCostBase; }
 
@@ -75,7 +90,6 @@ public class SkillData {
     public double getCastTime() { return castTime; }
     public void setCastTime(double castTime) { this.castTime = castTime; }
 
-    // [NEW] Required Level Getter/Setter
     public int getRequiredLevel() { return requiredLevel; }
     public void setRequiredLevel(int requiredLevel) { this.requiredLevel = requiredLevel; }
 

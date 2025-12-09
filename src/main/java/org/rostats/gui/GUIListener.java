@@ -108,262 +108,99 @@ public class GUIListener implements Listener {
 
     private void handleActionPropertyClick(InventoryClickEvent event, Player player, String skillId, int index) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);
-        if (skill == null || index >= skill.getActions().size()) { player.closeInventory(); return; }
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-
-        Map<String, Object> tempMap = editingActions.getOrDefault(player.getUniqueId(), new HashMap<>());
-        if (tempMap.isEmpty()) {
-            tempMap = new HashMap<>(skill.getActions().get(index).serialize());
-            editingActions.put(player.getUniqueId(), tempMap);
-        }
-        final Map<String, Object> data = tempMap;
-
-        if (clicked.getType() == Material.RED_CONCRETE) {
-            editingActions.remove(player.getUniqueId());
-            new SkillEditorGUI(plugin, skillId).open(player);
+        if (skill == null || index >= skill.getActions().size()) {
+            player.sendMessage("§cAction not found!");
+            player.closeInventory();
             return;
         }
 
-        if (clicked.getType() == Material.EMERALD_BLOCK) {
-            try {
-                String typeStr = (String) data.get("type");
-                ActionType type = ActionType.valueOf(typeStr);
-                SkillAction newAction = null;
+        int slot = event.getSlot();
+        SkillAction action = skill.getActions().get(index);
+        Map<String, Object> tempData = editingActions.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
 
-                // [UPDATED] ใช้ String.valueOf เพื่อรองรับ Placeholder ใน Action ต่างๆ
-                switch (type) {
-                    case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
-                    case HEAL:
-                        boolean hSelf = Boolean.parseBoolean(String.valueOf(data.getOrDefault("self-only", true)));
-                        boolean isMana = Boolean.parseBoolean(String.valueOf(data.getOrDefault("is-mana", false)));
-                        newAction = new HealAction(plugin, String.valueOf(data.getOrDefault("formula","10")), isMana, hSelf);
-                        break;
-                    case APPLY_EFFECT:
-                        String eid = String.valueOf(data.getOrDefault("effect-id", "unknown"));
-                        EffectType et = EffectType.valueOf(String.valueOf(data.getOrDefault("effect-type", "STAT_MODIFIER")));
-                        int lv = Integer.parseInt(String.valueOf(data.getOrDefault("level", "1")));
-                        double pw = Double.parseDouble(String.valueOf(data.getOrDefault("power", "0.0")));
-                        long dr = Long.parseLong(String.valueOf(data.getOrDefault("duration", "100")));
-                        double ch = Double.parseDouble(String.valueOf(data.getOrDefault("chance", "1.0")));
-                        String sk = (String)data.getOrDefault("stat-key", null);
-                        if(sk != null && sk.equals("None")) sk = null;
-                        newAction = new EffectAction(plugin, eid, et, lv, pw, dr, ch, sk);
-                        break;
-                    case SOUND:
-                        String snd = String.valueOf(data.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"));
-                        float vol = Float.parseFloat(String.valueOf(data.getOrDefault("volume", "1.0")));
-                        float pit = Float.parseFloat(String.valueOf(data.getOrDefault("pitch", "1.0")));
-                        newAction = new SoundAction(snd, vol, pit);
-                        break;
-                    case PARTICLE:
-                        // 7 Arguments (Strings for Placeholder + 3 new for shape/radius/points)
-                        newAction = new ParticleAction(plugin,
-                                (String)data.getOrDefault("particle", "VILLAGER_HAPPY"),
-                                String.valueOf(data.getOrDefault("count", "5")),
-                                String.valueOf(data.getOrDefault("speed", "0.1")),
-                                (String)data.getOrDefault("shape", "POINT"),
-                                String.valueOf(data.getOrDefault("radius", "0.5")),
-                                String.valueOf(data.getOrDefault("points", "20"))
-                        );
-                        break;
-                    case POTION:
-                        String pot = String.valueOf(data.getOrDefault("potion", "SPEED"));
-                        int dur = Integer.parseInt(String.valueOf(data.getOrDefault("duration", "60")));
-                        int amp = Integer.parseInt(String.valueOf(data.getOrDefault("amplifier", "0")));
-                        boolean pSelf = Boolean.parseBoolean(String.valueOf(data.getOrDefault("self-only", true)));
-                        newAction = new PotionAction(pot, dur, amp, pSelf);
-                        break;
-                    case TELEPORT:
-                        double rng = Double.parseDouble(String.valueOf(data.getOrDefault("range", "5.0")));
-                        boolean tgt = Boolean.parseBoolean(String.valueOf(data.getOrDefault("to-target", false)));
-                        newAction = new TeleportAction(rng, tgt);
-                        break;
-                    case PROJECTILE:
-                        String proj = String.valueOf(data.getOrDefault("projectile", "ARROW"));
-                        double pSpd = Double.parseDouble(String.valueOf(data.getOrDefault("speed", "1.0")));
-                        String hitSkill = String.valueOf(data.getOrDefault("on-hit", "none"));
-                        newAction = new ProjectileAction(plugin, proj, pSpd, hitSkill);
-                        break;
-                    case AREA_EFFECT:
-                        double rad = Double.parseDouble(String.valueOf(data.getOrDefault("radius", "5.0")));
-                        String tType = String.valueOf(data.getOrDefault("target-type", "ENEMY"));
-                        String sub = String.valueOf(data.getOrDefault("sub-skill", "none"));
-                        int maxT = Integer.parseInt(String.valueOf(data.getOrDefault("max-targets", "10")));
-                        newAction = new AreaAction(plugin, rad, tType, sub, maxT);
-                        break;
-                    case VELOCITY:
-                        double vx = Double.parseDouble(String.valueOf(data.getOrDefault("x", "0.0")));
-                        double vy = Double.parseDouble(String.valueOf(data.getOrDefault("y", "0.0")));
-                        double vz = Double.parseDouble(String.valueOf(data.getOrDefault("z", "0.0")));
-                        boolean add = Boolean.parseBoolean(String.valueOf(data.getOrDefault("add", true)));
-                        newAction = new VelocityAction(vx, vy, vz, add);
-                        break;
-                    case LOOP:
-                        String startExpr = String.valueOf(data.getOrDefault("start", "0"));
-                        String endExpr = String.valueOf(data.getOrDefault("end", "10"));
-                        String stepExpr = String.valueOf(data.getOrDefault("step", "1"));
-                        String varName = String.valueOf(data.getOrDefault("var", "i"));
-
-                        SkillAction originalAction = skill.getActions().get(index);
-                        if (originalAction instanceof LoopAction loop) {
-                            // [FIXED] เรียกใช้ getSubActions() เพื่อดึงรายการ Action ย่อย
-                            newAction = new LoopAction(plugin, startExpr, endExpr, stepExpr, varName, loop.getSubActions());
-                        } else {
-                            player.sendMessage("§cError: Cannot save LOOP without sub-actions.");
-                            return;
-                        }
-                        break;
-
-                    case COMMAND:
-                        String command = String.valueOf(data.getOrDefault("command", "say Hi %player%"));
-                        boolean console = Boolean.parseBoolean(String.valueOf(data.getOrDefault("as-console", false)));
-                        newAction = new CommandAction(command, console);
-                        break;
-
-                    case RAYCAST: // [NEW]
-                        String rangeExpr = String.valueOf(data.getOrDefault("range", "10.0"));
-                        String subSkillId = String.valueOf(data.getOrDefault("sub-skill", "none"));
-                        String targetType = String.valueOf(data.getOrDefault("target-type", "SINGLE"));
-                        newAction = new RaycastAction(plugin, rangeExpr, subSkillId, targetType);
-                        break;
-
-                    case SPAWN_ENTITY: // [NEW]
-                        String entityType = String.valueOf(data.getOrDefault("entity-type", "LIGHTNING_BOLT"));
-                        String onSpawnSkill = String.valueOf(data.getOrDefault("skill-id", "none"));
-                        newAction = new SpawnEntityAction(plugin, entityType, onSpawnSkill);
-                        break;
-                }
-
-                if (newAction != null) {
-                    skill.getActions().set(index, newAction);
-                    plugin.getSkillManager().saveSkill(skill);
-                    player.sendMessage("§aAction updated!");
-                    player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-                }
-            } catch (Exception e) {
-                player.sendMessage("§cError saving action: " + e.getMessage());
-                e.printStackTrace();
+        if (slot == 49) {
+            Map<String, Object> serialized = new HashMap<>(tempData);
+            SkillAction updated = deserializeAction(action.getType(), serialized);
+            if (updated != null) {
+                skill.getActions().set(index, updated);
+                plugin.getSkillManager().saveSkill(skill);
+                player.sendMessage("§aAction updated!");
+                editingActions.remove(player.getUniqueId());
             }
+            new SkillEditorGUI(plugin, skillId).open(player);
+        } else if (slot == 53) {
             editingActions.remove(player.getUniqueId());
             new SkillEditorGUI(plugin, skillId).open(player);
-            return;
-        }
-
-        List<String> lore = clicked.getItemMeta().getLore();
-        String key = null;
-        if (lore != null) {
-            for (String l : lore) {
-                if (l.startsWith("§0Key:")) { key = l.substring(6); break; }
-            }
-        }
-
-        if (key != null) {
-            final String fKey = key;
-            Object val = data.get(fKey);
-            if (val instanceof Boolean) {
-                data.put(fKey, !((Boolean) val));
-                runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
-            } else {
-                plugin.getChatInputHandler().awaitInput(player, "Enter value for " + fKey + ":", (str) -> {
-                    try {
-                        if (fKey.equals("level") || fKey.equals("duration") || fKey.equals("count") || fKey.equals("amplifier") || fKey.equals("max-targets")) {
-                            int intVal = Integer.parseInt(str);
-                            if (intVal < 0) throw new NumberFormatException("Negative");
-                            data.put(fKey, intVal);
-                        } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius") || fKey.equals("x") || fKey.equals("y") || fKey.equals("z")) {
-                            double dVal = Double.parseDouble(str);
-                            // Allow negative values for coordinates, but not for others
-                            if (dVal < 0 && !fKey.equals("x") && !fKey.equals("y") && !fKey.equals("z")) throw new NumberFormatException("Negative");
-                            data.put(fKey, dVal);
-                        } else if (fKey.equals("start") || fKey.equals("end") || fKey.equals("step") || fKey.equals("points")) {
-                            // Allow number strings for expression fields
-                            data.put(fKey, str);
-                        } else {
-                            data.put(fKey, str);
-                        }
-                        runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
-                    } catch (Exception e) {
-                        player.sendMessage("§cInvalid input! Must be a valid number/string.");
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                        runSync(() -> reopenPropertyGUI(player, skillId, index, data, skill.getActions().get(index).getType()));
+        } else {
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked != null && clicked.getType() != Material.GRAY_STAINED_GLASS_PANE) {
+                List<String> lore = clicked.getItemMeta().getLore();
+                if (lore != null && !lore.isEmpty()) {
+                    String firstLore = PlainTextComponentSerializer.plainText().serialize(
+                            clicked.getItemMeta().lore().get(0));
+                    String key = extractKey(firstLore);
+                    if (key != null) {
+                        plugin.getChatInputHandler().awaitInput(player, "Enter value for " + key + ":", (str) -> {
+                            tempData.put(key, parseValue(str));
+                            runSync(() -> new SkillActionPropertyGUI(plugin, skillId, index, action).open(player));
+                        });
                     }
-                });
+                }
             }
         }
-    }
-
-    private void reopenPropertyGUI(Player player, String skillId, int index, Map<String, Object> data, ActionType type) {
-        SkillAction tempAction = new SkillAction() {
-            public ActionType getType() { return type; }
-            public void execute(org.bukkit.entity.LivingEntity c, org.bukkit.entity.LivingEntity t, int l, Map<String, Double> context) {}
-            public Map<String, Object> serialize() { return data; }
-        };
-        new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }
 
     private void handleActionSelectorClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-        if (clicked.getType() == Material.ARROW) { new SkillEditorGUI(plugin, skillId).open(player); return; }
 
-        List<String> lore = clicked.getItemMeta().getLore();
-        if (lore != null && !lore.isEmpty()) {
-            String last = lore.stream().filter(l -> l.startsWith("ActionType: ")).findFirst().orElse(null);
-            if (last != null) {
-                try {
-                    ActionType type = ActionType.valueOf(last.substring(12));
-                    SkillData skill = plugin.getSkillManager().getSkill(skillId);
-                    SkillAction action = null;
-                    switch (type) {
-                        case DAMAGE: action = new DamageAction(plugin, "ATK * 1.0", "NEUTRAL"); break;
-                        case HEAL: action = new HealAction(plugin, "10", false, true); break;
-                        case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
-                        case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
-                        case PARTICLE:
-                            // [UPDATED] Default Particle Action
-                            action = new ParticleAction(plugin, "VILLAGER_HAPPY", "5", "0.1", "POINT", "0.5", "20");
-                            break;
-                        case POTION: action = new PotionAction("SPEED", 60, 0, true); break;
-                        case TELEPORT: action = new TeleportAction(5.0, false); break;
-                        case PROJECTILE: action = new ProjectileAction(plugin, "ARROW", 1.5, "none"); break;
-                        case AREA_EFFECT: action = new AreaAction(plugin, 5.0, "ENEMY", "none", 10); break;
-                        case VELOCITY: action = new VelocityAction(0.0, 0.0, 0.0, true); break;
-                        case LOOP: action = new LoopAction(plugin, "0", "10", "1", "i", Collections.emptyList()); break;
-                        case COMMAND: action = new CommandAction("say Hi %player%", false); break;
-
-                        case RAYCAST: action = new RaycastAction(plugin, "10.0", "none", "SINGLE"); break; // [NEW]
-                        case SPAWN_ENTITY: action = new SpawnEntityAction(plugin, "LIGHTNING_BOLT", "none"); break; // [NEW]
-                    }
-                    if (action != null) {
-                        skill.addAction(action);
-                        player.sendMessage("§aAdded: " + type);
-                        plugin.getSkillManager().saveSkill(skill);
-                    }
-                    new SkillEditorGUI(plugin, skillId).open(player);
-                } catch (Exception e) { player.sendMessage("§cError creating action: " + e.getMessage()); e.printStackTrace(); }
+        String name = PlainTextComponentSerializer.plainText().serialize(clicked.displayName());
+        try {
+            ActionType type = ActionType.valueOf(name.replace(" ", "_").toUpperCase());
+            SkillData skill = plugin.getSkillManager().getSkill(skillId);
+            if (skill != null) {
+                SkillAction newAction = createDefaultAction(type);
+                if (newAction != null) {
+                    skill.addAction(newAction);
+                    plugin.getSkillManager().saveSkill(skill);
+                    player.sendMessage("§aAdded action: " + type.name());
+                }
             }
+            new SkillEditorGUI(plugin, skillId).open(player);
+        } catch (Exception e) {
+            player.sendMessage("§cInvalid action type!");
         }
     }
 
     private void handleSkillEditorClick(InventoryClickEvent event, Player player, String skillId) {
         SkillData skill = plugin.getSkillManager().getSkill(skillId);
-        if (skill == null) { player.closeInventory(); return; }
+        if (skill == null) {
+            player.sendMessage("§cSkill not found!");
+            return;
+        }
+
         int slot = event.getSlot();
 
-        if (slot == 49) {
-            plugin.getSkillManager().saveSkill(skill);
-            player.sendMessage("§aSkill saved!");
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-        }
-        else if (slot == 50) {
+        if (slot == 1) {
+            plugin.getChatInputHandler().awaitInput(player, "Max Level:", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    if (lvl < 1) lvl = 1;
+                    skill.setMaxLevel(lvl);
+                } catch (Exception e) {
+                    player.sendMessage("§cInvalid number!");
+                }
+                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+            });
+        } else if (slot == 45) {
             new SkillActionSelectorGUI(plugin, skillId).open(player);
-        }
-        else if (slot == 53) {
+        } else if (slot == 49) {
+            plugin.getSkillManager().saveSkill(skill);
+            player.sendMessage("§aSaved skill: " + skill.getDisplayName());
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+        } else if (slot == 53) {
             new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
-        }
-        else if (slot >= 18 && slot <= 44) {
+        } else if (slot >= 18 && slot <= 44) {
             ItemStack item = event.getCurrentItem();
             if (item != null && item.getType() != Material.GRAY_STAINED_GLASS_PANE) {
                 List<String> lore = item.getItemMeta().getLore();
@@ -371,52 +208,48 @@ public class GUIListener implements Listener {
                 if (lore != null) {
                     for (String l : lore) {
                         if (l.startsWith("§7Index: ")) {
-                            try { index = Integer.parseInt(l.substring(9)); } catch (Exception e) {}
+                            try {
+                                index = Integer.parseInt(l.substring(9));
+                            } catch (Exception e) {
+                            }
                             break;
                         }
                     }
                 }
 
                 if (index != -1 && index < skill.getActions().size()) {
-                    // [UPDATED] Reordering Logic
                     if (event.isShiftClick() && event.isRightClick()) {
-                        // Remove
                         skill.getActions().remove(index);
                         plugin.getSkillManager().saveSkill(skill);
                         new SkillEditorGUI(plugin, skillId).open(player);
                     } else if (event.isShiftClick() && event.isLeftClick()) {
-                        // Move Up/Left (Index - 1)
                         if (index > 0) {
                             Collections.swap(skill.getActions(), index, index - 1);
                             plugin.getSkillManager().saveSkill(skill);
                             new SkillEditorGUI(plugin, skillId).open(player);
                         }
                     } else if (event.isRightClick()) {
-                        // Move Down/Right (Index + 1)
                         if (index < skill.getActions().size() - 1) {
                             Collections.swap(skill.getActions(), index, index + 1);
                             plugin.getSkillManager().saveSkill(skill);
                             new SkillEditorGUI(plugin, skillId).open(player);
                         }
                     } else if (event.isLeftClick()) {
-                        // Edit
                         editingActions.put(player.getUniqueId(), new HashMap<>(skill.getActions().get(index).serialize()));
                         new SkillActionPropertyGUI(plugin, skillId, index, skill.getActions().get(index)).open(player);
                     }
                 }
             }
-        }
-        else if (slot == 0) {
+        } else if (slot == 0) {
             plugin.getChatInputHandler().awaitInput(player, "Name:", (str) -> {
-                skill.setDisplayName(str.replace("&", "§")); runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                skill.setDisplayName(str.replace("&", "§"));
+                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
             });
-        }
-        else if (slot == 2) {
+        } else if (slot == 2) {
             TriggerType[] types = TriggerType.values();
             skill.setTrigger(types[(skill.getTrigger().ordinal() + 1) % types.length]);
             new SkillEditorGUI(plugin, skillId).open(player);
-        }
-        else if (slot == 4) {
+        } else if (slot == 4) {
             ItemStack cursor = event.getCursor();
             if (cursor != null && cursor.getType() != Material.AIR) {
                 skill.setIcon(cursor.getType());
@@ -425,23 +258,89 @@ public class GUIListener implements Listener {
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
         }
+        // ⭐ [UPDATED] Slot 6: Timing (Cooldown, Global CD, Cast Time)
         else if (slot == 6) {
-            if (event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> { try { skill.setCooldownBase(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
-            else plugin.getChatInputHandler().awaitInput(player, "CastTime:", (str) -> { try { skill.setCastTime(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
+            if (event.isShiftClick() && event.isLeftClick()) {
+                // Shift + Left Click = Edit Global Cooldown
+                plugin.getChatInputHandler().awaitInput(player, "Global Cooldown (seconds):", (str) -> {
+                    try {
+                        double gcd = Double.parseDouble(str);
+                        if (gcd < 0) gcd = 0;
+                        skill.setGlobalCooldownBase(gcd);
+                    } catch (Exception e) {
+                        player.sendMessage("§cInvalid number!");
+                    }
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isLeftClick()) {
+                // Left Click = Edit Skill Cooldown
+                plugin.getChatInputHandler().awaitInput(player, "Cooldown (seconds):", (str) -> {
+                    try {
+                        double cd = Double.parseDouble(str);
+                        if (cd < 0) cd = 0;
+                        skill.setCooldownBase(cd);
+                    } catch (Exception e) {
+                        player.sendMessage("§cInvalid number!");
+                    }
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isRightClick()) {
+                // Right Click = Edit Cast Time
+                plugin.getChatInputHandler().awaitInput(player, "Cast Time (seconds):", (str) -> {
+                    try {
+                        double ct = Double.parseDouble(str);
+                        if (ct < 0) ct = 0;
+                        skill.setCastTime(ct);
+                    } catch (Exception e) {
+                        player.sendMessage("§cInvalid number!");
+                    }
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            }
         }
-        // [NEW] Slot 7: Required Level
+        // Slot 7: Required Level
         else if (slot == 7) {
             plugin.getChatInputHandler().awaitInput(player, "Required Level:", (str) -> {
                 try {
                     int lvl = Integer.parseInt(str);
                     if (lvl < 1) lvl = 1;
                     skill.setRequiredLevel(lvl);
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                    player.sendMessage("§cInvalid number!");
+                }
                 runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
             });
         }
+        // Slot 8: SP Cost
         else if (slot == 8) {
-            plugin.getChatInputHandler().awaitInput(player, "SP Cost:", (str) -> { try { skill.setSpCostBase(Integer.parseInt(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
+            plugin.getChatInputHandler().awaitInput(player, "SP Cost:", (str) -> {
+                try {
+                    int cost = Integer.parseInt(str);
+                    if (cost < 0) cost = 0;
+                    skill.setSpCostBase(cost);
+                } catch (Exception e) {
+                    player.sendMessage("§cInvalid number!");
+                }
+                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+            });
+        }
+    }
+
+    private void handleSkillDeleteClick(InventoryClickEvent event, Player player, String title) {
+        String fileName = title.substring(14);
+        File file = findFileByName(plugin.getSkillManager().getRootDir(), fileName);
+        if (file == null) return;
+        File parent = file.getParentFile();
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked != null) {
+            if (clicked.getType() == Material.LIME_CONCRETE) {
+                plugin.getSkillManager().deleteFile(file);
+                player.sendMessage("§cDeleted: " + fileName);
+                runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
+            } else if (clicked.getType() == Material.RED_CONCRETE) {
+                player.closeInventory();
+            }
         }
     }
 
@@ -453,50 +352,55 @@ public class GUIListener implements Listener {
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
         String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
 
-        if (clicked.getType() == Material.ARROW) { new SkillLibraryGUI(plugin, currentDir.getParentFile()).open(player); return; }
-        if (clicked.getType() == Material.BOOKSHELF) { new SkillLibraryGUI(plugin, currentDir).open(player); return; }
+        if (clicked.getType() == Material.ARROW) {
+            new SkillLibraryGUI(plugin, currentDir.getParentFile()).open(player);
+            return;
+        }
+        if (clicked.getType() == Material.BOOKSHELF) {
+            new SkillLibraryGUI(plugin, currentDir).open(player);
+            return;
+        }
         if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
             plugin.getChatInputHandler().awaitInput(player, "Folder:", (str) -> {
-                plugin.getSkillManager().createFolder(finalDir, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
-            }); return;
+                plugin.getSkillManager().createFolder(finalDir, str);
+                runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
+            });
+            return;
         }
         if (clicked.getType() == Material.WRITABLE_BOOK) {
             plugin.getChatInputHandler().awaitInput(player, "Skill ID:", (str) -> {
-                plugin.getSkillManager().createSkill(finalDir, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
-            }); return;
+                plugin.getSkillManager().createSkill(finalDir, str);
+                runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
+            });
+            return;
         }
         File target = new File(currentDir, name + (clicked.getType() == Material.CHEST ? "" : ".yml"));
         if (target.isDirectory()) {
-            if (event.isLeftClick() && !event.isShiftClick()) new SkillLibraryGUI(plugin, target).open(player);
-            else if (event.isShiftClick() && event.isLeftClick()) new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            else if (event.isRightClick()) { plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> { plugin.getSkillManager().renameFile(target, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player)); }); }
-        } else {
-            if (event.isLeftClick() && !event.isShiftClick()) {
-                String skillId = name.toLowerCase().replace(" ", "_");
-                new SkillEditorGUI(plugin, skillId).open(player);
+            new SkillLibraryGUI(plugin, target).open(player);
+        } else if (target.exists()) {
+            if (event.isRightClick()) {
+                new SkillLibraryGUI(plugin, currentDir).openDeleteConfirm(player, target.getName());
+            } else if (event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Rename to:", (str) -> {
+                    plugin.getSkillManager().renameFile(target, str);
+                    runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
+                });
+            } else {
+                String skillId = name.replace(".yml", "");
+                SkillData skill = plugin.getSkillManager().getSkill(skillId);
+                if (skill != null) {
+                    new SkillEditorGUI(plugin, skillId).open(player);
+                } else {
+                    player.sendMessage("§cSkill not loaded: " + skillId);
+                }
             }
-            else if (event.isShiftClick() && event.isLeftClick()) new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-        }
-    }
-
-    private void handleSkillDeleteClick(InventoryClickEvent event, Player player, String title) {
-        String fileName = title.substring("Skill Delete: ".length());
-        File target = findFileRecursive(plugin.getSkillManager().getRootDir(), fileName);
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-        if (clicked.getType() == Material.LIME_CONCRETE && target != null) {
-            File parent = target.getParentFile();
-            plugin.getSkillManager().deleteFile(target);
-            player.sendMessage("§cDeleted.");
-            runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
-        } else if (clicked.getType() == Material.RED_CONCRETE) {
-            player.closeInventory();
         }
     }
 
     private void handleCharacterStatusClick(InventoryClickEvent event, Player player, String title) {
         event.setCancelled(true);
-        if (event.getCurrentItem() == null || event.getCurrentItem().getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+        if (event.getCurrentItem() == null || event.getCurrentItem().getType() == Material.GRAY_STAINED_GLASS_PANE)
+            return;
         String name = PlainTextComponentSerializer.plainText().serialize(event.getCurrentItem().displayName());
         int slot = event.getSlot();
 
@@ -507,10 +411,17 @@ public class GUIListener implements Listener {
         else if (slot == 34) openGUI(player, Tab.RESET_CONFIRM);
         else if (slot == 44) openGUI(player, Tab.RESET_CONFIRM);
         else if (slot == 8) player.closeInventory();
-        else if (slot == 29 && name.contains("[ยืนยัน]")) { performReset(player); player.closeInventory(); }
-        else if (slot == 31 && name.contains("[ยกเลิก]")) openGUI(player, Tab.BASIC_INFO);
-        else if (slot == 52 && name.contains("Allocate")) { plugin.getStatManager().allocateStats(player); openGUI(player, Tab.BASIC_INFO); }
-        else if (slot == 42 && name.contains("Reset Select")) { plugin.getStatManager().getData(player.getUniqueId()).clearAllPendingStats(); openGUI(player, Tab.BASIC_INFO); }
+        else if (slot == 29 && name.contains("[ยืนยัน]")) {
+            performReset(player);
+            player.closeInventory();
+        } else if (slot == 31 && name.contains("[ยกเลิก]")) openGUI(player, Tab.BASIC_INFO);
+        else if (slot == 52 && name.contains("Allocate")) {
+            plugin.getStatManager().allocateStats(player);
+            openGUI(player, Tab.BASIC_INFO);
+        } else if (slot == 42 && name.contains("Reset Select")) {
+            plugin.getStatManager().getData(player.getUniqueId()).clearAllPendingStats();
+            openGUI(player, Tab.BASIC_INFO);
+        }
 
         String plusKey = getStatKey(slot, 36);
         if (plusKey != null) handleStatUpgrade(player, plusKey, event.isLeftClick(), event.isRightClick());
@@ -525,56 +436,176 @@ public class GUIListener implements Listener {
         Material resetItem = Material.getMaterial(plugin.getConfig().getString("reset-system.reset-item", "NETHER_STAR"));
 
         if (usedResets < freeResets) {
-            data.resetStats(); data.incrementResetCount();
+            data.resetStats();
+            data.incrementResetCount();
             player.sendMessage("§eFree Reset used! (" + (usedResets + 1) + "/" + freeResets + ")");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         } else if (resetItem != null && player.getInventory().contains(resetItem)) {
             player.getInventory().removeItem(new ItemStack(resetItem, 1));
-            data.resetStats(); data.incrementResetCount();
+            data.resetStats();
+            data.incrementResetCount();
             player.sendMessage("§bUsed 1x " + resetItem.name() + " to reset!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         } else {
-            player.sendMessage("§cNo free resets!");
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-            return;
+            player.sendMessage("§cNo free resets! Need " + (resetItem != null ? resetItem.name() : "item"));
         }
         plugin.getAttributeHandler().updatePlayerStats(player);
         plugin.getManaManager().updateBar(player);
     }
 
-    private String getStatKey(int slot, int startSlot) {
-        if (slot < startSlot || slot > startSlot + 5) return null;
-        return switch (slot - startSlot) {
-            case 0 -> "STR"; case 1 -> "AGI"; case 2 -> "VIT"; case 3 -> "INT"; case 4 -> "DEX"; case 5 -> "LUK"; default -> null;
-        };
-    }
-    private void handleStatUpgrade(Player player, String statKey, boolean isLeftClick, boolean isRightClick) {
-        boolean success = false;
-        if (isLeftClick) success = plugin.getStatManager().upgradeStat(player, statKey);
-        else if (isRightClick) { int c=0; while(c<10 && plugin.getStatManager().upgradeStat(player, statKey)) { c++; success=true; } }
-        if (success) { plugin.getAttributeHandler().updatePlayerStats(player); plugin.getManaManager().updateBar(player); openGUI(player, Tab.BASIC_INFO); }
-    }
-    private void handleStatDowngrade(Player player, String statKey, boolean isLeftClick, boolean isRightClick) {
-        boolean success = false;
-        if (isLeftClick) success = plugin.getStatManager().downgradeStat(player, statKey);
-        else if (isRightClick) { int c=0; while(c<10 && plugin.getStatManager().downgradeStat(player, statKey)) { c++; success=true; } }
-        if (success) { plugin.getAttributeHandler().updatePlayerStats(player); plugin.getManaManager().updateBar(player); openGUI(player, Tab.BASIC_INFO); }
+    private String getStatKey(int slot, int baseSlot) {
+        String[] stats = {"STR", "AGI", "VIT", "INT", "DEX", "LUK"};
+        int index = slot - baseSlot;
+        if (index >= 0 && index < stats.length) return stats[index];
+        return null;
     }
 
-    private File findFileRecursive(File dir, String name) {
-        File[] files = dir.listFiles();
+    private void handleStatUpgrade(Player player, String stat, boolean isLeft, boolean isRight) {
+        if (isLeft) {
+            if (plugin.getStatManager().upgradeStat(player, stat)) {
+                openGUI(player, Tab.BASIC_INFO);
+            } else {
+                player.sendMessage("§cNot enough stat points!");
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+            }
+        } else if (isRight) {
+            PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+            int current = data.getStat(stat);
+            int pending = data.getPendingStat(stat);
+            int maxAdd = 99 - current - pending;
+            int pointsAvailable = data.getStatPoints() - plugin.getStatManager().getTotalPendingCost(data);
+            int canAdd = 0;
+            int costSum = 0;
+            for (int i = 0; i < maxAdd; i++) {
+                int cost = plugin.getStatManager().getStatCost(current + pending + i);
+                if (costSum + cost <= pointsAvailable) {
+                    costSum += cost;
+                    canAdd++;
+                } else break;
+            }
+            if (canAdd > 0) {
+                data.setPendingStat(stat, pending + canAdd);
+                openGUI(player, Tab.BASIC_INFO);
+            } else {
+                player.sendMessage("§cCannot add more!");
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+            }
+        }
+    }
+
+    private void handleStatDowngrade(Player player, String stat, boolean isLeft, boolean isRight) {
+        PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+        int pending = data.getPendingStat(stat);
+        if (isLeft && pending > 0) {
+            data.setPendingStat(stat, pending - 1);
+            openGUI(player, Tab.BASIC_INFO);
+        } else if (isRight && pending > 0) {
+            data.setPendingStat(stat, 0);
+            openGUI(player, Tab.BASIC_INFO);
+        }
+    }
+
+    private void runSync(Runnable task) {
+        plugin.getServer().getScheduler().runTask(plugin, task);
+    }
+
+    private File findFileByName(File root, String fileName) {
+        if (root.getName().equals(fileName)) return root;
+        File[] files = root.listFiles();
         if (files == null) return null;
-        for (File f : files) {
-            if (f.getName().equals(name)) return f;
-            if (f.isDirectory()) {
-                File found = findFileRecursive(f, name);
+        for (File file : files) {
+            if (file.getName().equals(fileName)) return file;
+            if (file.isDirectory()) {
+                File found = findFileByName(file, fileName);
                 if (found != null) return found;
             }
         }
         return null;
     }
 
-    private void runSync(Runnable r) {
-        plugin.getServer().getScheduler().runTask(plugin, r);
+    private String extractKey(String loreText) {
+        if (loreText.contains(": ")) {
+            return loreText.substring(0, loreText.indexOf(": ")).replace("§7", "").trim();
+        }
+        return null;
+    }
+
+    private Object parseValue(String str) {
+        try {
+            if (str.equalsIgnoreCase("true") || str.equalsIgnoreCase("false")) {
+                return Boolean.parseBoolean(str);
+            }
+            if (str.contains(".")) {
+                return Double.parseDouble(str);
+            }
+            return Integer.parseInt(str);
+        } catch (Exception e) {
+            return str;
+        }
+    }
+
+    private SkillAction createDefaultAction(ActionType type) {
+        return switch (type) {
+            case DAMAGE -> new DamageAction(10.0, 5.0, "PHYSICAL");
+            case HEAL -> new HealAction(10.0, 5.0);
+            case APPLY_EFFECT -> new EffectAction("buff", EffectType.BUFF, 100, 1.0, null);
+            case SOUND -> new SoundAction("ENTITY_PLAYER_LEVELUP", 1.0f, 1.0f);
+            case PARTICLE -> new ParticleAction("FLAME", 10, 0.5, 0.5, 0.5, 0.1);
+            case PROJECTILE -> new ProjectileAction("ARROW", 1.5);
+            case AREA_EFFECT -> new AreaAction(5.0, "area_damage");
+            case VELOCITY -> new VelocityAction(0.0, 1.0, 0.0, 1.0);
+            case COMMAND -> new CommandAction("say Hello", false);
+            case DELAY -> new DelayAction(20L);
+            case TELEPORT -> new TeleportAction(0.0, 64.0, 0.0, null);
+            case APPLY_POTION -> new PotionAction("SPEED", 100, 0);
+            case RAYCAST -> new RaycastAction(10.0, null);
+            case SPAWN_ENTITY -> new SpawnEntityAction("ZOMBIE");
+            case LOOP -> new LoopAction(3, 20L, List.of());
+        };
+    }
+
+    private SkillAction deserializeAction(ActionType type, Map<String, Object> data) {
+        try {
+            return switch (type) {
+                case DAMAGE -> {
+                    double base = ((Number) data.getOrDefault("base-damage", 10.0)).doubleValue();
+                    double perLevel = ((Number) data.getOrDefault("damage-per-level", 0.0)).doubleValue();
+                    String damageType = (String) data.getOrDefault("damage-type", "PHYSICAL");
+                    yield new DamageAction(base, perLevel, damageType);
+                }
+                case HEAL -> {
+                    double base = ((Number) data.getOrDefault("base-heal", 10.0)).doubleValue();
+                    double perLevel = ((Number) data.getOrDefault("heal-per-level", 0.0)).doubleValue();
+                    yield new HealAction(base, perLevel);
+                }
+                case APPLY_EFFECT -> {
+                    String effectId = (String) data.getOrDefault("effect-id", "buff");
+                    EffectType effectType = EffectType.valueOf((String) data.getOrDefault("effect-type", "BUFF"));
+                    int duration = ((Number) data.getOrDefault("duration", 100)).intValue();
+                    double power = ((Number) data.getOrDefault("power", 1.0)).doubleValue();
+                    String statKey = (String) data.get("stat-key");
+                    yield new EffectAction(effectId, effectType, duration, power, statKey);
+                }
+                case SOUND -> {
+                    String sound = (String) data.getOrDefault("sound", "ENTITY_PLAYER_LEVELUP");
+                    float volume = ((Number) data.getOrDefault("volume", 1.0)).floatValue();
+                    float pitch = ((Number) data.getOrDefault("pitch", 1.0)).floatValue();
+                    yield new SoundAction(sound, volume, pitch);
+                }
+                case PARTICLE -> {
+                    String particle = (String) data.getOrDefault("particle", "FLAME");
+                    int count = ((Number) data.getOrDefault("count", 10)).intValue();
+                    double offsetX = ((Number) data.getOrDefault("offset-x", 0.5)).doubleValue();
+                    double offsetY = ((Number) data.getOrDefault("offset-y", 0.5)).doubleValue();
+                    double offsetZ = ((Number) data.getOrDefault("offset-z", 0.5)).doubleValue();
+                    double speed = ((Number) data.getOrDefault("speed", 0.1)).doubleValue();
+                    yield new ParticleAction(particle, count, offsetX, offsetY, offsetZ, speed);
+                }
+                default -> null;
+            };
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
