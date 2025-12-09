@@ -5,7 +5,6 @@ import org.rostats.ThaiRoCorePlugin;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Set;
 
 public class StatManager {
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
@@ -15,7 +14,6 @@ public class StatManager {
         this.plugin = plugin;
     }
 
-    // [FIX] เพิ่มเมธอดสำหรับลบข้อมูลเมื่อผู้เล่นออก (แก้ Memory Leak)
     public void removeData(UUID uuid) {
         playerDataMap.remove(uuid);
     }
@@ -110,7 +108,6 @@ public class StatManager {
         return ((currentVal - 1) / costDivisor) + costBase;
     }
 
-    // Helper Method to get Base + Pending + Gear + Effect Bonus
     private int getTotalStat(PlayerData data, String statKey) {
         int base = data.getStat(statKey);
         int pending = data.getPendingStat(statKey);
@@ -123,14 +120,13 @@ public class StatManager {
             case "LUK" -> data.getLUKBonusGear();
             default -> 0;
         };
-        // Add Effect Bonus
         int effect = (int) data.getEffectBonus(statKey.toUpperCase());
         return base + pending + gear + effect;
     }
 
-    // --- UPDATED CALCULATIONS USING CONFIG (Fix Hardcoded) ---
+    // --- UPDATED CALCULATIONS TO MATCH ROOSTAT.HTML ---
 
-    public double getPhysicalAttack(Player player) {
+    public double calculateBasePAtk(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int str = getTotalStat(data, "STR");
         int dex = getTotalStat(data, "DEX");
@@ -140,11 +136,11 @@ public class StatManager {
         double dexMult = plugin.getConfig().getDouble("stat-formulas.patk.dex-multiplier", 0.2);
         double lukMult = plugin.getConfig().getDouble("stat-formulas.patk.luk-multiplier", 0.2);
 
-        double effectBonus = data.getEffectBonus("P_ATK");
-        return (str * strMult) + (dex * dexMult) + (luk * lukMult) + data.getWeaponPAtk() + data.getPAtkBonusFlat() + effectBonus;
+        // Base P.ATK Formula
+        return (str * strMult) + (dex * dexMult) + (luk * lukMult) + data.getBaseLevel() * 1.0;
     }
 
-    public double getMagicAttack(Player player) {
+    public double calculateBaseMAtk(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int intel = getTotalStat(data, "INT");
         int luk = getTotalStat(data, "LUK");
@@ -152,32 +148,44 @@ public class StatManager {
         double intMult = plugin.getConfig().getDouble("stat-formulas.matk.int-multiplier", 1.5);
         double lukMult = plugin.getConfig().getDouble("stat-formulas.matk.luk-multiplier", 0.3);
 
-        double effectBonus = data.getEffectBonus("M_ATK");
-        return (intel * intMult) + (luk * lukMult) + data.getWeaponMAtk() + data.getMAtkBonusFlat() + effectBonus;
+        // Base M.ATK Formula
+        return (intel * intMult) + (luk * lukMult) + data.getBaseLevel() * 1.0;
+    }
+
+    public double getPhysicalAttack(Player player) {
+        PlayerData data = getData(player.getUniqueId());
+        double base = calculateBasePAtk(player);
+        double equipFlat = data.getWeaponPAtk() + data.getPAtkBonusFlat() + data.getEffectBonus("P_ATK");
+        double totalFlat = base + equipFlat;
+        double equipPercent = data.getPDmgBonusPercent();
+
+        return totalFlat * (1 + equipPercent / 100.0);
+    }
+
+    public double getMagicAttack(Player player) {
+        PlayerData data = getData(player.getUniqueId());
+        double base = calculateBaseMAtk(player);
+        double equipFlat = data.getWeaponMAtk() + data.getMAtkBonusFlat() + data.getEffectBonus("M_ATK");
+        double totalFlat = base + equipFlat;
+        double equipPercent = data.getMDmgBonusPercent();
+
+        return totalFlat * (1 + equipPercent / 100.0);
     }
 
     public int getHit(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int dex = getTotalStat(data, "DEX");
         int luk = getTotalStat(data, "LUK");
-
-        double dexMult = plugin.getConfig().getDouble("stat-formulas.hit.dex-multiplier", 1.0);
-        double lukMult = plugin.getConfig().getDouble("stat-formulas.hit.luk-multiplier", 1.0);
-
         int effectBonus = (int) data.getEffectBonus("HIT");
-        return (int) ((dex * dexMult) + (luk * lukMult) + data.getBaseLevel() + data.getHitBonusFlat() + effectBonus);
+        return 80 + dex + luk + data.getBaseLevel() + (int)data.getHitBonusFlat() + effectBonus;
     }
 
     public int getFlee(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int agi = getTotalStat(data, "AGI");
         int luk = getTotalStat(data, "LUK");
-
-        double agiMult = plugin.getConfig().getDouble("stat-formulas.flee.agi-multiplier", 1.0);
-        double lukMult = plugin.getConfig().getDouble("stat-formulas.flee.luk-multiplier", 0.2);
-
         int effectBonus = (int) data.getEffectBonus("FLEE");
-        return (int) ((agi * agiMult) + (luk * lukMult) + data.getBaseLevel() + data.getFleeBonusFlat() + effectBonus);
+        return agi + (int)(luk * 0.2) + data.getBaseLevel() + (int)data.getFleeBonusFlat() + effectBonus;
     }
 
     public double getAspdBonus(Player player) {
@@ -185,7 +193,6 @@ public class StatManager {
         int agi = getTotalStat(data, "AGI");
         int dex = getTotalStat(data, "DEX");
         double statBonus = (agi * 0.02) + (dex * 0.005);
-
         double effectBonus = data.getEffectBonus("ASPD_PERCENT");
         return 1.0 + statBonus + ((data.getASpdPercent() + effectBonus) / 100.0);
     }
@@ -194,11 +201,10 @@ public class StatManager {
         PlayerData data = getData(player.getUniqueId());
         int vit = getTotalStat(data, "VIT");
         int agi = getTotalStat(data, "AGI");
-
         double vitMult = plugin.getConfig().getDouble("stat-formulas.def.vit-multiplier", 0.5);
         double agiMult = plugin.getConfig().getDouble("stat-formulas.def.agi-multiplier", 0.1);
-
         double effectBonus = data.getEffectBonus("DEF");
+
         return (vit * vitMult) + (agi * agiMult) + effectBonus;
     }
 
@@ -206,10 +212,8 @@ public class StatManager {
         PlayerData data = getData(player.getUniqueId());
         int intel = getTotalStat(data, "INT");
         int vit = getTotalStat(data, "VIT");
-
         double intMult = plugin.getConfig().getDouble("stat-formulas.mdef.int-multiplier", 1.0);
         double vitMult = plugin.getConfig().getDouble("stat-formulas.mdef.vit-multiplier", 0.5);
-
         double effectBonus = data.getEffectBonus("MDEF");
         return (intel * intMult) + (vit * vitMult) + effectBonus;
     }
@@ -217,27 +221,13 @@ public class StatManager {
     public double getCritChance(Player player) {
         PlayerData data = getData(player.getUniqueId());
         int luk = getTotalStat(data, "LUK");
-
         double lukMult = plugin.getConfig().getDouble("stat-formulas.crit.luk-multiplier", 0.3);
-
         double effectBonus = data.getEffectBonus("CRIT");
         return (luk * lukMult) + effectBonus;
     }
 
     public double calculatePower(Player player) {
         PlayerData data = getData(player.getUniqueId());
-        double str = getTotalStat(data, "STR");
-        double intel = getTotalStat(data, "INT");
-        double agi = getTotalStat(data, "AGI");
-        double vit = getTotalStat(data, "VIT");
-        double dex = getTotalStat(data, "DEX");
-        double luk = getTotalStat(data, "LUK");
-        int baseLevel = data.getBaseLevel();
-
-        double coreStatPower = (str + intel) * 5.0;
-        double secondaryStatPower = (agi + vit + dex + luk) * 2.0;
-        double levelPower = baseLevel * 10.0;
-
-        return coreStatPower + secondaryStatPower + levelPower;
+        return (getTotalStat(data,"STR") + getTotalStat(data,"INT")) * 5.0 + data.getBaseLevel() * 10.0;
     }
 }
