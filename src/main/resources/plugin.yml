@@ -1,70 +1,29 @@
-name: ThaiRoCore
-version: 1.0
+name: ThaiRoCorePlugin
+version: '0.1.0-SNAPSHOT'
 main: org.rostats.ThaiRoCorePlugin
-api-version: 1.20
-author: YourName
-description: A comprehensive Ragnarok Online stat and skill system for Minecraft
-
+api-version: '1.21'
 commands:
-  stats:
-    description: Open character stats GUI
-    usage: /stats
-    aliases: [stat, char, character]
-
-  resetstats:
-    description: Reset all stats
-    usage: /resetstats
-
-  addstat:
-    description: Add stat points (Admin)
-    usage: /addstat <player> <amount>
-    permission: thairoro.admin
-
-  skill:
-    description: Open skill menu
-    usage: /skill
-
-  skilleditor:
-    description: Open skill editor GUI (Admin)
-    usage: /skilleditor
-    permission: thairoro.admin
-
-  castskill:
-    description: Cast a skill (Admin/Testing)
-    usage: /castskill <skillId> [level] [target]
-    permission: thairoro.admin
-
-  giveexp:
-    description: Give base or job EXP to player (Admin)
-    usage: /giveexp <player> <base|job> <amount>
-    permission: thairoro.admin
-
-  setlevel:
-    description: Set base or job level (Admin)
-    usage: /setlevel <player> <base|job> <level>
-    permission: thairoro.admin
-
-  applyeffect:
-    description: Apply effect to player (Admin/Testing)
-    usage: /applyeffect <player> <effectType> <effectId> <duration> <power>
-    permission: thairoro.admin
-
-  cleareffects:
-    description: Clear all effects from player
-    usage: /cleareffects [player]
-    permission: thairoro.admin
-
-  attributetest:
-    description: Test attribute calculations (Admin)
-    usage: /attributetest
-    permission: thairoro.admin
-
-  cooldown:
-    description: Show skill cooldown status
-    usage: /cooldown
-    aliases: [cd, cooldowns]
-
+  status:
+    description: Open player status menu
+    usage: /status
+    aliases: [st, char]
+  roadmin:
+    description: Admin commands for ROStats
+    usage: /roadmin <args>
+    permission: rostats.admin
+  roitemedit:
+    description: Open the Item Attribute Editor GUI
+    usage: /roitemedit
+    aliases: [riedit]
+    permission: rostats.itemeditor.admin
+  roskilleditor: # เปลี่ยนชื่อคำสั่งตามที่ขอ
+    description: Skill creation and management menu
+    usage: /roskilleditor
+    permission: rostats.admin
 permissions:
-  thairoro.admin:
-    description: Allows use of admin commands
+  rostats.admin:
+    description: Admin permission
+    default: op
+  rostats.itemeditor.admin:
+    description: Permission to use the Item Attribute Editor
     default: op

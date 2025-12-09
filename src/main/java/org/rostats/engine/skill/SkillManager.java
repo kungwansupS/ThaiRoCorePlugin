@@ -12,6 +12,7 @@ import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
+import org.rostats.engine.action.impl.DelayAction; // ADDED
 
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +56,7 @@ public class SkillManager {
             return;
         }
 
-        List<SkillAction> finalActions = new LinkedList<>(skill.getActions());
+        List<SkillAction> finalActions = new LinkedList<>(skill.getActions()); // Create mutable list of actions
 
         // Resource & Cooldown Check (Only for Players)
         if (!isPassive && caster instanceof Player player) {
@@ -67,63 +68,42 @@ public class SkillManager {
                 return;
             }
 
-            // 2. Global Cooldown Check
-            if (data.isOnGlobalCooldown()) {
-                double remaining = data.getRemainingGlobalCooldown();
-                player.sendMessage(String.format("§cGlobal cooldown! Wait %.1fs", remaining));
-                return;
+            // 2. Cooldown Check
+            long now = System.currentTimeMillis();
+            long lastUse = data.getSkillCooldown(skillId);
+            double cooldownSeconds = skill.getCooldown(level);
+            long cooldownMillis = (long) (cooldownSeconds * 1000);
+
+            if (now - lastUse < cooldownMillis) {
+                return; // On cooldown
             }
 
-            // 3. Skill Cooldown Check
-            double baseCooldown = skill.getCooldown(level);
-            double finalCooldown = data.getFinalSkillCooldown(baseCooldown);
-
-            if (data.isSkillOnCooldown(skillId, finalCooldown)) {
-                double remaining = data.getRemainingSkillCooldown(skillId, finalCooldown);
-                player.sendMessage(String.format("§cSkill on cooldown! Wait %.1fs", remaining));
-                return;
-            }
-
-            // 4. SP Cost Check
+            // 3. SP Cost Check
             int spCost = skill.getSpCost(level);
             if (data.getCurrentSP() < spCost) {
                 player.sendMessage("§cNot enough SP!");
                 return;
             }
 
-            // 5. Cast Time Calculation
+            // 4. CAST TIME CALCULATION (FIX for INT CT Reduction)
             double baseCastTimeSeconds = skill.getCastTime();
             if (baseCastTimeSeconds > 0.0) {
-                double finalCastTimeSeconds = data.getFinalCastTime(baseCastTimeSeconds);
+                double finalCastTimeSeconds = data.getFinalCastTime(baseCastTimeSeconds); // Use new method
 
                 if (finalCastTimeSeconds > 0.0) {
                     long castTimeTicks = (long) (finalCastTimeSeconds * 20.0);
+                    // Prepend the calculated delay to the action list.
                     finalActions.add(0, new DelayAction(castTimeTicks));
                 }
             }
 
-            // 6. Deduct SP & Set Cooldowns
+            // 5. Deduct SP & Set Cooldown
             data.setCurrentSP(data.getCurrentSP() - spCost);
-
-            // Set skill-specific cooldown
-            long now = System.currentTimeMillis();
             data.setSkillCooldown(skillId, now);
-
-            // Apply Global Cooldown
-            double baseGcd = skill.getGlobalCooldown(level);
-            if (baseGcd > 0) {
-                data.applyGlobalCooldown(baseGcd);
-            }
-
-            // [NEW] Track last used skill for cooldown display
-            if (plugin.getCooldownDisplay() != null) {
-                plugin.getCooldownDisplay().setLastUsedSkill(player, skillId);
-            }
-
             plugin.getManaManager().updateBar(player);
         }
 
-        // Execute via SkillRunner
+        // Execute via SkillRunner (using finalActions)
         SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
 
         // Setup Runner for LoopActions
@@ -200,189 +180,195 @@ public class SkillManager {
             if (cond != null) {
                 skill.setCooldownBase(cond.getDouble("cooldown", 0));
                 skill.setCooldownPerLevel(cond.getDouble("cooldown-per-level", 0));
-
-                skill.setGlobalCooldownBase(cond.getDouble("global-cooldown", 0.5));
-                skill.setGlobalCooldownPerLevel(cond.getDouble("global-cooldown-per-level", 0));
-
                 skill.setSpCostBase(cond.getInt("sp-cost", 0));
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
                 skill.setCastTime(cond.getDouble("cast-time", 0));
                 skill.setRequiredLevel(cond.getInt("required-level", 1));
             }
 
-            List<?> actionList = section.getList("actions", new ArrayList<>());
-            for (Object obj : actionList) {
-                if (obj instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> actionMap = (Map<String, Object>) obj;
-                    SkillAction action = parseAction(actionMap);
-                    if (action != null) skill.addAction(action);
+            if (section.contains("actions")) {
+                List<Map<?, ?>> actionList = section.getMapList("actions");
+                for (Map<?, ?> rawMap : actionList) {
+                    try {
+                        Map<String, Object> actionMap = (Map<String, Object>) rawMap;
+                        String typeStr = (String) actionMap.get("type");
+                        ActionType type = ActionType.valueOf(typeStr);
+                        SkillAction action = parseAction(actionMap);
+                        if (action != null) skill.addAction(action);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Invalid action structure in skill " + key + ": " + e.getMessage());
+                    }
                 }
             }
 
             skillMap.put(key, skill);
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error loading skill: " + key, e);
+            plugin.getLogger().warning("Failed to load skill key: " + key);
         }
     }
 
     private SkillAction parseAction(Map<String, Object> map) {
-        String typeStr = (String) map.get("type");
-        if (typeStr == null) return null;
-
         try {
+            String typeStr = (String) map.get("type");
             ActionType type = ActionType.valueOf(typeStr);
+
             switch (type) {
                 case DAMAGE:
-                    return new DamageAction(
-                            plugin,
-                            getDouble(map, "base-damage"),
-                            getDouble(map, "damage-per-level"),
-                            getString(map, "damage-type", "PHYSICAL")
-                    );
+                    return new DamageAction(plugin,
+                            String.valueOf(map.getOrDefault("formula", "ATK")),
+                            String.valueOf(map.getOrDefault("element", "NEUTRAL")));
 
                 case HEAL:
-                    return new HealAction(
-                            plugin,
-                            getDouble(map, "base-heal"),
-                            getDouble(map, "heal-per-level"),
-                            getString(map, "heal-type", "HEALTH")
-                    );
+                    return new HealAction(plugin,
+                            String.valueOf(map.getOrDefault("formula", "10")),
+                            (boolean) map.getOrDefault("is-mana", false),
+                            (boolean) map.getOrDefault("self-only", true));
 
                 case APPLY_EFFECT:
-                    return new ApplyEffectAction(
-                            plugin,
-                            getString(map, "effect-type", "BUFF"),
-                            getString(map, "effect-id", "UNKNOWN"),
-                            getInt(map, "duration"),
-                            getDouble(map, "power")
-                    );
+                    String eid = (String) map.getOrDefault("effect-id", "unknown");
+                    String effTypeStr = (String) map.getOrDefault("effect-type", "STAT_MODIFIER");
+                    EffectType effType = EffectType.valueOf(effTypeStr);
+                    int lv = map.containsKey("level") ? ((Number) map.get("level")).intValue() : 1;
+                    double pw = map.containsKey("power") ? ((Number) map.get("power")).doubleValue() : 0.0;
+                    long dr = map.containsKey("duration") ? ((Number) map.get("duration")).longValue() : 100L;
+                    double ch = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 1.0;
+                    String sk = (String) map.getOrDefault("stat-key", null);
+                    return new EffectAction(plugin, eid, effType, lv, pw, dr, ch, sk);
 
                 case SOUND:
-                    return new SoundAction(
-                            getString(map, "sound", "ENTITY_PLAYER_LEVELUP"),
-                            getDouble(map, "volume", 1.0),
-                            getDouble(map, "pitch", 1.0)
-                    );
+                    String soundName = (String) map.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP");
+                    float volume = map.containsKey("volume") ? ((Number) map.get("volume")).floatValue() : 1.0f;
+                    float pitch = map.containsKey("pitch") ? ((Number) map.get("pitch")).floatValue() : 1.0f;
+                    return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    return new ParticleAction(
-                            getString(map, "particle", "FLAME"),
-                            getInt(map, "count", 10)
+                    // Supports Placeholder & Shapes (Updated)
+                    return new ParticleAction(plugin,
+                            (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
+                            String.valueOf(map.getOrDefault("count", "5")),
+                            String.valueOf(map.getOrDefault("speed", "0.1")),
+                            (String) map.getOrDefault("shape", "POINT"),
+                            String.valueOf(map.getOrDefault("radius", "0.5")),
+                            String.valueOf(map.getOrDefault("points", "20"))
                     );
+
+                case POTION:
+                    String potion = (String) map.getOrDefault("potion", "SPEED");
+                    int pDuration = map.containsKey("duration") ? ((Number) map.get("duration")).intValue() : 60;
+                    int amp = map.containsKey("amplifier") ? ((Number) map.get("amplifier")).intValue() : 0;
+                    boolean selfOnly = (boolean) map.getOrDefault("self-only", true);
+                    return new PotionAction(potion, pDuration, amp, selfOnly);
+
+                case TELEPORT:
+                    double range = map.containsKey("range") ? ((Number) map.get("range")).doubleValue() : 5.0;
+                    boolean toTarget = (boolean) map.getOrDefault("to-target", false);
+                    return new TeleportAction(range, toTarget);
 
                 case PROJECTILE:
-                    return new ProjectileAction(
-                            plugin,
-                            getString(map, "projectile-type", "ARROW"),
-                            getDouble(map, "velocity", 1.0),
-                            getString(map, "on-hit-skill", null)
-                    );
-
-                case MESSAGE:
-                    return new MessageAction(getString(map, "message", ""));
-
-                case DELAY:
-                    return new DelayAction(getLong(map, "ticks", 20L));
-
-                case CONDITIONAL:
-                    return new ConditionalAction(
-                            plugin,
-                            getString(map, "condition-type", "HEALTH_BELOW"),
-                            getDouble(map, "value", 50.0),
-                            getString(map, "if-true-skill", null),
-                            getString(map, "if-false-skill", null)
-                    );
-
-                case LOOP:
-                    return new LoopAction(
-                            plugin,
-                            getInt(map, "iterations", 1),
-                            getString(map, "loop-skill", null)
-                    );
+                    String projType = (String) map.getOrDefault("projectile", "ARROW");
+                    double projSpeed = map.containsKey("speed") ? ((Number) map.get("speed")).doubleValue() : 1.0;
+                    String onHit = (String) map.getOrDefault("on-hit", "none");
+                    return new ProjectileAction(plugin, projType, projSpeed, onHit);
 
                 case AREA_EFFECT:
-                    return new AreaAction(
-                            plugin,
-                            getDouble(map, "radius", 5.0),
-                            getString(map, "target-type", "ENEMY"),
-                            getString(map, "sub-skill", null),
-                            getInt(map, "max-targets", 10)
-                    );
+                    double radius = map.containsKey("radius") ? ((Number) map.get("radius")).doubleValue() : 5.0;
+                    String tType = (String) map.getOrDefault("target-type", "ENEMY");
+                    String subSkill = (String) map.getOrDefault("sub-skill", "none");
+                    int maxT = map.containsKey("max-targets") ? ((Number) map.get("max-targets")).intValue() : 10;
+                    return new AreaAction(plugin, radius, tType, subSkill, maxT);
+
+                case DELAY:
+                    long ticks = map.containsKey("ticks") ? ((Number) map.get("ticks")).longValue() : 20L;
+                    return new DelayAction(ticks);
+
+                case VELOCITY:
+                    double vx = map.containsKey("x") ? ((Number) map.get("x")).doubleValue() : 0.0;
+                    double vy = map.containsKey("y") ? ((Number) map.get("y")).doubleValue() : 0.0;
+                    double vz = map.containsKey("z") ? ((Number) map.get("z")).doubleValue() : 0.0;
+                    boolean vAdd = (boolean) map.getOrDefault("add", true);
+                    return new VelocityAction(vx, vy, vz, vAdd);
+
+                case LOOP:
+                    String start = String.valueOf(map.getOrDefault("start", "0"));
+                    String end = String.valueOf(map.getOrDefault("end", "10"));
+                    String step = String.valueOf(map.getOrDefault("step", "1"));
+                    String var = (String) map.getOrDefault("var", "i");
+
+                    List<SkillAction> subActions = new ArrayList<>();
+                    if (map.containsKey("actions")) {
+                        List<Map<?, ?>> subs = (List<Map<?, ?>>) map.get("actions");
+                        for (Map<?, ?> subMap : subs) {
+                            SkillAction sub = parseAction((Map<String, Object>) subMap);
+                            if (sub != null) subActions.add(sub);
+                        }
+                    }
+                    return new LoopAction(plugin, start, end, step, var, subActions);
+
+                case COMMAND:
+                    String cmd = (String) map.getOrDefault("command", "say Hi %player%");
+                    boolean console = (boolean) map.getOrDefault("as-console", false);
+                    return new CommandAction(cmd, console);
+
+                case RAYCAST: // [NEW] RaycastAction
+                    String rangeExpr = String.valueOf(map.getOrDefault("range", "10.0"));
+                    String subSkillId = (String) map.getOrDefault("sub-skill", "none");
+                    String targetType = (String) map.getOrDefault("target-type", "SINGLE");
+                    return new RaycastAction(plugin, rangeExpr, subSkillId, targetType);
+
+                case SPAWN_ENTITY: // [NEW] SpawnEntityAction
+                    String entityType = (String) map.getOrDefault("entity-type", "LIGHTNING_BOLT");
+                    String onSpawnSkill = (String) map.getOrDefault("skill-id", "none");
+                    return new SpawnEntityAction(plugin, entityType, onSpawnSkill);
 
                 default:
-                    plugin.getLogger().warning("Unknown action type: " + type);
                     return null;
             }
-        } catch (IllegalArgumentException e) {
-            plugin.getLogger().warning("Invalid action type: " + typeStr);
+        } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
 
-    // Helper Methods
-    private double getDouble(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        if (val instanceof Number) return ((Number) val).doubleValue();
-        return 0.0;
-    }
+    // --- File Utils (Same as before) ---
 
-    private double getDouble(Map<String, Object> map, String key, double defaultValue) {
-        Object val = map.get(key);
-        if (val instanceof Number) return ((Number) val).doubleValue();
-        return defaultValue;
-    }
+    public File getRootDir() { return skillFolder; }
 
-    private int getInt(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        if (val instanceof Number) return ((Number) val).intValue();
-        return 0;
-    }
-
-    private int getInt(Map<String, Object> map, String key, int defaultValue) {
-        Object val = map.get(key);
-        if (val instanceof Number) return ((Number) val).intValue();
-        return defaultValue;
-    }
-
-    private long getLong(Map<String, Object> map, String key, long defaultValue) {
-        Object val = map.get(key);
-        if (val instanceof Number) return ((Number) val).longValue();
-        return defaultValue;
-    }
-
-    private String getString(Map<String, Object> map, String key, String defaultValue) {
-        Object val = map.get(key);
-        return (val instanceof String) ? (String) val : defaultValue;
-    }
-
-    // --- File Management ---
-
-    public File getSkillFolder() {
-        return skillFolder;
-    }
-
-    public List<File> getAllFiles() {
-        return getAllFilesRecursive(skillFolder);
-    }
-
-    private List<File> getAllFilesRecursive(File dir) {
-        List<File> result = new ArrayList<>();
-        File[] files = dir.listFiles();
-        if (files == null) return result;
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                result.add(file);
-                result.addAll(getAllFilesRecursive(file));
-            } else if (file.getName().endsWith(".yml")) {
-                result.add(file);
-            }
+    public String getRelativePath(File file) {
+        String rootPath = skillFolder.getAbsolutePath();
+        String filePath = file.getAbsolutePath();
+        if (filePath.equals(rootPath)) return "/";
+        if (filePath.startsWith(rootPath)) {
+            String rel = filePath.substring(rootPath.length()).replace("\\", "/");
+            if (rel.startsWith("/")) return rel;
+            return "/" + rel;
         }
-        return result;
+        return "/" + file.getName();
     }
 
-    public void createNewSkill(File parent, String skillName) {
+    public File getFileFromRelative(String relativePath) {
+        if (relativePath == null || relativePath.equals("/") || relativePath.isEmpty()) return skillFolder;
+        if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+        return new File(skillFolder, relativePath);
+    }
+
+    public List<File> listContents(File directory) {
+        File[] files = directory.listFiles();
+        if (files == null) return new ArrayList<>();
+        return Arrays.stream(files)
+                .sorted((f1, f2) -> {
+                    if (f1.isDirectory() && !f2.isDirectory()) return -1;
+                    if (!f1.isDirectory() && f2.isDirectory()) return 1;
+                    return f1.getName().compareTo(f2.getName());
+                })
+                .collect(Collectors.toList());
+    }
+
+    public void createFolder(File parent, String name) {
+        File newFolder = new File(parent, name);
+        if (!newFolder.exists()) newFolder.mkdirs();
+    }
+
+    public void createSkill(File parent, String skillName) {
         String fileName = skillName.endsWith(".yml") ? skillName : skillName + ".yml";
         File file = new File(parent, fileName);
         if (file.exists()) return;
@@ -398,7 +384,6 @@ public class SkillManager {
             config.set(id + ".trigger", "CAST");
 
             config.set(id + ".conditions.cooldown", 1.0);
-            config.set(id + ".conditions.global-cooldown", 0.5);
             config.set(id + ".conditions.sp-cost", 0);
             config.set(id + ".conditions.required-level", 1);
 
@@ -446,10 +431,6 @@ public class SkillManager {
 
         config.set(key + ".conditions.cooldown", skill.getCooldownBase());
         config.set(key + ".conditions.cooldown-per-level", skill.getCooldownPerLevel());
-
-        config.set(key + ".conditions.global-cooldown", skill.getGlobalCooldownBase());
-        config.set(key + ".conditions.global-cooldown-per-level", skill.getGlobalCooldownPerLevel());
-
         config.set(key + ".conditions.sp-cost", skill.getSpCostBase());
         config.set(key + ".conditions.sp-cost-per-level", skill.getSpCostPerLevel());
         config.set(key + ".conditions.cast-time", skill.getCastTime());
@@ -463,69 +444,72 @@ public class SkillManager {
 
         try {
             config.save(file);
-            plugin.getLogger().info("Saved skill: " + key);
+            skillMap.put(key, skill);
         } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save skill: " + key, e);
+            e.printStackTrace();
         }
     }
 
-    private File findFileBySkillId(String skillId) {
-        return findFileRecursive(skillFolder, skillId);
+    private File findFileBySkillId(String id) {
+        return findFileBySkillIdRecursive(skillFolder, id);
     }
 
-    private File findFileRecursive(File dir, String skillId) {
+    private File findFileBySkillIdRecursive(File dir, String id) {
         File[] files = dir.listFiles();
         if (files == null) return null;
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                File found = findFileRecursive(file, skillId);
+        for (File f : files) {
+            if (f.isDirectory()) {
+                File found = findFileBySkillIdRecursive(f, id);
                 if (found != null) return found;
-            } else if (file.getName().endsWith(".yml")) {
-                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-                if (config.contains(skillId)) return file;
+            } else if (f.getName().endsWith(".yml")) {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(f);
+                if (config.contains(id)) return f;
             }
         }
         return null;
     }
 
     private void createExampleSkill() {
-        File exampleFile = new File(skillFolder, "example_fireball.yml");
-        if (exampleFile.exists()) return;
-
+        File example = new File(skillFolder, "example_skill.yml");
+        if (example.exists()) return;
         try {
-            exampleFile.createNewFile();
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(exampleFile);
+            example.createNewFile();
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(example);
 
-            config.set("fireball.display-name", "Fireball");
-            config.set("fireball.icon", "FIRE_CHARGE");
-            config.set("fireball.max-level", 5);
-            config.set("fireball.trigger", "CAST");
-            config.set("fireball.conditions.cooldown", 3.0);
-            config.set("fireball.conditions.global-cooldown", 0.5);
-            config.set("fireball.conditions.sp-cost", 20);
-            config.set("fireball.conditions.cast-time", 1.0);
-            config.set("fireball.conditions.required-level", 10);
+            String key = "fireball";
+            config.set(key + ".display-name", "Fireball");
+            config.set(key + ".icon", "BLAZE_POWDER");
+            config.set(key + ".max-level", 10);
+            config.set(key + ".trigger", "CAST");
+
+            config.set(key + ".conditions.cooldown", 5.0);
+            config.set(key + ".conditions.sp-cost", 20);
+            config.set(key + ".conditions.required-level", 1);
 
             List<Map<String, Object>> actions = new ArrayList<>();
 
-            Map<String, Object> damage = new HashMap<>();
-            damage.put("type", "DAMAGE");
-            damage.put("base-damage", 50.0);
-            damage.put("damage-per-level", 10.0);
-            damage.put("damage-type", "MAGIC");
-            actions.add(damage);
+            Map<String, Object> sound = new HashMap<>();
+            sound.put("type", "SOUND");
+            sound.put("sound", "ENTITY_GHAST_SHOOT");
+            actions.add(sound);
 
-            Map<String, Object> particle = new HashMap<>();
-            particle.put("type", "PARTICLE");
-            particle.put("particle", "FLAME");
-            particle.put("count", 20);
-            actions.add(particle);
+            Map<String, Object> delay = new HashMap<>();
+            delay.put("type", "DELAY");
+            delay.put("ticks", 10);
+            actions.add(delay);
 
-            config.set("fireball.actions", actions);
-            config.save(exampleFile);
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to create example skill", e);
+            Map<String, Object> proj = new HashMap<>();
+            proj.put("type", "PROJECTILE");
+            proj.put("projectile", "SMALL_FIREBALL");
+            proj.put("speed", 1.5);
+            proj.put("on-hit", "fireball_explode");
+            actions.add(proj);
+
+            config.set(key + ".actions", actions);
+
+            config.save(example);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
