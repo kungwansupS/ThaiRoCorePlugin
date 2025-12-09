@@ -1,16 +1,18 @@
 package org.rostats.gui;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.skill.SkillData;
+import org.rostats.engine.trigger.TriggerType;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,40 +20,38 @@ public class SkillEditorGUI {
 
     private final ThaiRoCorePlugin plugin;
     private final String skillId;
+    private final SkillData skillData;
 
     public SkillEditorGUI(ThaiRoCorePlugin plugin, String skillId) {
         this.plugin = plugin;
         this.skillId = skillId;
+        this.skillData = plugin.getSkillManager().getSkill(skillId);
     }
 
     public void open(Player player) {
-        SkillData skillData = plugin.getSkillManager().getSkill(skillId);
         if (skillData == null) {
-            player.sendMessage("§cSkill not found: " + skillId);
+            player.sendMessage("§cError: Skill data not found!");
+            player.closeInventory();
             return;
         }
 
-        Inventory inv = Bukkit.createInventory(null, 54, "§8§l[§6Skill Editor§8] §f" + skillData.getDisplayName());
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("SkillEditor: " + skillId));
 
-        // --- Row 1: Metadata & Settings ---
+        // --- Row 1: Basic Info ---
 
-        // 0: Display Name
-        inv.setItem(0, createGuiItem(Material.NAME_TAG, "§eDisplay Name / ชื่อสกิล",
+        // 0: Rename
+        inv.setItem(0, createGuiItem(Material.NAME_TAG, "§eDisplay Name / ชื่อแสดงผล",
                 "§7Current: §f" + skillData.getDisplayName(),
                 "§8---------------",
-                "§7คลิกเพื่อเปลี่ยนชื่อที่แสดง"
-        ));
-
-        // 1: Max Level
-        inv.setItem(1, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aMax Level / เลเวลสูงสุด",
-                "§7Current: §f" + skillData.getMaxLevel(),
-                "§8---------------",
-                "§7คลิกเพื่อเปลี่ยนเลเวลสูงสุดของสกิล"
+                "§7Click to rename via Chat.",
+                "§7คลิกเพื่อเปลี่ยนชื่อผ่านช่องแชท"
         ));
 
         // 2: Trigger
-        inv.setItem(2, createGuiItem(Material.COMPARATOR, "§bTrigger Type / เงื่อนไขการทำงาน",
-                "§7Current: §f" + skillData.getTrigger().name(),
+        inv.setItem(2, createGuiItem(Material.LEVER, "§6Trigger / เงื่อนไขการทำงาน",
+                "§7Current: §e" + skillData.getTrigger().name(),
+                "§8---------------",
+                "§7Click to cycle trigger types.",
                 "§7(CAST, ON_HIT, ON_DEFEND, etc.)",
                 "§8---------------",
                 "§7คลิกเพื่อเปลี่ยนเงื่อนไขการทำงาน",
@@ -68,22 +68,19 @@ public class SkillEditorGUI {
                 "§7เพื่อเปลี่ยนรูปไอคอนของสกิล"
         ));
 
-        // 6: Cooldown & Cast & GCD (UPDATED)
+        // 6: Cooldown & Cast
         inv.setItem(6, createGuiItem(Material.CLOCK, "§aTiming / เวลา",
                 "§7Cooldown: §f" + skillData.getCooldownBase() + "s",
-                "§7Global CD: §e" + skillData.getGlobalCooldownBase() + "s",
                 "§7Cast Time: §f" + skillData.getCastTime() + "s",
                 "§8---------------",
                 "§eLeft Click: §7Edit Cooldown",
                 "§eRight Click: §7Edit Cast Time",
-                "§eShift + Left: §7Edit Global CD",
                 "§8---------------",
                 "§eคลิกซ้าย: §7แก้คูลดาวน์",
-                "§eคลิกขวา: §7แก้เวลาร่าย",
-                "§eShift + คลิกซ้าย: §7แก้ Global CD"
+                "§eคลิกขวา: §7แก้เวลาร่าย"
         ));
 
-        // 7: Required Level
+        // 7: [NEW] Required Level
         inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aRequirements / เงื่อนไข",
                 "§7Required Level: §e" + skillData.getRequiredLevel(),
                 "§8---------------",
@@ -102,10 +99,11 @@ public class SkillEditorGUI {
         ));
 
         // --- Row 2-5: Action Timeline ---
+        // Render added actions
         int slot = 18;
         int index = 0;
         for (SkillAction action : skillData.getActions()) {
-            if (slot > 44) break;
+            if (slot > 44) break; // Limit display
 
             Material mat = Material.PAPER;
             switch(action.getType()) {
@@ -135,38 +133,44 @@ public class SkillEditorGUI {
 
         // --- Row 6: Controls ---
 
-        // 45: Add Action
-        inv.setItem(45, createGuiItem(Material.LIME_DYE, "§a§l+ ADD ACTION",
-                "§7เพิ่ม Action ใหม่เข้าไปใน Skill",
-                "§8---------------",
-                "§7คลิกเพื่อเลือกประเภท Action"
-        ));
-
         // 49: Save
         inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE SKILL / บันทึก",
                 "§7Save all changes to file.",
                 "§8---------------",
-                "§7คลิกเพื่อบันทึกสกิลนี้"
+                "§7บันทึกข้อมูลลงไฟล์"
+        ));
+
+        // 50: Add Action
+        inv.setItem(50, createGuiItem(Material.LIME_DYE, "§a§l+ Add Action / เพิ่มการกระทำ",
+                "§7Add a new logic block (Damage, Effect, Sound).",
+                "§8---------------",
+                "§7เพิ่มคำสั่งใหม่ (เช่น ดาเมจ, เอฟเฟกต์, เสียง)"
         ));
 
         // 53: Back
-        inv.setItem(53, createGuiItem(Material.ARROW, "§c§lBACK / กลับ",
-                "§7กลับไปหน้าจัดการสกิล"
+        inv.setItem(53, createGuiItem(Material.ARROW, "§cBack / กลับ",
+                "§7Return to Skill Library.",
+                "§8---------------",
+                "§7กลับไปหน้าคลังสกิล"
         ));
+
+        // Fill bg
+        ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) {
+            if (inv.getItem(i) == null) inv.setItem(i, bg);
+        }
 
         player.openInventory(inv);
     }
 
-    private ItemStack createGuiItem(Material material, String name, String... lore) {
-        ItemStack item = new ItemStack(material);
+    private ItemStack createGuiItem(Material mat, String name, String... lore) {
+        ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            if (lore.length > 0) {
-                meta.setLore(Arrays.asList(lore));
-            }
-            item.setItemMeta(meta);
-        }
+        meta.setDisplayName(name);
+        meta.setLore(Arrays.asList(lore));
+        // Removed HIDE_POTION_EFFECTS to fix compatibility
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        item.setItemMeta(meta);
         return item;
     }
 }
