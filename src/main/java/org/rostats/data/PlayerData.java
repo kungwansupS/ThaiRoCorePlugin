@@ -491,4 +491,11 @@ public class PlayerData {
     public void incrementResetCount() { this.resetCount++; }
     public double getCurrentSP() { return currentSP; }
     public void setCurrentSP(double s) { this.currentSP = s; }
+
+    // --- Hit & Flee Getters ---
+    public double getHitBonusFlat() { return hitFlat; }
+    public void setHitBonusFlat(double v) { this.hitFlat = v; }
+
+    public double getFleeBonusFlat() { return fleeFlat; }
+    public void setFleeBonusFlat(double v) { this.fleeFlat = v; }
 }
