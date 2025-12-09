@@ -132,7 +132,8 @@ public class CombatHandler implements Listener {
         if (!isMagic) {
             double hitRate;
             if (attackerPlayer != null) {
-                // Formula approximate: Hit Chance vs Flee
+                // HIT Formula: (HIT - FLEE + 100) / 200 (Standard RO-ish) or similar
+                // Using simple probability from original code adapted:
                 hitRate = (double) attackerHit / (attackerHit + defenderFlee);
             } else {
                 // Mob logic
@@ -145,6 +146,7 @@ public class CombatHandler implements Listener {
             }
             hitRate = Math.max(0.05, Math.min(1.0, hitRate));
 
+            // Allow Force Hit for specific skills if needed later
             if (random.nextDouble() > hitRate) {
                 event.setCancelled(true);
                 plugin.showCombatFloatingText(defenderEntity.getLocation(), "§7MISS");
@@ -153,70 +155,101 @@ public class CombatHandler implements Listener {
         }
 
         // =========================================================================================
-        // DAMAGE CALCULATION FLOW
+        // DAMAGE CALCULATION FLOW (According to ROOSTAT.html Section 13 & 14)
         // =========================================================================================
 
         double finalDamage = 0.0;
-        boolean isCritical = false; // Flag to track critical state
 
         if (attackerPlayer != null && A != null) {
             checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
 
             // --- STEP 1: Total ATK Calculation ---
+            // Formula: TotalATK = (BaseATK + EquipATKFlat + RefineATK) × EquipATK%
+
             double baseATK = isMagic ? stats.calculateBaseMAtk(attackerPlayer) : stats.calculateBasePAtk(attackerPlayer);
 
+            // Flat Bonuses (Equip Flat + Refine Flat + Buff Flat)
+            // Note: In StatManager, WeaponATK is separated. We sum them here as "EquipATKFlat".
             double equipFlat = isMagic ?
                     (A.getWeaponMAtk() + A.getMAtkBonusFlat()) :
                     (A.getWeaponPAtk() + A.getPAtkBonusFlat());
 
-            double refineFlat = 0.0;
+            // Assume Refine is included in PAtkBonusFlat or added here if separate
+            double refineFlat = 0.0; // Placeholder if you have separate Refine Stat
+
             double totalFlat = baseATK + equipFlat + refineFlat;
 
+            // Percent Bonuses (EquipATK% + FinalATK%)
+            // Mapping: PDmgBonusPercent -> EquipATK%
             double equipPercent = isMagic ? A.getMDmgBonusPercent() : A.getPDmgBonusPercent();
+
             double totalATK = totalFlat * (1 + equipPercent / 100.0);
 
             // --- STEP 2: Skill Base Calculation ---
+            // Formula: SkillBase = TotalATK × SkillATK%
+            // For normal attack, SkillATK% is 100%. If triggered by skill, this should be passed.
+            // Since this event is mostly left click, we assume 100% or modify if a skill plugin calls this.
             double skillATKPercent = DEFAULT_SKILL_ATK_PERCENT;
             double skillBase = totalATK * (skillATKPercent / 100.0);
 
             // --- STEP 3: After Skill Bonus ---
+            // Formula: AfterSkillBonus = SkillBase × (1 + SumSkillDMG%/100)
+            // We map this to specific multipliers like Range/Melee bonus
             double skillDMGPercent = 0.0;
             if (!isMagic) {
                 skillDMGPercent += isRanged ? A.getRangePDmgPercent() : A.getMeleePDmgPercent();
             }
             double afterSkillBonus = skillBase * (1 + skillDMGPercent / 100.0);
 
-            // --- STEP 4: DEF / MDEF Calculation ---
+            // --- STEP 4: DEF / MDEF Calculation (Section 3 & 4) ---
+            // Formula: EffectiveDEF = (DEF × (1 - Pen%/100)) - PenFlat
+            // HTML Section 16 Example uses Ratio Formula: Damage * 500 / (500 + Def)
+
             double rawDefense = 0.0;
             if (D != null && defenderEntity instanceof Player defP) {
                 checkTriggers(defP, attackerPlayer, TriggerType.ON_DEFEND);
                 rawDefense = isMagic ? stats.getSoftMDef(defP) : stats.getSoftDef(defP);
             } else {
+                // Mob Defense (Placeholder - could fetch from config)
                 rawDefense = 0.0;
             }
 
+            // Penetration Calculation (Section 4: % then Flat)
             double penPercent = isMagic ? A.getIgnoreMDefPercent() : A.getIgnorePDefPercent();
             double penFlat = isMagic ? A.getIgnoreMDefFlat() : A.getIgnorePDefFlat();
 
             double effectiveDef = (rawDefense * (1 - penPercent / 100.0)) - penFlat;
-            effectiveDef = Math.max(0, effectiveDef);
+            effectiveDef = Math.max(0, effectiveDef); // DEF cannot be negative
 
-            double defScale = 500.0;
+            // [FIX] Use Ratio Formula (Softcap) matching HTML Section 16 Example
+            // Formula: Damage * DEF_Scale / (DEF_Scale + EffectiveDEF)
+            double defScale = 500.0; // Standard ROO Scale
             double damageAfterDEF = afterSkillBonus * (defScale / (defScale + effectiveDef));
 
             // --- STEP 5: Final Damage Modifiers ---
+            // Formula: FinalDamage = DamageAfterDEF × (1 + FinalDMG%/100) + FinalFlat
+
             double finalDMGPercent = isMagic ? A.getFinalMDmgPercent() : A.getFinalPDmgPercent();
+            // General Final DMG % (if exists separately)
             finalDMGPercent += A.getFinalDmgPercent();
 
+            // PVP / PVE Logic (Section 14/15)
+            // Using logic from previous file but applying as Final Multiplier
             if (D != null) {
+                // PVP
                 double pvpBonus = A.getPvpDmgBonusPercent();
                 double pvpReduce = D.getPvpDmgReductionPercent();
+                // Apply based on tier or direct %
+                // Using simple additive logic for "Final DMG %" context or keep Tier logic
+                // Here preserving Tier logic as a Multiplier
                 damageAfterDEF *= getTierMultiplier(pvpBonus - pvpReduce);
             } else {
+                // PVE (Player attacking Mob)
                 double pveBonus = A.getPveDmgBonusPercent();
                 damageAfterDEF *= getTierMultiplier(pveBonus);
             }
 
+            // Apply Reduction from Defender (Final Reduce %)
             double reducePercent = 0.0;
             if (D != null) {
                 reducePercent += isMagic ? D.getMDmgReductionPercent() : D.getPDmgReductionPercent();
@@ -225,39 +258,48 @@ public class CombatHandler implements Listener {
                     reducePercent += isRanged ? D.getRangePDReductionPercent() : D.getMeleePDReductionPercent();
                 }
             }
+            // Apply Final Percent
             double totalFinalMultiplier = (1 + finalDMGPercent / 100.0) * (1 - Math.min(100, reducePercent) / 100.0);
 
             double preFlatDamage = damageAfterDEF * totalFinalMultiplier;
 
             // --- STEP 6: Crit / Lifesteal / Final Flat ---
+            // Critical
+            boolean isCritical = false;
             if (!isMagic) {
                 double critChance = calculateCritChance(attackerPlayer, defenderEntity);
                 if (random.nextDouble() < critChance) {
                     isCritical = true;
-
+                    // Formula: CritDamageMultiplier = 1 + CritDMG%/100
                     double critDmg = A.getCritDmgPercent();
-                    if (D != null) critDmg -= D.getCritDmgResPercent();
+                    if (D != null) critDmg -= D.getCritDmgResPercent(); // Crit Res reduces damage too? Or just chance? HTML implies both or specific stat.
 
-                    double critMult = 1.5 + (critDmg / 100.0);
+                    double critMult = 1.5 + (critDmg / 100.0); // Base Crit 1.5
                     preFlatDamage *= critMult;
 
-                    // Play Sound/Particle ONLY here (No Text)
-                    playCritEffects(attackerPlayer, defenderEntity);
+                    showCritEffects(attackerPlayer, defenderEntity, preFlatDamage);
                 }
             }
 
-            double finalFlat = A.getTrueDamageFlat();
+            // Final Flat (True Damage / Bonus Flat at end)
+            // HTML 8: FinalDamage = ... + FinalFlat
+            double finalFlat = A.getTrueDamageFlat(); // Treating True Damage as Final Flat Add
+
             finalDamage = preFlatDamage + finalFlat;
 
         } else {
-            // MOB ATTACKER LOGIC
+            // MOB ATTACKER LOGIC (Simplified)
             finalDamage = vanillaDamage;
             if (D != null && defenderEntity instanceof Player defP) {
+                // Apply Mob vs Player Defense
                 double def = isMagic ? stats.getSoftMDef(defP) : stats.getSoftDef(defP);
+                // For mobs hitting players, we usually stick to simple reduction or ratio.
+                // Keeping simple flat reduction here for mob balance unless spec says otherwise for PVE incoming.
                 finalDamage = Math.max(0, finalDamage - def);
 
+                // Apply Reductions
                 double reduce = isMagic ? D.getMDmgReductionPercent() : D.getPDmgReductionPercent();
-                reduce += D.getPveDmgReductionPercent();
+                reduce += D.getPveDmgReductionPercent(); // Mob hitting Player -> Player PVE Reduce
                 finalDamage *= (1 - Math.min(100, reduce) / 100.0);
             }
         }
@@ -266,23 +308,22 @@ public class CombatHandler implements Listener {
         if (D != null && D.getShieldValueFlat() > 0) {
             double absorb = Math.min(D.getShieldValueFlat(), finalDamage);
             finalDamage -= absorb;
+            // Note: Logic to decrease shield would go here
         }
 
+        // Ensure non-negative
         finalDamage = Math.max(0, finalDamage);
         event.setDamage(finalDamage);
 
-        // --- FCT DISPLAY (Unified Logic) ---
-        if (finalDamage > 0 && attackerPlayer != null) {
-            if (isCritical) {
-                // Critical Damage (Red Bold + Icon)
-                plugin.showCombatFloatingText(defenderEntity.getLocation(), "§c§l" + String.format("%.0f", finalDamage) + " 💥");
-            } else {
-                // Normal Damage
-                plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
-            }
+        if (finalDamage > 0 && attackerPlayer == null) {
+            // Show damage for Mob attacks too if needed
+            // plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
+        } else if (finalDamage > 0 && attackerPlayer != null) {
+            plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
         }
     }
 
+    // [FIX] ใช้ Cache จาก AttributeHandler
     private void checkTriggers(Player player, LivingEntity target, TriggerType type) {
         if (player == null) return;
         List<ItemSkillBinding> bindings = plugin.getAttributeHandler().getCachedTriggers(player, type);
@@ -301,6 +342,10 @@ public class CombatHandler implements Listener {
         if (defender instanceof Player defenderPlayer) {
             PlayerData D = plugin.getStatManager().getData(defenderPlayer.getUniqueId());
             defenderCritRes = D.getCritRes();
+            // Formula: (LUK * 0.2) + CritRes
+            // Note: This needs access to total LUK from StatManager if not in PlayerData directly
+            // StatManager.getTotalStat is private, so we approximate or expose it.
+            // Using raw stats from PlayerData + Gear
             int totalLuk = D.getStat("LUK") + D.getPendingStat("LUK") + D.getLUKBonusGear();
             defenderCritRes += (totalLuk * 0.2);
         }
@@ -308,6 +353,7 @@ public class CombatHandler implements Listener {
     }
 
     private double getTierMultiplier(double diff) {
+        // Tiers for PVP/PVE RAW diff
         if (diff >= 4000) return 1.55;
         if (diff >= 3000) return 1.50;
         if (diff >= 2000) return 1.40;
@@ -321,8 +367,8 @@ public class CombatHandler implements Listener {
         return 1.00;
     }
 
-    // New helper method for effects only (No Text)
-    private void playCritEffects(Player attacker, LivingEntity victim) {
+    private void showCritEffects(Player attacker, LivingEntity victim, double finalDamage) {
+        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0), "§c§lCRITICAL " + String.format("%.0f", finalDamage));
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 1f);
         attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20);
     }
