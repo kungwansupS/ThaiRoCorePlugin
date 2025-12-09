@@ -5,7 +5,6 @@ import org.rostats.ThaiRoCorePlugin;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Set;
 
 public class StatManager {
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
@@ -230,22 +229,5 @@ public class StatManager {
     public double calculatePower(Player player) {
         PlayerData data = getData(player.getUniqueId());
         return (getTotalStat(data,"STR") + getTotalStat(data,"INT")) * 5.0 + data.getBaseLevel() * 10.0;
-    }
-
-    // --- NEW: V-CT Calculation Helpers (MATCHING ROOSTAT.HTML) ---
-
-    public double getVariableCastTimeReduction(PlayerData data) {
-        // Use the combined stat values (base + pending + gear + effect)
-        int totalDex = getTotalStat(data, "DEX");
-        int totalInt = getTotalStat(data, "INT");
-
-        // HTML Section 6: VarCT_Red% = (DEX*2 + INT) / 530
-        // Multiply by 100 to return percentage for PlayerData calculation
-        double statReductionPercent = ((totalDex * 2.0) + totalInt) / 530.0 * 100.0;
-
-        // Add Gear % reduction
-        double gearReduction = data.getVarCTPercent() + data.getEffectBonus("VAR_CT_PERCENT");
-
-        return statReductionPercent + gearReduction;
     }
 }
