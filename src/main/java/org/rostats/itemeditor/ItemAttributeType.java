@@ -1,151 +1,118 @@
 package org.rostats.itemeditor;
 
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.rostats.ThaiRoCorePlugin;
+
 public enum ItemAttributeType {
+    // Core Flat Bonuses (Names updated to Primary Name from ROOSTAT.html)
+    WEAPON_PATK("WeaponPAtk", "§cEquipment ATK", Material.IRON_SWORD, "%.0f", 1.0, 10.0), // HTML: Equipment ATK
+    WEAPON_MATK("WeaponMAtk", "§dEquipment M.ATK", Material.ENCHANTED_BOOK, "%.0f", 1.0, 10.0), // Consistent naming
+    HIT_BONUS_FLAT("HitBonusFlat", "§6HIT", Material.TARGET, "%.0f", 1.0, 10.0),
+    FLEE_BONUS_FLAT("FleeBonusFlat", "§bFLEE", Material.FEATHER, "%.0f", 1.0, 10.0),
+    BASE_MSPD("BaseMSPD", "§aBase Move Speed", Material.SUGAR, "%.2f", 0.01, 0.1),
 
-    // --- 1. Base Attributes ---
-    // Status
-    STR("STR"),
-    AGI("AGI"),
-    VIT("VIT"),
-    INT("INT"),
-    DEX("DEX"),
-    LUK("LUK"),
-    // Derived Base Stats
-    MAX_HP("Max HP"),
-    MAX_SP("Max SP"),
-    HP_RECOVERY("HP Recovery"),
-    SP_RECOVERY("SP Recovery"),
-    HIT("HIT"),
-    FLEE("FLEE"),
+    PATK_FLAT("PAtkBonusFlat", "§cBonus ATK", Material.REDSTONE, "%.0f", 1.0, 10.0),
+    MATK_FLAT("MAtkBonusFlat", "§dBonus M.ATK", Material.LAPIS_LAZULI, "%.0f", 1.0, 10.0),
 
-    // --- 2. Core Combat Stats ---
-    // Attack
-    P_ATK("P.ATK"),
-    M_ATK("M.ATK"),
-    REFINE_P_ATK("Refine P.ATK"),
-    REFINE_M_ATK("Refine M.ATK"),
-    // Defense
-    P_DEF("P.DEF"),
-    M_DEF("M.DEF"),
-    REFINE_P_DEF("Refine P.DEF"),
-    REFINE_M_DEF("Refine M.DEF"),
+    // Note: PDMG_FLAT is mapped to Final Damage Flat in new logic
+    PDMG_FLAT("PDmgBonusFlat", "§cFinal Damage", Material.REDSTONE_BLOCK, "%.0f", 1.0, 10.0),
+    MDMG_FLAT("MdmgBonusFlat", "§dFinal M.Damage", Material.LAPIS_BLOCK, "%.0f", 1.0, 10.0),
+    TRUE_DMG("TrueDamageFlat", "§6True Damage", Material.NETHER_STAR, "%.0f", 1.0, 10.0),
 
-    // --- 3. Penetration / Ignore Def ---
-    // Physical
-    PEN_P_FLAT("Physical Penetration (flat)"),
-    PEN_P_PERCENT("Physical Penetration%"),
-    IGNORE_P_DEF_FLAT("Ignore P.DEF (flat)"),
-    IGNORE_P_DEF_PERCENT("Ignore P.DEF%"),
-    // Magical
-    PEN_M_FLAT("Magic Penetration (flat)"),
-    PEN_M_PERCENT("Magic Penetration%"),
-    IGNORE_M_DEF_FLAT("Ignore M.DEF (flat)"),
-    IGNORE_M_DEF_PERCENT("Ignore M.DEF%"),
+    // Gear Bonuses (Primary Stats)
+    STR_GEAR("STRBonusGear", "§cSTR", Material.IRON_BLOCK, "%.0f", 1.0, 10.0),
+    AGI_GEAR("AGIBonusGear", "§bAGI", Material.FEATHER, "%.0f", 1.0, 10.0),
+    VIT_GEAR("VITBonusGear", "§aVIT", Material.IRON_CHESTPLATE, "%.0f", 1.0, 10.0),
+    INT_GEAR("INTBonusGear", "§dINT", Material.ENCHANTED_BOOK, "%.0f", 1.0, 10.0),
+    DEX_GEAR("DEXBonusGear", "§6DEX", Material.BOW, "%.0f", 1.0, 10.0),
+    LUK_GEAR("LUKBonusGear", "§eLUK", Material.RABBIT_FOOT, "%.0f", 1.0, 10.0),
 
-    // --- 4. Casting ---
-    // Variable Casting
-    VAR_CASTING_PERCENT("Variable Casting%"),
-    VAR_CT_FLAT("Variable CT (Flat)"),
-    // Fixed Casting
-    FIXED_CASTING_PERCENT("Fixed Casting%"),
-    FIXED_CT_FLAT("Fixed CT (Flat)"),
+    // Percent Bonuses
+    MAXHP_PERCENT("MaxHPPercent", "§aMax HP %", Material.RED_WOOL, "%.1f%%", 1.0, 10.0),
+    MAXSP_PERCENT("MaxSPPercent", "§bMax SP %", Material.BLUE_WOOL, "%.1f%%", 1.0, 10.0),
 
-    // --- 5. Cooldown / Delay / Motion System ---
-    // Cooldown
-    SKILL_COOLDOWN_PERCENT("Skill Cooldown%"),
-    SKILL_COOLDOWN_FLAT("Skill Cooldown Flat"),
-    FINAL_COOLDOWN_PERCENT("Final Cooldown%"),
-    // Global Delay
-    GLOBAL_CD_PERCENT("Global CD%"),
-    AFTER_CAST_DELAY_PERCENT("After-Cast Delay%"),
-    AFTER_CAST_DELAY_FLAT("After-Cast Delay Flat"),
-    // Motion
-    PRE_MOTION("Pre-motion modifier"),
-    POST_MOTION("Post-motion modifier"),
-    CANCEL_MOTION("Cancel motion factor"),
+    // Mapped to Equipment ATK %
+    PDMG_PERCENT("PDmgBonusPercent", "§aEquipment ATK %", Material.DIAMOND_SWORD, "%.1f%%", 1.0, 10.0),
+    MDMG_PERCENT("MdmgBonusPercent", "§bEquipment M.ATK %", Material.DIAMOND_HOE, "%.1f%%", 1.0, 10.0),
 
-    // --- 6. Speed & Mobility ---
-    ASPD_PERCENT("ASPD%"),
-    MSPD_PERCENT("MSPD%"),
-    ATK_INTERVAL_REDUCTION("Attack Interval Reduction%"),
+    FINAL_DMG_PERCENT("FinalDmgPercent", "§6Final DMG %", Material.GOLD_INGOT, "%.1f%%", 1.0, 10.0),
+    FINAL_DMG_RES_PERCENT("FinalDmgResPercent", "§6Final Reduce %", Material.GOLD_BLOCK, "%.1f%%", 1.0, 10.0),
+    CRIT_DMG_PERCENT("CritDmgPercent", "§eCrit DMG %", Material.YELLOW_DYE, "%.1f%%", 5.0, 10.0),
+    CRIT_DMG_RES_PERCENT("CritDmgResPercent", "§eCrit DMG RES %", Material.SHULKER_SHELL, "%.1f%%", 1.0, 10.0),
+    CRIT_RES("CritRes", "§eCrit Resist", Material.SHIELD, "%.1f", 1.0, 10.0),
 
-    // --- 7. Critical System ---
-    // Critical Offensive
-    CRIT("CRIT"),
-    CRIT_DMG_PERCENT("CRIT DMG%"),
-    FINAL_CRIT_DMG_PERCENT("Final Crit DMG%"),
-    // Critical Defensive
-    CRIT_RES("CRIT RES"),
-    CRIT_DMG_RES_PERCENT("CRIT DMG RES%"),
-    PERFECT_DODGE("Perfect Dodge"),
-    PERFECT_HIT("Perfect Hit"),
+    FINAL_PDMG_PERCENT("FinalPDmgPercent", "§6Final P.DMG %", Material.DIAMOND_CHESTPLATE, "%.1f%%", 1.0, 10.0),
+    FINAL_MDMG_PERCENT("FinalMDmgPercent", "§6Final M.DMG %", Material.GOLDEN_CHESTPLATE, "%.1f%%", 1.0, 10.0),
 
-    // --- 8. Universal Damage Modifiers ---
-    // Physical
-    P_DMG_BONUS_PERCENT("P.DMG Bonus%"),
-    P_DMG_BONUS_FLAT("P.DMG Bonus (flat)"),
-    P_DMG_REDUCTION_PERCENT("P.DMG Reduction%"),
-    // Magical
-    M_DMG_BONUS_PERCENT("M.DMG Bonus%"),
-    M_DMG_BONUS_FLAT("M.DMG Bonus (flat)"),
-    M_DMG_REDUCTION_PERCENT("M.DMG Reduction%"),
-    // Extra
-    TRUE_DAMAGE("True Damage"),
+    MELEE_PDMG_PERCENT("MeleePDmgPercent", "§aMelee P.DMG %", Material.BLAZE_ROD, "%.1f%%", 1.0, 10.0),
+    RANGE_PDMG_PERCENT("RangePDmgPercent", "§aRange P.DMG %", Material.SPECTRAL_ARROW, "%.1f%%", 1.0, 10.0),
 
-    // --- 9. Distance-Type Damage ---
-    // Melee
-    MELEE_P_DMG_PERCENT("Melee P.DMG%"),
-    MELEE_P_DMG_REDUCTION_PERCENT("Melee P.DMG Reduction%"),
-    // Ranged
-    RANGED_P_DMG_PERCENT("Ranged P.DMG%"),
-    RANGED_P_DMG_REDUCTION_PERCENT("Ranged P.DMG Reduction%"),
+    MELEE_PDMG_REDUCTION_PERCENT("MeleePDReductionPercent", "§aMelee Reduce %", Material.CHAINMAIL_CHESTPLATE, "%.1f%%", 1.0, 10.0),
+    RANGE_PDMG_REDUCTION_PERCENT("RangePDReductionPercent", "§aRange Reduce %", Material.CHAINMAIL_HELMET, "%.1f%%", 1.0, 10.0),
 
-    // --- 10. Content-Type Modifiers ---
-    // PvE
-    PVE_DMG_BONUS("PvE DMG Bonus"),
-    PVE_DMG_REDUCTION("PvE DMG Reduction"),
-    // PvP
-    PVP_DMG_BONUS("PvP DMG Bonus"),
-    PVP_DMG_REDUCTION("PvP DMG Reduction"),
+    PVE_DMG_PERCENT("PveDmgBonusPercent", "§aPVE RAW Bonus", Material.OAK_SAPLING, "%.0f", 1.0, 10.0),
+    PVP_DMG_PERCENT("PvpDmgBonusPercent", "§cPVP RAW Bonus", Material.IRON_SWORD, "%.0f", 1.0, 10.0),
 
-    // --- 11. Healing System ---
-    // Heal Output
-    HEALING_EFFECT_PERCENT("Healing Effect%"),
-    HEALING_FLAT("Healing Flat"),
-    // Heal Taken
-    HEALING_RECEIVED_PERCENT("Healing Received%"),
-    RECEIVED_HEAL_FLAT("Received Heal Flat"),
+    PVE_DMG_REDUCTION_PERCENT("PveDmgReductionPercent", "§aPVE RAW Reduce", Material.SPRUCE_SAPLING, "%.0f", 1.0, 10.0),
+    PVP_DMG_REDUCTION_PERCENT("PvpDmgReductionPercent", "§cPVP RAW Reduce", Material.IRON_AXE, "%.0f", 1.0, 10.0),
 
-    // --- Special / Misc ---
-    MAX_HP_PERCENT("Max HP%"),
-    MAX_SP_PERCENT("Max SP%"),
-    SHIELD_VALUE("Shield Value");
+    PDMG_REDUCTION_PERCENT("PDmgReductionPercent", "§cP.DMG Reduce %", Material.IRON_CHESTPLATE, "%.1f%%", 1.0, 10.0),
+    MDMG_REDUCTION_PERCENT("MdmgReductionPercent", "§dM.DMG Reduce %", Material.LEATHER_CHESTPLATE, "%.1f%%", 1.0, 10.0),
 
+    P_PEN_FLAT("PPenFlat", "§6Penetration", Material.IRON_NUGGET, "%.0f", 1.0, 10.0), // HTML: Penetration Flat
+    M_PEN_FLAT("MPenFlat", "§6M.Penetration", Material.LAPIS_LAZULI, "%.0f", 1.0, 10.0),
+    P_PEN_PERCENT("PPenPercent", "§6Penetration %", Material.IRON_INGOT, "%.1f%%", 1.0, 10.0),
+    M_PEN_PERCENT("MPenPercent", "§6M.Penetration %", Material.DIAMOND, "%.1f%%", 1.0, 10.0),
+
+    IGNORE_PDEF_FLAT("IgnorePDefFlat", "§6Ignore DEF", Material.ANVIL, "%.0f", 1.0, 10.0),
+    IGNORE_MDEF_FLAT("IgnoreMDefFlat", "§6Ignore M.DEF", Material.BREWING_STAND, "%.0f", 1.0, 10.0),
+    IGNORE_PDEF_PERCENT("IgnorePDefPercent", "§6Ignore DEF %", Material.IRON_BLOCK, "%.1f%%", 1.0, 10.0),
+    IGNORE_MDEF_PERCENT("IgnoreMDefPercent", "§6Ignore M.DEF %", Material.LAPIS_BLOCK, "%.1f%%", 1.0, 10.0),
+
+    ASPD_PERCENT("ASpdPercent", "§aASPD %", Material.FEATHER, "%.1f%%", 1.0, 10.0),
+    MSPD_PERCENT("MSpdPercent", "§aMovement SPD %", Material.LEATHER_BOOTS, "%.1f%%", 1.0, 10.0),
+
+    VAR_CT_PERCENT("VarCTPercent", "§dVariable Casting %", Material.CLOCK, "%.1f%%", 1.0, 10.0),
+    VAR_CT_FLAT("VarCTFlat", "§dVariable Casting", Material.CLOCK, "%.1f", 0.1, 10.0),
+    FIXED_CT_PERCENT("FixedCTPercent", "§dFixed Casting %", Material.COMPASS, "%.1f%%", 1.0, 10.0),
+    FIXED_CT_FLAT("FixedCTFlat", "§dFixed Casting", Material.COMPASS, "%.1f", 0.1, 10.0),
+
+    HEALING_EFFECT_PERCENT("HealingEffectPercent", "§aHealing Effect %", Material.GLOW_BERRIES, "%.1f%%", 1.0, 10.0),
+    HEALING_RECEIVED_PERCENT("HealingReceivedPercent", "§aHealing Receive %", Material.GLOWSTONE_DUST, "%.1f%%", 1.0, 10.0),
+
+    LIFESTEAL_P_PERCENT("LifestealPPercent", "§cLifesteal %", Material.POISONOUS_POTATO, "%.1f%%", 1.0, 10.0),
+    LIFESTEAL_M_PERCENT("LifestealMPercent", "§dM. Lifesteal %", Material.ROTTEN_FLESH, "%.1f%%", 1.0, 10.0),
+
+    SHIELD_VALUE_FLAT("ShieldValueFlat", "§bShield", Material.PRISMARINE_SHARD, "%.0f", 1.0, 10.0),
+    SHIELD_RATE_PERCENT("ShieldRatePercent", "§bShield Rate %", Material.PRISMARINE_CRYSTALS, "%.1f%%", 1.0, 10.0);
+
+    private final String key;
     private final String displayName;
+    private final Material material;
+    private final String format;
+    private final double clickStep;
+    private final double rightClickStep;
+    private NamespacedKey namespacedKey;
 
-    ItemAttributeType(String displayName) {
+    ItemAttributeType(String key, String displayName, Material material, String format, double clickStep, double rightClickStep) {
+        this.key = key;
         this.displayName = displayName;
+        this.material = material;
+        this.format = format;
+        this.clickStep = clickStep;
+        this.rightClickStep = rightClickStep;
     }
 
-    public String getDisplayName() {
-        return displayName;
+    public void initialize(ThaiRoCorePlugin plugin) {
+        this.namespacedKey = new NamespacedKey(plugin, "RO_BONUS_" + this.key.toUpperCase());
     }
 
-    public static ItemAttributeType fromDisplayName(String name) {
-        for (ItemAttributeType type : values()) {
-            if (type.getDisplayName().equalsIgnoreCase(name.replace("§a§l", "").trim())) {
-                return type;
-            }
-            // Fallback for loose matching
-            if (type.getDisplayName().replace(" (flat)", "").equalsIgnoreCase(name)) {
-                return type;
-            }
-        }
-        // Try matching enum name directly as backup
-        try {
-            return ItemAttributeType.valueOf(name.replace(" ", "_").toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
+    public String getKey() { return key; }
+    public String getDisplayName() { return displayName; }
+    public Material getMaterial() { return material; }
+    public String getFormat() { return format; }
+    public double getClickStep() { return clickStep; }
+    public double getRightClickStep() { return rightClickStep; }
+    public NamespacedKey getNamespacedKey() { return namespacedKey; }
 }
