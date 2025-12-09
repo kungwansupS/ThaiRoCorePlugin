@@ -26,6 +26,9 @@ public class SkillManager {
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
 
+    // [NEW] Global Cooldown Constant (0.5 seconds = 500ms)
+    private static final long GLOBAL_COOLDOWN_MILLIS = 500L;
+
     public SkillManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         this.skillFolder = new File(plugin.getDataFolder(), "skills");
@@ -68,15 +71,34 @@ public class SkillManager {
                 return;
             }
 
-            // 2. Cooldown Check
+            // 2. Cooldown Check (Skill CD & Global CD)
             long now = System.currentTimeMillis();
+
+            // --- NEW: Global Cooldown Check ---
+            long lastGlobalUse = data.getLastGlobalSkillUse();
+            if (now - lastGlobalUse < GLOBAL_COOLDOWN_MILLIS) {
+                // Calculate remaining time for display
+                double remainingSeconds = (GLOBAL_COOLDOWN_MILLIS - (now - lastGlobalUse)) / 1000.0;
+                player.sendMessage("§cGlobal Cooldown active! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
+                return; // Global Cooldown (GCD) active
+            }
+            // ----------------------------------
+
+            // --- MODIFIED: Skill Cooldown Check (Applying Player Reduction) ---
             long lastUse = data.getSkillCooldown(skillId);
-            double cooldownSeconds = skill.getCooldown(level);
-            long cooldownMillis = (long) (cooldownSeconds * 1000);
+            double baseCooldownSeconds = skill.getCooldown(level);
+
+            // Calculate final skill cooldown applying player's CD reduction (from base stats + gear/effect)
+            double skillCDReduction = data.getSkillCooldownReductionPercent() + data.getEffectBonus("SKILL_CD_PERCENT");
+            double finalCooldownSeconds = baseCooldownSeconds * Math.max(0.0, 1.0 - (skillCDReduction / 100.0));
+            long cooldownMillis = (long) (finalCooldownSeconds * 1000);
 
             if (now - lastUse < cooldownMillis) {
+                double remainingSeconds = (cooldownMillis - (now - lastUse)) / 1000.0;
+                player.sendMessage("§cSkill is on cooldown! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
                 return; // On cooldown
             }
+            // -----------------------------------------------------------------
 
             // 3. SP Cost Check
             int spCost = skill.getSpCost(level);
@@ -100,6 +122,7 @@ public class SkillManager {
             // 5. Deduct SP & Set Cooldown
             data.setCurrentSP(data.getCurrentSP() - spCost);
             data.setSkillCooldown(skillId, now);
+            data.setLastGlobalSkillUse(now); // [NEW] Set Global Cooldown
             plugin.getManaManager().updateBar(player);
         }
 

@@ -80,6 +80,10 @@ public class PlayerData {
     private double fixedCTPercent = 0.0;
     private double fixedCTFlat = 0.0;
 
+    // [NEW] Skill Cooldown Reduction and Global Cooldown Tracking
+    private double skillCooldownReductionPercent = 0.0;
+    private long lastGlobalSkillUse = 0L;
+
     private double healingEffectPercent = 0.0;
     private double healingReceivedPercent = 0.0;
 
@@ -161,6 +165,7 @@ public class PlayerData {
         this.aSpdPercent = 0; this.mSpdPercent = 0; this.baseMSPD = 0.1;
         this.varCTPercent = 0; this.varCTFlat = 0;
         this.fixedCTPercent = 0; this.fixedCTFlat = 0;
+        this.skillCooldownReductionPercent = 0; // [NEW] Reset Skill CD Reduction
         this.healingEffectPercent = 0; this.healingReceivedPercent = 0;
         this.lifestealPPercent = 0; this.lifestealMPercent = 0;
         this.hitBonusFlat = 0; this.fleeBonusFlat = 0;
@@ -264,6 +269,14 @@ public class PlayerData {
     public void setFixedCTPercent(double v) { this.fixedCTPercent = v; }
     public double getFixedCTFlat() { return fixedCTFlat; }
     public void setFixedCTFlat(double v) { this.fixedCTFlat = v; }
+
+    // [NEW] Skill Cooldown Reduction Getter/Setter
+    public double getSkillCooldownReductionPercent() { return skillCooldownReductionPercent; }
+    public void setSkillCooldownReductionPercent(double v) { this.skillCooldownReductionPercent = v; }
+
+    // [NEW] Global Cooldown Tracking Getter/Setter
+    public long getLastGlobalSkillUse() { return lastGlobalSkillUse; }
+    public void setLastGlobalSkillUse(long v) { this.lastGlobalSkillUse = v; }
 
     public double getHealingEffectPercent() { return healingEffectPercent; }
     public void setHealingEffectPercent(double v) { this.healingEffectPercent = v; }
