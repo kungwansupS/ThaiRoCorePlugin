@@ -17,16 +17,15 @@ import java.util.List;
 
 public class AttributeEditorGUI {
 
-    // กำหนดหมวดหมู่หน้าต่างใหม่ 8 หมวด + General
     public enum Page {
         GENERAL,
-        BASE_STATS,     // Status & Derived (HP/SP/Hit/Flee/Speed)
-        OFFENSE,        // P.ATK/M.ATK/Final Dmg/True Dmg
-        DEFENSE,        // Reduce/Resist/Shield
-        PEN_CRIT,       // Penetration/Ignore Def/Crit
-        SPEED_CAST,     // ASPD/MSPD/Casting Time
-        CONDITIONAL,    // Melee/Range/PvE/PvP
-        RECOVERY        // Heal/Lifesteal
+        BASE_STATS,
+        OFFENSE,
+        DEFENSE,
+        PEN_CRIT,
+        SPEED_CAST,
+        CONDITIONAL,
+        RECOVERY
     }
 
     private final ThaiRoCorePlugin plugin;
@@ -42,13 +41,11 @@ public class AttributeEditorGUI {
     }
 
     public void open(Player player, Page page) {
-        // สร้าง Inventory ขนาด 54 ช่อง (6 แถว)
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("Editor: " + itemFile.getName() + " [" + page.name() + "]"));
 
-        inv.setItem(4, currentItem); // แสดงไอเทมปัจจุบันตรงกลางบน
-        setupNavigation(inv, page);  // สร้างปุ่มเปลี่ยนหน้าด้านล่าง
+        inv.setItem(4, currentItem);
+        setupNavigation(inv, page);
 
-        // เลือก Render หน้าตาม Page ที่ส่งมา
         switch (page) {
             case GENERAL: renderGeneral(inv); break;
             case BASE_STATS: renderBaseStats(inv); break;
@@ -64,7 +61,6 @@ public class AttributeEditorGUI {
     }
 
     private void renderGeneral(Inventory inv) {
-        // ปุ่มพื้นฐาน (Rename, Lore, Type, Effect, Enchant, Skill, Save)
         inv.setItem(19, createIcon(Material.NAME_TAG, "§eRename Item / เปลี่ยนชื่อ",
                 "§7Change the display name.", "§8---------------", "§7คลิกเพื่อเปลี่ยนชื่อ"));
 
@@ -88,13 +84,11 @@ public class AttributeEditorGUI {
                 "§cRemove Vanilla: " + removeVanilla,
                 "§7Toggle hiding vanilla attributes.", "§8---------------", "§7ซ่อนสถานะเดิมของ Minecraft"));
 
-        // ปุ่ม Save สีเขียวเด่นๆ
         inv.setItem(40, createIcon(Material.EMERALD_BLOCK, "§a§lSave to File / บันทึก",
                 "§7Save changes to disk.", "§8---------------", "§7บันทึกข้อมูล"));
     }
 
     private void renderBaseStats(Inventory inv) {
-        // STR-LUK
         int[] slots = {10, 11, 12, 19, 20, 21};
         ItemAttributeType[] base = {
                 ItemAttributeType.STR_GEAR, ItemAttributeType.AGI_GEAR, ItemAttributeType.VIT_GEAR,
@@ -102,25 +96,19 @@ public class AttributeEditorGUI {
         };
         for(int i=0; i<base.length; i++) inv.setItem(slots[i], createStatIcon(base[i]));
 
-        // HP/SP
         inv.setItem(14, createStatIcon(ItemAttributeType.MAXHP_PERCENT));
         inv.setItem(15, createStatIcon(ItemAttributeType.MAXSP_PERCENT));
 
-        // Derived Combat
         inv.setItem(16, createStatIcon(ItemAttributeType.HIT_BONUS_FLAT));
         inv.setItem(25, createStatIcon(ItemAttributeType.FLEE_BONUS_FLAT));
 
-        // Base Speed
         inv.setItem(23, createStatIcon(ItemAttributeType.BASE_MSPD));
     }
 
     private void renderOffense(Inventory inv) {
         ItemAttributeType[] types = {
-                // Physical
                 ItemAttributeType.WEAPON_PATK, ItemAttributeType.PATK_FLAT, ItemAttributeType.PDMG_PERCENT, ItemAttributeType.PDMG_FLAT, ItemAttributeType.FINAL_PDMG_PERCENT,
-                // Magical
                 ItemAttributeType.WEAPON_MATK, ItemAttributeType.MATK_FLAT, ItemAttributeType.MDMG_PERCENT, ItemAttributeType.MDMG_FLAT, ItemAttributeType.FINAL_MDMG_PERCENT,
-                // Universal
                 ItemAttributeType.FINAL_DMG_PERCENT, ItemAttributeType.TRUE_DMG
         };
         fillGrid(inv, types);
@@ -137,22 +125,14 @@ public class AttributeEditorGUI {
 
     private void renderPenCrit(Inventory inv) {
         ItemAttributeType[] types = {
-                // Physical Pen/Ignore
                 ItemAttributeType.P_PEN_FLAT, ItemAttributeType.P_PEN_PERCENT,
                 ItemAttributeType.IGNORE_PDEF_FLAT, ItemAttributeType.IGNORE_PDEF_PERCENT,
-                // Magical Pen/Ignore
                 ItemAttributeType.M_PEN_FLAT, ItemAttributeType.M_PEN_PERCENT,
                 ItemAttributeType.IGNORE_MDEF_FLAT, ItemAttributeType.IGNORE_MDEF_PERCENT,
-                // Crit
                 ItemAttributeType.CRIT_RATE, ItemAttributeType.CRIT_DMG_PERCENT,
                 ItemAttributeType.CRIT_RES, ItemAttributeType.CRIT_DMG_RES_PERCENT
         };
-        // กรองค่าที่เป็น null ออก (เผื่อ ItemAttributeType บางตัวไม่ได้ถูกประกาศใน Phase 1)
-        List<ItemAttributeType> validTypes = new ArrayList<>();
-        for (ItemAttributeType t : types) {
-            try { if(t != null) validTypes.add(t); } catch(Exception ignored){}
-        }
-        fillGrid(inv, validTypes.toArray(new ItemAttributeType[0]));
+        fillGrid(inv, types);
     }
 
     private void renderSpeedCast(Inventory inv) {
@@ -183,23 +163,23 @@ public class AttributeEditorGUI {
     }
 
     private void fillGrid(Inventory inv, ItemAttributeType[] types) {
-        int slot = 9; // เริ่มต้นที่แถว 2
+        int slot = 9;
         for (ItemAttributeType type : types) {
-            if (slot >= 45) break; // กันเกินพื้นที่
-            inv.setItem(slot++, createStatIcon(type));
+            if (slot >= 45) break;
+            try {
+                if (type != null) inv.setItem(slot++, createStatIcon(type));
+            } catch (Exception ignored) {}
         }
     }
 
     private void setupNavigation(Inventory inv, Page page) {
         Page[] pages = Page.values();
-        // ใช้ Slot 45-52 สำหรับ Tab (8 ช่องพอดี)
         for (int i = 0; i < pages.length; i++) {
             if (i >= 8) break;
             int slot = 45 + i;
             boolean active = (pages[i] == page);
 
             Material mat;
-            // เลือกไอคอนให้สื่อความหมายแต่ละ Tab
             switch(pages[i]) {
                 case GENERAL: mat = Material.BOOK; break;
                 case BASE_STATS: mat = Material.PLAYER_HEAD; break;
@@ -220,7 +200,6 @@ public class AttributeEditorGUI {
                     "§7คลิกเพื่อเปิดหน้าต่างนี้"
             ));
         }
-        // ปุ่ม Back (Slot 53)
         inv.setItem(53, createIcon(Material.ARROW, "§eBack to Library / กลับ",
                 "§7Return to folder view", "§8---------------", "§7กลับไปหน้าคลังไอเทม"));
     }
@@ -233,6 +212,16 @@ public class AttributeEditorGUI {
         List<String> lore = new ArrayList<>();
         lore.add("§7Current: §e" + String.format(type.getFormat(), val));
         lore.add(" ");
+
+        // --- ส่วนที่เพิ่ม: แสดงคำอธิบายภาษาไทย ---
+        if (type.getDescription() != null && !type.getDescription().isEmpty()) {
+            for (String desc : type.getDescription()) {
+                lore.add("§f" + desc);
+            }
+            lore.add(" ");
+        }
+        // ----------------------------------------
+
         lore.add("§eLeft Click: §7+" + type.getClickStep());
         lore.add("§eRight Click: §7-" + type.getClickStep());
         lore.add("§eShift+Left: §7+" + type.getRightClickStep());
