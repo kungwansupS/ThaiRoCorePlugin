@@ -1,285 +1,258 @@
 package org.rostats.handler;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.PlayerChangedWorldEvent; // [NEW] Import สำหรับเปลี่ยนโลก
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent; // [NEW] Import สำหรับเกิดใหม่
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
-import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
-import org.rostats.itemeditor.ItemSkillBinding;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 public class AttributeHandler implements Listener {
 
     private final ThaiRoCorePlugin plugin;
 
-    private final Map<UUID, List<ItemSkillBinding>> cachedPassiveSkills = new ConcurrentHashMap<>();
-    private final Map<UUID, Map<PotionEffectType, Integer>> cachedPassivePotions = new ConcurrentHashMap<>();
-    private final Map<UUID, Map<TriggerType, List<ItemSkillBinding>>> cachedTriggers = new ConcurrentHashMap<>();
-
     public AttributeHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    // --- Events to Trigger Update ---
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
-        // [FIX] ใช้ runTask เพื่อรอ 1 tick ให้ Inventory โหลดเสร็จสมบูรณ์ก่อนคำนวณ
-        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> updatePlayerStats(event.getPlayer()), 10L);
     }
 
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        UUID uuid = event.getPlayer().getUniqueId();
-        cachedPassiveSkills.remove(uuid);
-        cachedPassivePotions.remove(uuid);
-        cachedTriggers.remove(uuid);
-    }
-
-    // [FIX] เพิ่ม Event เมื่อผู้เล่นเปลี่ยนโลก (ข้ามโลกแล้ว Stat หาย)
-    @EventHandler
-    public void onWorldChange(PlayerChangedWorldEvent event) {
-        // Minecraft จะรีเซ็ตค่า Attribute บางอย่างเมื่อเปลี่ยนโลก จึงต้องคำนวณใหม่
-        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
-    }
-
-    // [FIX] เพิ่ม Event เมื่อผู้เล่นเกิดใหม่ (กรณีตายแล้วของยังอยู่ หรือใส่ของใหม่)
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> updatePlayerStats(event.getPlayer()), 10L);
     }
 
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player player) {
-            // คำนวณใหม่เมื่อมีการขยับของในกระเป๋า
-            plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(player));
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> updatePlayerStats(event.getPlayer()), 10L);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (event.getPlayer() instanceof Player) {
+            updatePlayerStats((Player) event.getPlayer());
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onItemHeld(PlayerItemHeldEvent event) {
-        // คำนวณใหม่เมื่อเปลี่ยนช่องถือของ
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
-        // คำนวณใหม่เมื่อสลับมือ (F)
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
-    public List<ItemSkillBinding> getCachedTriggers(Player player, TriggerType type) {
-        Map<TriggerType, List<ItemSkillBinding>> map = cachedTriggers.get(player.getUniqueId());
-        if (map == null) return Collections.emptyList();
-        return map.getOrDefault(type, Collections.emptyList());
+    // --- Passive Effects Task ---
+    public void runPassiveEffectsTask() {
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            if (player.isDead()) continue;
+            for (ItemStack item : player.getInventory().getArmorContents()) applyPassiveEffects(player, item);
+            applyPassiveEffects(player, player.getInventory().getItemInMainHand());
+            applyPassiveEffects(player, player.getInventory().getItemInOffHand());
+        }
     }
 
-    public void runPassiveEffectsTask() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            UUID uuid = player.getUniqueId();
-
-            Map<PotionEffectType, Integer> potions = cachedPassivePotions.get(uuid);
-            if (potions != null && !potions.isEmpty()) {
-                for (Map.Entry<PotionEffectType, Integer> entry : potions.entrySet()) {
-                    // Apply Potion ตลอดเวลา (Duration 60 ticks = 3 วิ กันหมด)
-                    player.addPotionEffect(new PotionEffect(entry.getKey(), 60, entry.getValue() - 1, true, false, true));
-                }
-            }
-
-            List<ItemSkillBinding> skills = cachedPassiveSkills.get(uuid);
-            if (skills != null && !skills.isEmpty()) {
-                for (ItemSkillBinding binding : skills) {
-                    if (binding.getTrigger() == TriggerType.PASSIVE_TICK) {
-                        plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
-                    }
-                }
+    private void applyPassiveEffects(Player player, ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return;
+        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+        Map<PotionEffectType, Integer> effects = attr.getPotionEffects();
+        if (effects != null && !effects.isEmpty()) {
+            for (Map.Entry<PotionEffectType, Integer> entry : effects.entrySet()) {
+                player.addPotionEffect(new PotionEffect(entry.getKey(), 40, entry.getValue(), false, false, true));
             }
         }
     }
 
-    public void applyAllEquipmentAttributes(Player player) {
+    // --- Main Update Logic ---
+    public void updatePlayerStats(Player player) {
+        if (player == null) return;
+
+        // [FIX] Use getStatManager().getData(...)
         PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+        if (data == null) return;
+
+        // 1. Reset all gear bonuses
         data.resetGearBonuses();
 
-        UUID uuid = player.getUniqueId();
-        List<ItemSkillBinding> newPassiveSkills = new ArrayList<>();
-        Map<PotionEffectType, Integer> newPassivePotions = new HashMap<>();
-        Map<TriggerType, List<ItemSkillBinding>> newTriggers = new HashMap<>();
-
-        List<ItemStack> items = new ArrayList<>();
-        if (player.getEquipment() != null) {
-            items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
-            items.add(player.getEquipment().getItemInMainHand());
-            items.add(player.getEquipment().getItemInOffHand());
+        // 2. Iterate items and accumulate stats
+        for (ItemStack item : player.getInventory().getArmorContents()) {
+            applyItemAttributes(data, item);
         }
+        applyItemAttributes(data, player.getInventory().getItemInMainHand());
+        applyItemAttributes(data, player.getInventory().getItemInOffHand());
 
-        for (ItemStack item : items) {
-            if (item != null && item.getType() != Material.AIR) {
-                ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+        // 3. Recalculate Logic
+        data.calculateFinalStats();
 
-                // บวกค่า Stat จากไอเทมเข้า PlayerData
-                applyItemAttributes(player, attr);
-
-                // เก็บ Potion Effect
-                if (!attr.getPotionEffects().isEmpty()) {
-                    for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
-                        newPassivePotions.merge(entry.getKey(), entry.getValue(), Math::max);
-                    }
-                }
-
-                // เก็บ Skill Trigger
-                if (!attr.getSkillBindings().isEmpty()) {
-                    for (ItemSkillBinding binding : attr.getSkillBindings()) {
-                        TriggerType t = binding.getTrigger();
-                        if (t == TriggerType.PASSIVE_TICK) {
-                            newPassiveSkills.add(binding);
-                        } else if (t == TriggerType.PASSIVE_APPLY) {
-                            // ร่ายทันทีเมื่อสวมใส่
-                            plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
-                        } else if (t == TriggerType.ON_HIT || t == TriggerType.ON_DEFEND || t == TriggerType.ON_KILL) {
-                            newTriggers.computeIfAbsent(t, k -> new ArrayList<>()).add(binding);
-                        }
-                    }
-                }
-            }
-        }
-
-        // อัปเดต Cache
-        cachedPassiveSkills.put(uuid, newPassiveSkills);
-        cachedPassivePotions.put(uuid, newPassivePotions);
-        cachedTriggers.put(uuid, newTriggers);
+        // 4. Apply to Bukkit Player
+        applyToBukkitPlayer(player, data);
     }
 
-    public void applyItemAttributes(Player player, ItemAttribute attr) {
-        PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
+    private void applyItemAttributes(PlayerData data, ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return;
 
-        data.setSTRBonusGear(data.getSTRBonusGear() + attr.getStrGear());
-        data.setAGIBonusGear(data.getAGIBonusGear() + attr.getAgiGear());
-        data.setVITBonusGear(data.getVITBonusGear() + attr.getVitGear());
-        data.setINTBonusGear(data.getINTBonusGear() + attr.getIntGear());
-        data.setDEXBonusGear(data.getDEXBonusGear() + attr.getDexGear());
-        data.setLUKBonusGear(data.getLUKBonusGear() + attr.getLukGear());
+        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
 
-        data.setWeaponPAtk(data.getWeaponPAtk() + attr.getWeaponPAtk());
-        data.setWeaponMAtk(data.getWeaponMAtk() + attr.getWeaponMAtk());
+        // Base
+        data.addStr(attr.getStrGear());
+        data.addAgi(attr.getAgiGear());
+        data.addVit(attr.getVitGear());
+        data.addInt(attr.getIntGear());
+        data.addDex(attr.getDexGear());
+        data.addLuk(attr.getLukGear());
 
-        data.setPAtkBonusFlat(data.getPAtkBonusFlat() + attr.getPAtkFlat());
-        data.setMAtkBonusFlat(data.getMAtkBonusFlat() + attr.getMAtkFlat());
+        data.addMaxHpFlat(attr.getMaxHPFlat());
+        data.addMaxHpPercent(attr.getMaxHPPercent());
+        data.addMaxSpFlat(attr.getMaxSPFlat());
+        data.addMaxSpPercent(attr.getMaxSPPercent());
+        data.addHpRecovery(attr.getHpRecovery());
+        data.addSpRecovery(attr.getSpRecovery());
+        data.addHit(attr.getHitFlat());
+        data.addFlee(attr.getFleeFlat());
 
-        data.setPDmgBonusPercent(data.getPDmgBonusPercent() + attr.getPDmgPercent());
-        data.setMDmgBonusPercent(data.getMDmgBonusPercent() + attr.getMDmgPercent());
-        data.setPDmgBonusFlat(data.getPDmgBonusFlat() + attr.getPDmgFlat());
-        data.setMDmgBonusFlat(data.getMDmgBonusFlat() + attr.getMDmgFlat());
+        // Combat
+        data.addWeaponPAtk(attr.getWeaponPAtk());
+        data.addWeaponMAtk(attr.getWeaponMAtk());
+        data.addRefinePAtk(attr.getRefinePAtk());
+        data.addRefineMAtk(attr.getRefineMAtk());
 
-        data.setCritDmgPercent(data.getCritDmgPercent() + attr.getCritDmgPercent());
-        data.setCritDmgResPercent(data.getCritDmgResPercent() + attr.getCritDmgResPercent());
-        data.setCritRes(data.getCritRes() + attr.getCritRes());
+        // [FIX] Use getPAtkFlat which is now available in ItemAttribute
+        data.addPAtkBonusFlat(attr.getPAtkFlat());
+        data.addMAtkBonusFlat(attr.getMAtkFlat());
 
-        data.setPPenFlat(data.getPPenFlat() + attr.getPPenFlat());
-        data.setMPenFlat(data.getMPenFlat() + attr.getMPenFlat());
-        data.setPPenPercent(data.getPPenPercent() + attr.getPPenPercent());
-        data.setMPenPercent(data.getMPenPercent() + attr.getMPenPercent());
+        data.addPDef(attr.getPDefBonus());
+        data.addMDef(attr.getMDefBonus());
+        data.addRefinePDef(attr.getRefinePDef());
+        data.addRefineMDef(attr.getRefineMDef());
 
-        data.setFinalDmgPercent(data.getFinalDmgPercent() + attr.getFinalDmgPercent());
-        data.setFinalDmgResPercent(data.getFinalDmgResPercent() + attr.getFinalDmgResPercent());
-        data.setFinalPDmgPercent(data.getFinalPDmgPercent() + attr.getFinalPDmgPercent());
-        data.setFinalMDmgPercent(data.getFinalMDmgPercent() + attr.getFinalMDmgPercent());
+        // Penetration
+        data.addPPenFlat(attr.getPPenFlat());
+        data.addPPenPercent(attr.getPPenPercent());
+        data.addIgnorePDefFlat(attr.getIgnorePDefFlat());
+        data.addIgnorePDefPercent(attr.getIgnorePDefPercent());
+        data.addMPenFlat(attr.getMPenFlat());
+        data.addMPenPercent(attr.getMPenPercent());
+        data.addIgnoreMDefFlat(attr.getIgnoreMDefFlat());
+        data.addIgnoreMDefPercent(attr.getIgnoreMDefPercent());
 
-        data.setPveDmgBonusPercent(data.getPveDmgBonusPercent() + attr.getPveDmgPercent());
-        data.setPvpDmgBonusPercent(data.getPvpDmgBonusPercent() + attr.getPvpDmgPercent());
-        data.setPveDmgReductionPercent(data.getPveDmgReductionPercent() + attr.getPveDmgReductionPercent());
-        data.setPvpDmgReductionPercent(data.getPvpDmgReductionPercent() + attr.getPvpDmgReductionPercent());
+        // Casting
+        data.addVarCastPercent(attr.getVarCTPercent());
+        data.addVarCastFlat(attr.getVarCTFlat());
+        data.addFixedCastPercent(attr.getFixedCTPercent());
+        data.addFixedCastFlat(attr.getFixedCTFlat());
 
-        data.setMaxHPPercent(data.getMaxHPPercent() + attr.getMaxHPPercent());
-        data.setMaxSPPercent(data.getMaxSPPercent() + attr.getMaxSPPercent());
+        // Cooldown
+        data.addSkillCooldownPercent(attr.getSkillCDPercent());
+        data.addSkillCooldownFlat(attr.getSkillCDFlat());
+        data.addFinalCDPercent(attr.getFinalCDPercent());
+        data.addGlobalCDPercent(attr.getGlobalCDPercent());
+        data.addAfterCastDelayPercent(attr.getAfterCastDelayPercent());
+        data.addAfterCastDelayFlat(attr.getAfterCastDelayFlat());
+        data.addPreMotion(attr.getPreMotion());
+        data.addPostMotion(attr.getPostMotion());
+        data.addCancelMotion(attr.getCancelMotion());
 
-        data.setShieldValueFlat(data.getShieldValueFlat() + attr.getShieldValueFlat());
-        data.setShieldRatePercent(data.getShieldRatePercent() + attr.getShieldRatePercent());
+        // Speed
+        data.addASpdPercent(attr.getASpdPercent());
+        data.addMSpdPercent(attr.getMSpdPercent());
+        if (attr.getBaseMSPD() > 0) data.addBaseMSPD(attr.getBaseMSPD());
+        data.addAtkIntervalPercent(attr.getAtkIntervalPercent());
 
-        data.setASpdPercent(data.getASpdPercent() + attr.getASpdPercent());
-        data.setMSpdPercent(data.getMSpdPercent() + attr.getMSpdPercent());
-        data.setBaseMSPD(data.getBaseMSPD() + attr.getBaseMSPD());
+        // Critical
+        data.addCrit(attr.getCrit());
+        data.addCritDmgPercent(attr.getCritDmgPercent());
+        data.addFinalCritDmgPercent(attr.getFinalCritDmgPercent());
+        data.addPerfectHit(attr.getPerfectHit());
+        data.addCritRes(attr.getCritRes());
+        data.addCritDmgResPercent(attr.getCritDmgResPercent());
+        data.addPerfectDodge(attr.getPerfectDodge());
 
-        data.setVarCTPercent(data.getVarCTPercent() + attr.getVarCTPercent());
-        data.setVarCTFlat(data.getVarCTFlat() + attr.getVarCTFlat());
-        data.setFixedCTPercent(data.getFixedCTPercent() + attr.getFixedCTPercent());
-        data.setFixedCTFlat(data.getFixedCTFlat() + attr.getFixedCTFlat());
+        // Universal DMG
+        data.addPDmgPercent(attr.getPDmgPercent());
+        data.addPDmgFlat(attr.getPDmgFlat());
+        data.addPDmgReductionPercent(attr.getPDmgReductionPercent());
+        data.addMDmgPercent(attr.getMDmgPercent());
+        data.addMDmgFlat(attr.getMDmgFlat());
+        data.addMDmgReductionPercent(attr.getMDmgReductionPercent());
+        data.addTrueDamageFlat(attr.getTrueDamageFlat());
+        data.addFinalDmgPercent(attr.getFinalDmgPercent());
+        data.addFinalDmgResPercent(attr.getFinalDmgResPercent());
 
-        data.setHealingEffectPercent(data.getHealingEffectPercent() + attr.getHealingEffectPercent());
-        data.setHealingReceivedPercent(data.getHealingReceivedPercent() + attr.getHealingReceivedPercent());
+        // [FIX] Use the newly added getters in ItemAttribute
+        data.addFinalPDmgPercent(attr.getFinalPDmgPercent());
+        data.addFinalMDmgPercent(attr.getFinalMDmgPercent());
 
-        data.setLifestealPPercent(data.getLifestealPPercent() + attr.getLifestealPPercent());
-        data.setLifestealMPercent(data.getLifestealMPercent() + attr.getLifestealMPercent());
+        // Distance / Content
+        data.addMeleePDmgPercent(attr.getMeleePDmgPercent());
+        data.addMeleePDReductionPercent(attr.getMeleePDReductionPercent());
+        data.addRangePDmgPercent(attr.getRangePDmgPercent());
+        data.addRangePDReductionPercent(attr.getRangePDReductionPercent());
+        data.addPveDmgPercent(attr.getPveDmgPercent());
+        data.addPveDmgReductionPercent(attr.getPveDmgReductionPercent());
+        data.addPvpDmgPercent(attr.getPvpDmgPercent());
+        data.addPvpDmgReductionPercent(attr.getPvpDmgReductionPercent());
 
-        data.setHitBonusFlat(data.getHitBonusFlat() + attr.getHitFlat());
-        data.setFleeBonusFlat(data.getFleeBonusFlat() + attr.getFleeFlat());
-
-        data.setPDmgReductionPercent(data.getPDmgReductionPercent() + attr.getPDmgReductionPercent());
-        data.setMDmgReductionPercent(data.getMDmgReductionPercent() + attr.getMDmgReductionPercent());
-
-        data.setIgnorePDefFlat(data.getIgnorePDefFlat() + attr.getIgnorePDefFlat());
-        data.setIgnoreMDefFlat(data.getIgnoreMDefFlat() + attr.getIgnoreMDefFlat());
-        data.setIgnorePDefPercent(data.getIgnorePDefPercent() + attr.getIgnorePDefPercent());
-        data.setIgnoreMDefPercent(data.getIgnoreMDefPercent() + attr.getIgnoreMDefPercent());
-
-        data.setMeleePDmgPercent(data.getMeleePDmgPercent() + attr.getMeleePDmgPercent());
-        data.setRangePDmgPercent(data.getRangePDmgPercent() + attr.getRangePDmgPercent());
-        data.setMeleePDReductionPercent(data.getMeleePDReductionPercent() + attr.getMeleePDReductionPercent());
-        data.setRangePDReductionPercent(data.getRangePDReductionPercent() + attr.getRangePDReductionPercent());
-
-        data.setTrueDamageFlat(data.getTrueDamageFlat() + attr.getTrueDamageFlat());
+        // Healing / Shield
+        data.addHealingEffectPercent(attr.getHealingEffectPercent());
+        data.addHealingFlat(attr.getHealingFlat());
+        data.addHealingReceivedPercent(attr.getHealingReceivedPercent());
+        data.addHealingReceivedFlat(attr.getHealingReceivedFlat());
+        data.addLifestealPPercent(attr.getLifestealPPercent());
+        data.addLifestealMPercent(attr.getLifestealMPercent());
+        data.addShieldValueFlat(attr.getShieldValueFlat());
+        data.addShieldRatePercent(attr.getShieldRatePercent());
     }
 
-    public void updatePlayerStats(Player player) {
-        // 1. อ่านค่าจากไอเทมทั้งหมดใส่ PlayerData
-        applyAllEquipmentAttributes(player);
-
-        PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
-
-        // 2. คำนวณและตั้งค่า Max HP
+    private void applyToBukkitPlayer(Player player, PlayerData data) {
+        // Apply Max HP
         double finalMaxHealth = data.getMaxHP();
-        if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0; // Bukkit Limit cap
-        setAttribute(player, Attribute.GENERIC_MAX_HEALTH, finalMaxHealth);
+        if (finalMaxHealth > 2048.0) finalMaxHealth = 2048.0;
 
-        // 3. คำนวณและตั้งค่า Walk Speed
+        AttributeInstance maxHpAttr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (maxHpAttr != null) maxHpAttr.setBaseValue(finalMaxHealth);
+
+        // Apply Speed
         double speedBonus = data.getBaseMSPD() + (data.getMSpdPercent() / 100.0);
-        double finalSpeed = Math.min(1.0, speedBonus);
-        setAttribute(player, Attribute.GENERIC_MOVEMENT_SPEED, finalSpeed);
+        double finalSpeed = Math.max(0.0, Math.min(1.0, speedBonus));
 
-        // 4. คำนวณและตั้งค่า Attack Speed (ใช้ Modifier เพื่อความสมจริง)
-        double aspdMultiplier = plugin.getStatManager().getAspdBonus(player);
-        // Base ASPD Minecraft = 4.0 (generic), เราปรับ base เป็น 4.0 * multiplier
-        setAttribute(player, Attribute.GENERIC_ATTACK_SPEED, 4.0 * aspdMultiplier);
+        AttributeInstance speedAttr = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (speedAttr != null) speedAttr.setBaseValue(finalSpeed);
 
-        // 5. คำนวณและตั้งค่า Armor (Visual/Vanilla Reduction)
-        double softDef = plugin.getStatManager().getSoftDef(player);
-        setAttribute(player, Attribute.GENERIC_ARMOR, softDef);
+        // Apply ASPD
+        double baseAspd = 4.0;
+        double finalAspd = baseAspd * (1 + data.getASpdPercent() / 100.0);
 
-        // Heal ถ้าเลือดเกิน Max ใหม่
+        AttributeInstance aspdAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
+        if (aspdAttr != null) aspdAttr.setBaseValue(finalAspd);
+
+        // Apply Visual Armor (Soft DEF)
+        double softDef = data.getPDefBonus() + data.getRefinePDef();
+        AttributeInstance armorAttr = player.getAttribute(Attribute.GENERIC_ARMOR);
+        if (armorAttr != null) armorAttr.setBaseValue(Math.min(30, softDef));
+
         if (player.getHealth() > finalMaxHealth) {
             player.setHealth(finalMaxHealth);
         }
-    }
-
-    private void setAttribute(Player player, Attribute attribute, double value) {
-        AttributeInstance instance = player.getAttribute(attribute);
-        if (instance != null) instance.setBaseValue(value);
     }
 }
