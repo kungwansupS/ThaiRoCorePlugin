@@ -546,7 +546,7 @@ public class GUIListener implements Listener {
 
     private SkillAction createDefaultAction(ActionType type) {
         return switch (type) {
-            case DAMAGE -> new DamageAction(10.0, 5.0, "PHYSICAL");
+            case DAMAGE -> new DamageAction(plugin, "10.0", "PHYSICAL", false);
             case HEAL -> new HealAction(10.0, 5.0);
             case APPLY_EFFECT -> new EffectAction("buff", EffectType.BUFF, 100, 1.0, null);
             case SOUND -> new SoundAction("ENTITY_PLAYER_LEVELUP", 1.0f, 1.0f);
@@ -558,8 +558,8 @@ public class GUIListener implements Listener {
             case DELAY -> new DelayAction(20L);
             case TELEPORT -> new TeleportAction(0.0, 64.0, 0.0, null);
             case APPLY_POTION -> new PotionAction("SPEED", 100, 0);
-            case RAYCAST -> new RaycastAction(10.0, null);
-            case SPAWN_ENTITY -> new SpawnEntityAction("ZOMBIE");
+            case RAYCAST -> new RaycastAction(plugin, "10.0", "none", "SINGLE");
+            case SPAWN_ENTITY -> new SpawnEntityAction(plugin, "ZOMBIE", "none");
             case LOOP -> new LoopAction(3, 20L, List.of());
         };
     }
@@ -568,10 +568,10 @@ public class GUIListener implements Listener {
         try {
             return switch (type) {
                 case DAMAGE -> {
-                    double base = ((Number) data.getOrDefault("base-damage", 10.0)).doubleValue();
-                    double perLevel = ((Number) data.getOrDefault("damage-per-level", 0.0)).doubleValue();
-                    String damageType = (String) data.getOrDefault("damage-type", "PHYSICAL");
-                    yield new DamageAction(base, perLevel, damageType);
+                    String formula = (String) data.getOrDefault("formula", "10.0");
+                    String element = (String) data.getOrDefault("element", "PHYSICAL");
+                    boolean bypassDef = (boolean) data.getOrDefault("bypass-def", false);
+                    yield new DamageAction(plugin, formula, element, bypassDef);
                 }
                 case HEAL -> {
                     double base = ((Number) data.getOrDefault("base-heal", 10.0)).doubleValue();
