@@ -26,50 +26,93 @@ public class SkillActionSelectorGUI {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("ActionSelector: " + skillId));
         int slot = 0;
 
-        inv.setItem(slot++, createGuiItem(Material.IRON_SWORD, "§cDAMAGE", "§7Deal damage.", "ActionType: DAMAGE"));
-        inv.setItem(slot++, createGuiItem(Material.GOLDEN_APPLE, "§cHEAL", "§7Heal HP/SP.", "ActionType: HEAL"));
-        inv.setItem(slot++, createGuiItem(Material.POTION, "§9APPLY_EFFECT", "§7Apply stats/dot.", "ActionType: APPLY_EFFECT"));
+        // 1. DAMAGE
+        inv.setItem(slot++, createGuiItem(Material.IRON_SWORD, "§cDAMAGE",
+                "§7Deal damage based on formula.",
+                "§7สร้างความเสียหายตามสูตรคำนวณ",
+                "ActionType: DAMAGE"));
 
-        inv.setItem(slot++, createGuiItem(Material.NOTE_BLOCK, "§eSOUND", "§7Play sound.", "ActionType: SOUND"));
-        inv.setItem(slot++, createGuiItem(Material.BLAZE_POWDER, "§ePARTICLE", "§7Show particles.", "ActionType: PARTICLE"));
-        inv.setItem(slot++, createGuiItem(Material.ARROW, "§bPROJECTILE", "§7Shoot projectile.", "ActionType: PROJECTILE"));
+        // 2. HEAL
+        inv.setItem(slot++, createGuiItem(Material.GOLDEN_APPLE, "§aHEAL",
+                "§7Heal HP or Recover SP.",
+                "§7ฟื้นฟูเลือด (HP) หรือมานา (SP)",
+                "ActionType: HEAL"));
 
-        inv.setItem(slot++, createGuiItem(Material.ENDER_PEARL, "§dTELEPORT", "§7Dash/Warp.", "ActionType: TELEPORT"));
-        inv.setItem(slot++, createGuiItem(Material.GLASS_BOTTLE, "§fPOTION", "§7Vanilla Potion.", "ActionType: POTION"));
+        // 3. APPLY_EFFECT
+        inv.setItem(slot++, createGuiItem(Material.POTION, "§9APPLY_EFFECT",
+                "§7Apply Buffs/Debuffs/Stats.",
+                "§7เพิ่มค่าสถานะ, บัฟ หรือดีบัฟให้เป้าหมาย",
+                "ActionType: APPLY_EFFECT"));
 
+        // 4. SOUND
+        inv.setItem(slot++, createGuiItem(Material.NOTE_BLOCK, "§eSOUND",
+                "§7Play a sound effect.",
+                "§7เล่นเสียงเอฟเฟกต์ที่กำหนด",
+                "ActionType: SOUND"));
+
+        // 5. PARTICLE
+        inv.setItem(slot++, createGuiItem(Material.BLAZE_POWDER, "§6PARTICLE",
+                "§7Show particle effects.",
+                "§7แสดงเอฟเฟกต์อนุภาค (Particle)",
+                "ActionType: PARTICLE"));
+
+        // 6. PROJECTILE
+        inv.setItem(slot++, createGuiItem(Material.ARROW, "§bPROJECTILE",
+                "§7Shoot a projectile (Arrow, Fireball).",
+                "§7ยิงวัตถุออกไป (เช่น ธนู, ลูกไฟ)",
+                "ActionType: PROJECTILE"));
+
+        // 7. TELEPORT
+        inv.setItem(slot++, createGuiItem(Material.ENDER_PEARL, "§dTELEPORT",
+                "§7Teleport caster or target.",
+                "§7วาร์ป, พุ่งตัว (Dash) หรือสลับตำแหน่ง",
+                "ActionType: TELEPORT"));
+
+        // 8. POTION
+        inv.setItem(slot++, createGuiItem(Material.GLASS_BOTTLE, "§fPOTION",
+                "§7Apply Vanilla Potion Effect.",
+                "§7ให้ผลของน้ำยา Minecraft ปกติ (เช่น Speed)",
+                "ActionType: POTION"));
+
+        // 9. AREA_EFFECT
         inv.setItem(slot++, createGuiItem(Material.TNT, "§c§lAREA EFFECT",
-                "§7Trigger skills on nearby targets.",
+                "§7Trigger skills on nearby entities.",
                 "§7(AOE Damage, Buffs, etc.)",
+                "§7ใช้งานสกิลย่อยกับเป้าหมายรอบตัว (AOE)",
                 "ActionType: AREA_EFFECT"));
 
-        // 10. RAYCAST (Simulates HITSCAN_ENTITIES / MOB_AROUND)
+        // 10. RAYCAST
         inv.setItem(slot++, createGuiItem(Material.DIAMOND_SWORD, "§6RAYCAST",
-                "§7Execute a skill on a line-of-sight target or AOE.",
-                "§7(Simulates HITSCAN_ENTITIES / MOB_AROUND)",
+                "§7Line-of-sight / Hitscan target.",
+                "§7ยิงสกิลแบบเล็งเป้า (Hitscan) หรือ AOE ระยะไกล",
                 "ActionType: RAYCAST"));
 
-        // 11. SPAWN_ENTITY (Simulates SPAWN_ENTITY)
+        // 11. SPAWN_ENTITY
         inv.setItem(slot++, createGuiItem(Material.EGG, "§6SPAWN_ENTITY",
-                "§7Spawn a non-projectile entity (Lightning/Mob).",
-                "§7(Simulates SPAWN_ENTITY)",
+                "§7Spawn Mob or Lightning Bolt.",
+                "§7เสกมอนสเตอร์, สัตว์ หรือฟ้าผ่า",
                 "ActionType: SPAWN_ENTITY"));
 
         // 12. VELOCITY
-        inv.setItem(slot++, createGuiItem(Material.FEATHER, "§dVELOCITY",
-                "§7Apply force to move the target.",
+        inv.setItem(slot++, createGuiItem(Material.FEATHER, "§fVELOCITY",
+                "§7Apply force to push/pull.",
+                "§7กระแทก, ผลัก หรือดึงเป้าหมาย",
                 "ActionType: VELOCITY"));
 
         // 13. LOOP
-        inv.setItem(slot++, createGuiItem(Material.REPEATER, "§bLOOP",
-                "§7Execute sub-actions multiple times.",
+        inv.setItem(slot++, createGuiItem(Material.REPEATER, "§aLOOP",
+                "§7Repeat sub-actions multiple times.",
+                "§7วนทำซ้ำคำสั่งย่อย (Loop)",
                 "ActionType: LOOP"));
 
         // 14. COMMAND
-        inv.setItem(slot++, createGuiItem(Material.COMMAND_BLOCK, "§bCOMMAND",
-                "§7Execute a console/player command.",
+        inv.setItem(slot++, createGuiItem(Material.COMMAND_BLOCK, "§7COMMAND",
+                "§7Run Console/Player command.",
+                "§7รันคำสั่ง Console หรือคำสั่งผู้เล่น",
                 "ActionType: COMMAND"));
 
-        inv.setItem(53, createGuiItem(Material.ARROW, "§cBack", "§7Cancel"));
+        // Cancel Button
+        inv.setItem(53, createGuiItem(Material.ARROW, "§cBack / ยกเลิก", "§7Cancel adding action."));
 
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) { if (inv.getItem(i) == null) inv.setItem(i, bg); }

@@ -112,6 +112,9 @@ public class CombatHandler implements Listener {
         boolean isMagic = (event.getCause() == EntityDamageEvent.DamageCause.MAGIC);
         Entity damagerEntity = event.getDamager();
 
+        // [FIX] ย้ายการประกาศ isCritical มาไว้ที่นี่เพื่อให้เข้าถึงได้ทั้งเมธอด
+        boolean isCritical = false;
+
         if (damagerEntity instanceof Player p) {
             attackerPlayer = p;
         } else if (damagerEntity instanceof Projectile proj) {
@@ -265,7 +268,7 @@ public class CombatHandler implements Listener {
 
             // --- STEP 6: Crit / Lifesteal / Final Flat ---
             // Critical
-            boolean isCritical = false;
+            // [REMOVED] ลบการประกาศซ้ำซ้อน
             if (!isMagic) {
                 double critChance = calculateCritChance(attackerPlayer, defenderEntity);
                 if (random.nextDouble() < critChance) {
@@ -319,7 +322,11 @@ public class CombatHandler implements Listener {
             // Show damage for Mob attacks too if needed
             // plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
         } else if (finalDamage > 0 && attackerPlayer != null) {
-            plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
+            // FCT for Normal Attack/Skill Hit (if not crit)
+            // [FIX] isCritical สามารถใช้งานได้แล้ว
+            if (!isCritical) {
+                plugin.showDamageFCT(defenderEntity.getLocation(), finalDamage);
+            }
         }
     }
 
@@ -368,7 +375,9 @@ public class CombatHandler implements Listener {
     }
 
     private void showCritEffects(Player attacker, LivingEntity victim, double finalDamage) {
-        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0), "§c§lCRITICAL " + String.format("%.0f", finalDamage));
+        // ใช้สัญลักษณ์ระเบิด 💥 สีแดง ตัวหนา
+        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0),  String.format("%.0f", finalDamage) +"§c§l💥 ");
+
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 1f);
         attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20);
     }

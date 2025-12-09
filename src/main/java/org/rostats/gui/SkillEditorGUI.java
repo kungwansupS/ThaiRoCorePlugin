@@ -11,10 +11,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.skill.SkillData;
-import org.rostats.engine.trigger.TriggerType;
 
 import java.util.Arrays;
-import java.util.List;
 
 public class SkillEditorGUI {
 
@@ -35,119 +33,153 @@ public class SkillEditorGUI {
             return;
         }
 
+        // ขยายขนาด GUI เป็น 54 ช่องเพื่อรองรับค่า Status ที่มากขึ้น
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("SkillEditor: " + skillId));
 
-        // --- Row 1: Basic Info ---
+        // --- Row 1: Basic Info & Meta Data ---
 
-        // 0: Rename
+        // 0: Display Name
         inv.setItem(0, createGuiItem(Material.NAME_TAG, "§eDisplay Name / ชื่อแสดงผล",
                 "§7Current: §f" + skillData.getDisplayName(),
                 "§8---------------",
                 "§7Click to rename via Chat.",
-                "§7คลิกเพื่อเปลี่ยนชื่อผ่านช่องแชท"
+                "§7คลิกเพื่อเปลี่ยนชื่อ"
         ));
 
-        // [NEW] 1: Max Level
-        inv.setItem(1, createGuiItem(Material.LADDER, "§bMax Level / เลเวลสูงสุด",
-                "§7Current: §f" + skillData.getMaxLevel(),
-                "§8---------------",
-                "§eClick: §7Edit Max Level",
-                "§8---------------"
-        ));
-
-        // 2: Trigger
-        inv.setItem(2, createGuiItem(Material.LEVER, "§6Trigger / เงื่อนไขการทำงาน",
-                "§7Current: §e" + skillData.getTrigger().name(),
-                "§8---------------",
-                "§7Click to cycle trigger types.",
-                "§7(CAST, ON_HIT, ON_DEFEND, etc.)"
-        ));
-
-        // [NEW] 3: Meta (Type & Range)
-        inv.setItem(3, createGuiItem(Material.OAK_SIGN, "§fMeta / ประเภท & ระยะ",
-                "§7Skill Type: §b" + skillData.getSkillType(),
-                "§7Attack Type: §e" + skillData.getAttackType(),
-                "§7Cast Range: §a" + skillData.getCastRange() + "m",
-                "§8---------------",
-                "§eL-Click: §7Edit Cast Range",
-                "§eR-Click: §7Change Attack Type (Melee/Ranged)",
-                "§eShift+Right: §7Change Skill Type (Phys/Magic)"
-        ));
-
-        // 4: Icon (Center)
-        inv.setItem(4, createGuiItem(skillData.getIcon(), "§bSkill Icon / ไอคอน",
+        // 1: Icon
+        inv.setItem(1, createGuiItem(skillData.getIcon(), "§bSkill Icon / ไอคอน",
                 "§7Current: §f" + skillData.getIcon().name(),
                 "§8---------------",
-                "§7Drag & Drop an item here to change icon.",
-                "§8---------------",
-                "§7ลากไอเทมจากตัวคุณมาวางทับ",
-                "§7เพื่อเปลี่ยนรูปไอคอนของสกิล"
+                "§7Drag & Drop item to change.",
+                "§7ลากไอเทมมาวางเพื่อเปลี่ยนรูป"
         ));
 
-        // 5: Animation & Delay
-        inv.setItem(5, createGuiItem(Material.COMPASS, "§6Animation & Delay / ดีเลย์",
-                "§7ACD (Global): §f" + skillData.getAfterCastDelayBase() + "s",
-                "§7Post-Motion: §f" + skillData.getPostMotion() + "s",
-                "§7Pre-Motion: §f" + skillData.getPreMotion() + "s",
+        // 2: Skill Type (Physical/Magic)
+        inv.setItem(2, createGuiItem(Material.IRON_SWORD, "§6Skill Type / ประเภทสกิล",
+                "§7Current: §e" + skillData.getSkillType(),
                 "§8---------------",
-                "§eLeft Click: §7Edit ACD (ดีเลย์หลังร่าย)",
-                "§eRight Click: §7Edit Post-Motion",
-                "§eShift+Right: §7Edit Pre-Motion"
+                "§eClick: §7Cycle (Physical/Magic/Mixed/Heal)",
+                "§eคลิก: §7เปลี่ยนประเภทสกิล"
         ));
 
-        // 6: Cooldown & Cast
-        inv.setItem(6, createGuiItem(Material.CLOCK, "§aTiming / เวลา",
-                "§7Cooldown: §f" + skillData.getCooldownBase() + "s §7(Lv.Up: " + skillData.getCooldownPerLevel() + "s)",
-                "§7Var. Cast: §f" + skillData.getVariableCastTime() + "s",
-                "§7Fixed Cast: §f" + skillData.getFixedCastTime() + "s",
+        // 3: Attack Type (Melee/Ranged)
+        inv.setItem(3, createGuiItem(Material.BOW, "§6Attack Type / ระยะโจมตี",
+                "§7Current: §e" + skillData.getAttackType(),
                 "§8---------------",
-                "§eL-Click: §7Edit Base Cooldown",
-                "§6Shift+L: §7Edit Cooldown Per Level",
-                "§eR-Click: §7Edit Variable Cast",
-                "§eShift+R: §7Edit Fixed Cast"
+                "§eClick: §7Cycle (Melee/Ranged)",
+                "§eคลิก: §7เปลี่ยนระยะ (ใกล้/ไกล)"
+        ));
+
+        // 4: Cast Range
+        inv.setItem(4, createGuiItem(Material.COMPASS, "§bCast Range / ระยะร่าย",
+                "§7Range: §f" + skillData.getCastRange() + " blocks",
+                "§8---------------",
+                "§eClick: §7Edit Range",
+                "§eคลิก: §7แก้ไขระยะสกิล"
+        ));
+
+        // 5: Trigger
+        inv.setItem(5, createGuiItem(Material.LEVER, "§cTrigger / เงื่อนไขใช้",
+                "§7Current: §e" + skillData.getTrigger().name(),
+                "§8---------------",
+                "§eClick: §7Change Trigger",
+                "§eคลิก: §7เปลี่ยนเงื่อนไข (กดใช้/ตีโดน/ฯลฯ)"
         ));
 
         // 7: Required Level
-        inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aRequirements / เงื่อนไข",
-                "§7Required Level: §e" + skillData.getRequiredLevel(),
+        inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aReq. Level / เลเวลที่ต้องการ",
+                "§7Level: §e" + skillData.getRequiredLevel(),
                 "§8---------------",
-                "§eClick: §7Edit Required Level"
+                "§eClick: §7Edit Level",
+                "§eคลิก: §7แก้เลเวล"
         ));
 
-        // 8: Cost
-        inv.setItem(8, createGuiItem(Material.POTION, "§dCost / ค่าใช้จ่าย",
-                "§7SP Cost: §f" + skillData.getSpCostBase() + " §7(Lv.Up: " + skillData.getSpCostPerLevel() + ")",
+        // 8: SP Cost
+        inv.setItem(8, createGuiItem(Material.BLUE_DYE, "§9SP Cost / ค่ามานา",
+                "§7Base: §f" + skillData.getSpCostBase(),
+                "§7Per Lvl: §f" + skillData.getSpCostPerLevel(),
                 "§8---------------",
-                "§eL-Click: §7Edit Base SP Cost",
-                "§6Shift+L: §7Edit SP Cost Per Level"
+                "§eL-Click: §7Edit Base",
+                "§eR-Click: §7Edit Per Level"
         ));
 
-        // --- Row 2-5: Action Timeline ---
+        // --- Row 2: Advance Mechanics (Cast Time & Delay) ---
+
+        // 9: Cooldown
+        inv.setItem(9, createGuiItem(Material.CLOCK, "§7Cooldown / คูลดาวน์",
+                "§7Base: §f" + skillData.getCooldownBase() + "s",
+                "§7Per Lvl: §f" + skillData.getCooldownPerLevel() + "s",
+                "§8---------------",
+                "§eL-Click: §7Edit Base",
+                "§eR-Click: §7Edit Per Level"
+        ));
+
+        // 10: Variable Cast Time
+        inv.setItem(10, createGuiItem(Material.SUGAR, "§eVariable Cast / ร่ายแปรผัน",
+                "§7(Reduced by DEX/INT)",
+                "§7Base Time: §f" + skillData.getVariableCastTime() + "s",
+                "§7Reduction: §f" + skillData.getVariableCastTimeReduction() + "%",
+                "§8---------------",
+                "§7เวลาร่ายที่ลดได้ตามค่าสเตตัส",
+                "§eL-Click: §7Edit Time",
+                "§eR-Click: §7Edit Reduction %"
+        ));
+
+        // 11: Fixed Cast Time
+        inv.setItem(11, createGuiItem(Material.HONEY_BLOCK, "§6Fixed Cast / ร่ายคงที่",
+                "§7(Cannot be reduced normally)",
+                "§7Time: §f" + skillData.getFixedCastTime() + "s",
+                "§8---------------",
+                "§7เวลาร่ายที่ลดไม่ได้",
+                "§eClick: §7Edit Time"
+        ));
+
+        // 12: Motions (Pre/Post)
+        inv.setItem(12, createGuiItem(Material.FEATHER, "§fMotion Delay / ดีเลย์ท่าทาง",
+                "§7Pre-Motion: §f" + skillData.getPreMotion() + "s",
+                "§7Post-Motion: §f" + skillData.getPostMotion() + "s",
+                "§8---------------",
+                "§eL-Click: §7Edit Pre-Motion (ก่อนออก)",
+                "§eR-Click: §7Edit Post-Motion (หลังออก)"
+        ));
+
+        // 13: After Cast Delay (ACD)
+        inv.setItem(13, createGuiItem(Material.BARRIER, "§cAfter Cast Delay (ACD)",
+                "§7Global Skill Delay: §f" + skillData.getAfterCastDelayBase() + "s",
+                "§8---------------",
+                "§7ดีเลย์รวมทุกสกิลหลังใช้ (รัวสกิลไม่ได้)",
+                "§eClick: §7Edit ACD"
+        ));
+
+        // --- Row 3-5: Action Timeline ---
+        // Start showing actions from slot 18
         int slot = 18;
         int index = 0;
         for (SkillAction action : skillData.getActions()) {
-            if (slot > 44) break;
+            if (slot > 44) break; // Limit display area
 
             Material mat = Material.PAPER;
+            String typeDesc = "Action";
             switch(action.getType()) {
-                case DAMAGE: mat = Material.IRON_SWORD; break;
-                case HEAL: mat = Material.GOLDEN_APPLE; break;
-                case APPLY_EFFECT: mat = Material.POTION; break;
-                case SOUND: mat = Material.NOTE_BLOCK; break;
-                case PARTICLE: mat = Material.BLAZE_POWDER; break;
-                case PROJECTILE: mat = Material.ARROW; break;
-                case AREA_EFFECT: mat = Material.TNT; break;
+                case DAMAGE: mat = Material.IRON_SWORD; typeDesc = "Damage"; break;
+                case HEAL: mat = Material.GOLDEN_APPLE; typeDesc = "Heal"; break;
+                case APPLY_EFFECT: mat = Material.POTION; typeDesc = "Effect"; break;
+                case SOUND: mat = Material.NOTE_BLOCK; typeDesc = "Sound"; break;
+                case PARTICLE: mat = Material.BLAZE_POWDER; typeDesc = "Particle"; break;
+                case PROJECTILE: mat = Material.ARROW; typeDesc = "Projectile"; break;
+                case TELEPORT: mat = Material.ENDER_PEARL; typeDesc = "Teleport"; break;
+                case LOOP: mat = Material.REPEATER; typeDesc = "Loop"; break;
                 default: mat = Material.PAPER; break;
             }
 
-            inv.setItem(slot, createGuiItem(mat, "§fAction #" + (index+1) + ": " + action.getType().name(),
+            inv.setItem(slot, createGuiItem(mat, "§f#" + (index+1) + ": " + action.getType().name(),
                     "§7Index: " + index,
+                    "§7Type: " + typeDesc,
                     "§8---------------",
-                    "§eL-Click: §7Edit Properties / แก้ไข",
-                    "§eShift+L: §6Move Left/Up / เลื่อนขึ้น",
-                    "§eR-Click: §6Move Right/Down / เลื่อนลง",
-                    "§eShift+R: §cRemove / ลบ",
-                    "§8---------------"
+                    "§eL-Click: §7Edit / แก้ไข",
+                    "§eShift+L: §6Move Up / เลื่อนขึ้น",
+                    "§eR-Click: §6Move Down / เลื่อนลง",
+                    "§eShift+R: §cRemove / ลบ"
             ));
 
             slot++;
@@ -159,24 +191,22 @@ public class SkillEditorGUI {
         // 49: Save
         inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE SKILL / บันทึก",
                 "§7Save all changes to file.",
-                "§8---------------",
-                "§7บันทึกข้อมูลลงไฟล์"
+                "§7บันทึกการเปลี่ยนแปลง"
         ));
 
         // 50: Add Action
-        inv.setItem(50, createGuiItem(Material.LIME_DYE, "§a§l+ Add Action / เพิ่มการกระทำ",
-                "§7Add a new logic block (Damage, Effect, Sound).",
-                "§8---------------",
-                "§7เพิ่มคำสั่งใหม่ (เช่น ดาเมจ, เอฟเฟกต์, เสียง)"
+        inv.setItem(50, createGuiItem(Material.LIME_DYE, "§a§l+ Add Action / เพิ่มคำสั่ง",
+                "§7Add logic block.",
+                "§7เพิ่ม Action ใหม่ในไทม์ไลน์"
         ));
 
         // 53: Back
         inv.setItem(53, createGuiItem(Material.ARROW, "§cBack / กลับ",
-                "§7Return to Skill Library.",
-                "§8---------------",
-                "§7กลับไปหน้าคลังสกิล"
+                "§7Return to menu.",
+                "§7ย้อนกลับ"
         ));
 
+        // Fill background
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
