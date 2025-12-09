@@ -1,3 +1,4 @@
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\cmd\CooldownCommand.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\command\AdminCommand.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\command\PlayerCommand.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\command\SkillCommand.java
@@ -36,6 +37,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillEditorGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\gui\SkillLibraryGUI.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\AttributeHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\CombatHandler.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\CooldownDisplayManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\DeathHandler.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\ManaManager.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\handler\ProjectileHandler.java
