@@ -139,7 +139,10 @@ public class AttributeEditorGUI {
         ItemAttributeType[] types = {
                 ItemAttributeType.ASPD_PERCENT, ItemAttributeType.MSPD_PERCENT,
                 ItemAttributeType.VAR_CT_PERCENT, ItemAttributeType.VAR_CT_FLAT,
-                ItemAttributeType.FIXED_CT_PERCENT, ItemAttributeType.FIXED_CT_FLAT
+                ItemAttributeType.FIXED_CT_PERCENT, ItemAttributeType.FIXED_CT_FLAT,
+                // [NEW] Cooldowns
+                ItemAttributeType.SKILL_CD_PERCENT, ItemAttributeType.SKILL_CD_FLAT,
+                ItemAttributeType.GLOBAL_CD_PERCENT, ItemAttributeType.GLOBAL_CD_FLAT
         };
         fillGrid(inv, types);
     }
@@ -213,14 +216,13 @@ public class AttributeEditorGUI {
         lore.add("§7Current: §e" + String.format(type.getFormat(), val));
         lore.add(" ");
 
-        // --- ส่วนที่เพิ่ม: แสดงคำอธิบายภาษาไทย ---
+        // [NEW] Display Thai Descriptions
         if (type.getDescription() != null && !type.getDescription().isEmpty()) {
             for (String desc : type.getDescription()) {
                 lore.add("§f" + desc);
             }
             lore.add(" ");
         }
-        // ----------------------------------------
 
         lore.add("§eLeft Click: §7+" + type.getClickStep());
         lore.add("§eRight Click: §7-" + type.getClickStep());

@@ -44,11 +44,16 @@ public class ItemAttribute {
     private double ignoreMDefFlat;
     private double ignoreMDefPercent;
 
-    // --- 4. Casting ---
+    // --- 4. Casting & Cooldown ---
     private double varCTPercent;
     private double varCTFlat;
     private double fixedCTPercent;
     private double fixedCTFlat;
+
+    private double skillCooldownPercent;
+    private double skillCooldownFlat;
+    private double globalCooldownPercent;
+    private double globalCooldownFlat;
 
     // --- 5. Speed & Mobility ---
     private double aSpdPercent;
@@ -145,11 +150,15 @@ public class ItemAttribute {
         attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
         attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
 
-        // Casting
+        // Casting & Cooldown
         attr.varCTPercent = att.getDouble("var-ct-%", 0);
         attr.varCTFlat = att.getDouble("var-ct-flat", 0);
         attr.fixedCTPercent = att.getDouble("fixed-ct-%", 0);
         attr.fixedCTFlat = att.getDouble("fixed-ct-flat", 0);
+        attr.skillCooldownPercent = att.getDouble("skill-cd-%", 0);
+        attr.skillCooldownFlat = att.getDouble("skill-cd-flat", 0);
+        attr.globalCooldownPercent = att.getDouble("global-cd-%", 0);
+        attr.globalCooldownFlat = att.getDouble("global-cd-flat", 0);
 
         // Speed
         attr.aSpdPercent = att.getDouble("aspd-%", 0);
@@ -252,6 +261,10 @@ public class ItemAttribute {
         setIfNonZero(section, "var-ct-flat", varCTFlat);
         setIfNonZero(section, "fixed-ct-%", fixedCTPercent);
         setIfNonZero(section, "fixed-ct-flat", fixedCTFlat);
+        setIfNonZero(section, "skill-cd-%", skillCooldownPercent);
+        setIfNonZero(section, "skill-cd-flat", skillCooldownFlat);
+        setIfNonZero(section, "global-cd-%", globalCooldownPercent);
+        setIfNonZero(section, "global-cd-flat", globalCooldownFlat);
 
         setIfNonZero(section, "aspd-%", aSpdPercent);
         setIfNonZero(section, "mspd-%", mSpdPercent);
@@ -312,7 +325,7 @@ public class ItemAttribute {
         if (v != 0) s.set(k, v);
     }
 
-    // Getters and Setters (Generated for all fields)
+    // Getters and Setters
     public int getStrGear() { return strGear; }
     public void setStrGear(int v) { this.strGear = v; }
     public int getAgiGear() { return agiGear; }
@@ -367,6 +380,16 @@ public class ItemAttribute {
     public void setFixedCTPercent(double v) { this.fixedCTPercent = v; }
     public double getFixedCTFlat() { return fixedCTFlat; }
     public void setFixedCTFlat(double v) { this.fixedCTFlat = v; }
+
+    public double getSkillCooldownPercent() { return skillCooldownPercent; }
+    public void setSkillCooldownPercent(double v) { this.skillCooldownPercent = v; }
+    public double getSkillCooldownFlat() { return skillCooldownFlat; }
+    public void setSkillCooldownFlat(double v) { this.skillCooldownFlat = v; }
+    public double getGlobalCooldownPercent() { return globalCooldownPercent; }
+    public void setGlobalCooldownPercent(double v) { this.globalCooldownPercent = v; }
+    public double getGlobalCooldownFlat() { return globalCooldownFlat; }
+    public void setGlobalCooldownFlat(double v) { this.globalCooldownFlat = v; }
+
     public double getASpdPercent() { return aSpdPercent; }
     public void setASpdPercent(double v) { this.aSpdPercent = v; }
     public double getMSpdPercent() { return mSpdPercent; }

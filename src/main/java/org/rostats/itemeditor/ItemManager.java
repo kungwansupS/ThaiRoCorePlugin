@@ -107,7 +107,6 @@ public class ItemManager {
                 config.set("lore", manualLore);
             }
 
-            // Save Enchantments
             if (meta.hasEnchants()) {
                 ConfigurationSection enchSec = config.createSection("enchantments");
                 for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
@@ -146,7 +145,6 @@ public class ItemManager {
 
         plugin.getItemAttributeManager().applyMetaFromConfig(item, config);
 
-        // Load Enchantments manually here as they are part of Meta/Item logic
         if (config.contains("enchantments")) {
             ItemMeta meta = item.getItemMeta();
             ConfigurationSection enchSec = config.getConfigurationSection("enchantments");
@@ -159,7 +157,11 @@ public class ItemManager {
             item.setItemMeta(meta);
         }
 
+        // Apply visual AND STORE STATS to NBT/PDC
         plugin.getItemAttributeManager().applyAttributesToItem(item, attr);
+
+        // Apply Lore visualization
+        plugin.getItemAttributeManager().applyLoreStats(item, attr);
 
         return item;
     }

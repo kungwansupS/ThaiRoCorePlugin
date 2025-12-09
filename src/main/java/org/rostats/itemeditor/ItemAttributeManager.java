@@ -1,25 +1,31 @@
 package org.rostats.itemeditor;
 
-import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
+import org.rostats.engine.trigger.TriggerType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 public class ItemAttributeManager {
 
     private final ThaiRoCorePlugin plugin;
+    private final NamespacedKey SKILLS_KEY;
+    private final NamespacedKey POTIONS_KEY;
 
     public ItemAttributeManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
+        this.SKILLS_KEY = new NamespacedKey(plugin, "RO_SKILLS_DATA");
+        this.POTIONS_KEY = new NamespacedKey(plugin, "RO_POTIONS_DATA");
     }
 
-    // --- NEW: Method to apply Name and Lore from Config ---
     public void applyMetaFromConfig(ItemStack item, YamlConfiguration config) {
         if (item == null || config == null) return;
         ItemMeta meta = item.getItemMeta();
@@ -39,38 +45,176 @@ public class ItemAttributeManager {
         item.setItemMeta(meta);
     }
 
-    // --- NEW: Method to apply Attributes (CMD, Flags) to Item ---
     public void applyAttributesToItem(ItemStack item, ItemAttribute attr) {
         if (item == null || attr == null) return;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
 
-        // Apply Custom Model Data
+        // 1. Apply Visuals (Custom Model & Flags)
         if (attr.getCustomModelData() != null) {
             meta.setCustomModelData(attr.getCustomModelData());
         }
-
-        // Apply Hide Attributes Flag
         if (attr.isRemoveVanillaAttribute()) {
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         } else {
             meta.removeItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         }
 
+        // 2. [IMPORTANT] Store Stats into PersistentDataContainer (NBT)
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        // Loop all stat types and store them
+        for (ItemAttributeType type : ItemAttributeType.values()) {
+            double value = getAttributeValueFromAttrObject(attr, type);
+            NamespacedKey key = new NamespacedKey(plugin, "RO_STAT_" + type.getKey().toUpperCase());
+
+            if (value != 0) {
+                pdc.set(key, PersistentDataType.DOUBLE, value);
+            } else {
+                // Remove key if value is 0 to save space
+                pdc.remove(key);
+            }
+        }
+
+        // Store Skills (Serialized String)
+        if (!attr.getSkillBindings().isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                // Format: skillId:trigger:level:chance|...
+                sb.append(binding.getSkillId()).append(":")
+                        .append(binding.getTrigger().name()).append(":")
+                        .append(binding.getLevel()).append(":")
+                        .append(binding.getChance()).append("|");
+            }
+            pdc.set(SKILLS_KEY, PersistentDataType.STRING, sb.toString());
+        } else {
+            pdc.remove(SKILLS_KEY);
+        }
+
+        // Store Potions (Serialized String)
+        if (!attr.getPotionEffects().isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            attr.getPotionEffects().forEach((type, level) -> {
+                // Format: PotionName:Level|...
+                sb.append(type.getName()).append(":").append(level).append("|");
+            });
+            pdc.set(POTIONS_KEY, PersistentDataType.STRING, sb.toString());
+        } else {
+            pdc.remove(POTIONS_KEY);
+        }
+
         item.setItemMeta(meta);
     }
 
+    public void applyLoreStats(ItemStack item, ItemAttribute attr) {
+        if (item == null || attr == null) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+
+        lore.add(" ");
+        lore.add("§f§l--- Item Stats ---");
+
+        for (ItemAttributeType type : ItemAttributeType.values()) {
+            double val = getAttributeValueFromAttrObject(attr, type);
+            if (val != 0) {
+                String valStr = String.format(type.getFormat(), val);
+                if (val > 0 && !valStr.startsWith("+") && !valStr.startsWith("-")) {
+                    valStr = "+" + valStr;
+                }
+                lore.add(type.getDisplayName() + " §f" + valStr);
+            }
+        }
+
+        if (!attr.getPotionEffects().isEmpty()) {
+            lore.add(" ");
+            lore.add("§e§l--- Effects ---");
+            attr.getPotionEffects().forEach((type, level) -> {
+                String pName = type.getName().toLowerCase().replace("_", " ");
+                pName = pName.substring(0, 1).toUpperCase() + pName.substring(1);
+                lore.add("§7" + pName + " Lv." + level);
+            });
+        }
+
+        if (!attr.getSkillBindings().isEmpty()) {
+            lore.add(" ");
+            lore.add("§6§l--- Skills ---");
+            for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                lore.add("§eSkill: " + binding.getSkillId() + " §7(Lv." + binding.getLevel() + ")");
+                lore.add("§7Condition: §f" + binding.getTrigger().name() + " §7(" + String.format("%.0f%%", binding.getChance()*100) + ")");
+            }
+        }
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+    }
+
+    // --- [FIXED] Read stats from Item NBT/PDC ---
     public ItemAttribute readFromItem(ItemStack item) {
-        // In a file-based system, reading strictly from the item usually implies looking up its file
-        // or parsing NBT if available. For the editor's context, we usually load from file.
-        return new ItemAttribute();
+        ItemAttribute attr = new ItemAttribute();
+        if (item == null || !item.hasItemMeta()) return attr;
+
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+
+        // 1. Read Stats
+        for (ItemAttributeType type : ItemAttributeType.values()) {
+            NamespacedKey key = new NamespacedKey(plugin, "RO_STAT_" + type.getKey().toUpperCase());
+            if (pdc.has(key, PersistentDataType.DOUBLE)) {
+                Double val = pdc.get(key, PersistentDataType.DOUBLE);
+                setAttributeToObj(attr, type, val != null ? val : 0.0);
+            }
+        }
+
+        // 2. Read Skills
+        if (pdc.has(SKILLS_KEY, PersistentDataType.STRING)) {
+            String raw = pdc.get(SKILLS_KEY, PersistentDataType.STRING);
+            if (raw != null && !raw.isEmpty()) {
+                String[] split = raw.split("\\|");
+                List<ItemSkillBinding> bindings = new ArrayList<>();
+                for (String s : split) {
+                    try {
+                        String[] parts = s.split(":");
+                        if (parts.length == 4) {
+                            String id = parts[0];
+                            TriggerType trigger = TriggerType.valueOf(parts[1]);
+                            int level = Integer.parseInt(parts[2]);
+                            double chance = Double.parseDouble(parts[3]);
+                            bindings.add(new ItemSkillBinding(id, trigger, level, chance));
+                        }
+                    } catch (Exception ignored) {}
+                }
+                attr.setSkillBindings(bindings);
+            }
+        }
+
+        // 3. Read Potions
+        if (pdc.has(POTIONS_KEY, PersistentDataType.STRING)) {
+            String raw = pdc.get(POTIONS_KEY, PersistentDataType.STRING);
+            if (raw != null && !raw.isEmpty()) {
+                String[] split = raw.split("\\|");
+                for (String s : split) {
+                    try {
+                        String[] parts = s.split(":");
+                        if (parts.length == 2) {
+                            PotionEffectType type = PotionEffectType.getByName(parts[0]);
+                            int level = Integer.parseInt(parts[1]);
+                            if (type != null) {
+                                attr.getPotionEffects().put(type, level);
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        return attr;
     }
 
     public double getAttributeValueFromAttrObject(ItemAttribute attr, ItemAttributeType type) {
         if (attr == null || type == null) return 0;
 
         return switch (type) {
-            // Base
             case STR_GEAR -> attr.getStrGear();
             case AGI_GEAR -> attr.getAgiGear();
             case VIT_GEAR -> attr.getVitGear();
@@ -83,13 +227,11 @@ public class ItemAttributeManager {
             case FLEE_BONUS_FLAT -> attr.getFleeFlat();
             case BASE_MSPD -> attr.getBaseMSPD();
 
-            // Combat
             case WEAPON_PATK -> attr.getWeaponPAtk();
             case WEAPON_MATK -> attr.getWeaponMAtk();
             case PATK_FLAT -> attr.getPAtkFlat();
             case MATK_FLAT -> attr.getMAtkFlat();
 
-            // Pen
             case P_PEN_FLAT -> attr.getPPenFlat();
             case P_PEN_PERCENT -> attr.getPPenPercent();
             case IGNORE_PDEF_FLAT -> attr.getIgnorePDefFlat();
@@ -99,23 +241,23 @@ public class ItemAttributeManager {
             case IGNORE_MDEF_FLAT -> attr.getIgnoreMDefFlat();
             case IGNORE_MDEF_PERCENT -> attr.getIgnoreMDefPercent();
 
-            // Cast
             case VAR_CT_PERCENT -> attr.getVarCTPercent();
             case VAR_CT_FLAT -> attr.getVarCTFlat();
             case FIXED_CT_PERCENT -> attr.getFixedCTPercent();
             case FIXED_CT_FLAT -> attr.getFixedCTFlat();
+            case SKILL_CD_PERCENT -> attr.getSkillCooldownPercent();
+            case SKILL_CD_FLAT -> attr.getSkillCooldownFlat();
+            case GLOBAL_CD_PERCENT -> attr.getGlobalCooldownPercent();
+            case GLOBAL_CD_FLAT -> attr.getGlobalCooldownFlat();
 
-            // Speed
             case ASPD_PERCENT -> attr.getASpdPercent();
             case MSPD_PERCENT -> attr.getMSpdPercent();
 
-            // Crit
             case CRIT_RATE -> attr.getCritRate();
             case CRIT_DMG_PERCENT -> attr.getCritDmgPercent();
             case CRIT_RES -> attr.getCritRes();
             case CRIT_DMG_RES_PERCENT -> attr.getCritDmgResPercent();
 
-            // Dmg Universal
             case PDMG_PERCENT -> attr.getPDmgPercent();
             case PDMG_FLAT -> attr.getPDmgFlat();
             case PDMG_REDUCTION_PERCENT -> attr.getPDmgReductionPercent();
@@ -128,19 +270,16 @@ public class ItemAttributeManager {
             case FINAL_DMG_RES_PERCENT -> attr.getFinalDmgResPercent();
             case TRUE_DMG -> attr.getTrueDamageFlat();
 
-            // Distance
             case MELEE_PDMG_PERCENT -> attr.getMeleePDmgPercent();
             case MELEE_PDMG_REDUCTION_PERCENT -> attr.getMeleePDReductionPercent();
             case RANGE_PDMG_PERCENT -> attr.getRangePDmgPercent();
             case RANGE_PDMG_REDUCTION_PERCENT -> attr.getRangePDReductionPercent();
 
-            // Content
             case PVE_DMG_PERCENT -> attr.getPveDmgPercent();
             case PVE_DMG_REDUCTION_PERCENT -> attr.getPveDmgReductionPercent();
             case PVP_DMG_PERCENT -> attr.getPvpDmgPercent();
             case PVP_DMG_REDUCTION_PERCENT -> attr.getPvpDmgReductionPercent();
 
-            // Heal & Shield
             case HEALING_EFFECT_PERCENT -> attr.getHealingEffectPercent();
             case HEALING_RECEIVED_PERCENT -> attr.getHealingReceivedPercent();
             case LIFESTEAL_P_PERCENT -> attr.getLifestealPPercent();
@@ -186,6 +325,10 @@ public class ItemAttributeManager {
             case VAR_CT_FLAT -> attr.setVarCTFlat(value);
             case FIXED_CT_PERCENT -> attr.setFixedCTPercent(value);
             case FIXED_CT_FLAT -> attr.setFixedCTFlat(value);
+            case SKILL_CD_PERCENT -> attr.setSkillCooldownPercent(value);
+            case SKILL_CD_FLAT -> attr.setSkillCooldownFlat(value);
+            case GLOBAL_CD_PERCENT -> attr.setGlobalCooldownPercent(value);
+            case GLOBAL_CD_FLAT -> attr.setGlobalCooldownFlat(value);
 
             case ASPD_PERCENT -> attr.setASpdPercent(value);
             case MSPD_PERCENT -> attr.setMSpdPercent(value);

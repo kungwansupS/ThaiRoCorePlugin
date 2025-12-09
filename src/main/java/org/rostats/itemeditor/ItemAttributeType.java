@@ -63,7 +63,7 @@ public enum ItemAttributeType {
     IGNORE_MDEF_PERCENT("IgnoreMDefPercent", "§6Ignore M.DEF %", Material.LAPIS_BLOCK, "%.1f%%", 1.0, 10.0,
             "เมินพลังป้องกันเวทมนตร์ (%)"),
 
-    // --- 4. Casting ---
+    // --- 4. Casting & Cooldown ---
     VAR_CT_PERCENT("VarCTPercent", "§dVariable Cast %", Material.CLOCK, "%.1f%%", 1.0, 10.0,
             "ลดระยะเวลาร่ายเวท (แปรผัน) %"),
     VAR_CT_FLAT("VarCTFlat", "§dVariable Cast (s)", Material.CLOCK, "%.1f", 0.1, 10.0,
@@ -72,6 +72,16 @@ public enum ItemAttributeType {
             "ลดระยะเวลาร่ายเวท (คงที่) %"),
     FIXED_CT_FLAT("FixedCTFlat", "§dFixed Cast (s)", Material.COMPASS, "%.1f", 0.1, 10.0,
             "ลดระยะเวลาร่ายเวท (คงที่) วินาที"),
+
+    // [NEW] Cooldowns
+    SKILL_CD_PERCENT("SkillCDPercent", "§bSkill CD %", Material.MUSIC_DISC_CAT, "%.1f%%", 1.0, 10.0,
+            "ลดคูลดาวน์สกิล %"),
+    SKILL_CD_FLAT("SkillCDFlat", "§bSkill CD (s)", Material.MUSIC_DISC_13, "%.1f", 0.1, 1.0,
+            "ลดคูลดาวน์สกิล (วินาที)"),
+    GLOBAL_CD_PERCENT("GlobalCDPercent", "§eGlobal CD %", Material.RECOVERY_COMPASS, "%.1f%%", 1.0, 10.0,
+            "ลดดีเลย์รวมหลังใช้สกิล (Global CD) %"),
+    GLOBAL_CD_FLAT("GlobalCDFlat", "§eGlobal CD (s)", Material.GOAT_HORN, "%.1f", 0.1, 1.0,
+            "ลดดีเลย์รวมหลังใช้สกิล (วินาที)"),
 
     // --- 5. Speed & Mobility ---
     ASPD_PERCENT("ASpdPercent", "§aASPD %", Material.FEATHER, "%.1f%%", 1.0, 10.0,
