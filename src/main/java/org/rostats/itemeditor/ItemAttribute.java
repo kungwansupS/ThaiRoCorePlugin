@@ -11,8 +11,7 @@ import java.util.Map;
 
 public class ItemAttribute {
 
-    // ... (Fields เดิมทั้งหมด ยังคงอยู่) ...
-    // Gear Stats
+    // --- 1. Base Attributes ---
     private int strGear;
     private int agiGear;
     private int vitGear;
@@ -20,70 +19,88 @@ public class ItemAttribute {
     private int dexGear;
     private int lukGear;
 
-    // Offensive
+    private double maxHPPercent;
+    private double maxSPPercent;
+
+    // Derived
+    private double hitFlat;
+    private double fleeFlat;
+    private double baseMSPD;
+
+    // --- 2. Core Combat Stats ---
     private double weaponPAtk;
     private double weaponMAtk;
     private double pAtkFlat;
     private double mAtkFlat;
-    private double pDmgPercent;
-    private double mDmgPercent;
-    private double pDmgFlat;
-    private double mDmgFlat;
-    private double critDmgPercent;
-    private double critDmgResPercent;
-    private double critRes;
+
+    // --- 3. Penetration / Ignore Def ---
     private double pPenFlat;
-    private double mPenFlat;
     private double pPenPercent;
+    private double ignorePDefFlat;
+    private double ignorePDefPercent;
+
+    private double mPenFlat;
     private double mPenPercent;
-    private double finalDmgPercent;
-    private double finalDmgResPercent;
-    private double finalPDmgPercent;
-    private double finalMDmgPercent;
+    private double ignoreMDefFlat;
+    private double ignoreMDefPercent;
 
-    private double pveDmgPercent;
-    private double pvpDmgPercent;
-    private double pveDmgReductionPercent;
-    private double pvpDmgReductionPercent;
-
-    private double maxHPPercent;
-    private double maxSPPercent;
-    private double shieldValueFlat;
-    private double shieldRatePercent;
-    private double aSpdPercent;
-    private double mSpdPercent;
-    private double baseMSPD;
+    // --- 4. Casting ---
     private double varCTPercent;
     private double varCTFlat;
     private double fixedCTPercent;
     private double fixedCTFlat;
+
+    // --- 5. Speed & Mobility ---
+    private double aSpdPercent;
+    private double mSpdPercent;
+
+    // --- 6. Critical System ---
+    private double critRate;
+    private double critDmgPercent;
+    private double critRes;
+    private double critDmgResPercent;
+
+    // --- 7. Universal Damage Modifiers ---
+    private double pDmgPercent;
+    private double pDmgFlat;
+    private double pDmgReductionPercent;
+
+    private double mDmgPercent;
+    private double mDmgFlat;
+    private double mDmgReductionPercent;
+
+    private double finalDmgPercent;
+    private double finalPDmgPercent;
+    private double finalMDmgPercent;
+
+    private double finalDmgResPercent;
+    private double trueDamageFlat;
+
+    // --- 8. Distance-Type ---
+    private double meleePDmgPercent;
+    private double meleePDReductionPercent;
+    private double rangePDmgPercent;
+    private double rangePDReductionPercent;
+
+    // --- 9. Content-Type ---
+    private double pveDmgPercent;
+    private double pveDmgReductionPercent;
+    private double pvpDmgPercent;
+    private double pvpDmgReductionPercent;
+
+    // --- 10. Healing & Defense ---
     private double healingEffectPercent;
     private double healingReceivedPercent;
     private double lifestealPPercent;
     private double lifestealMPercent;
-    private double hitFlat;
-    private double fleeFlat;
-    private double pDmgReductionPercent;
-    private double mDmgReductionPercent;
 
-    private double ignorePDefPercent;
-    private double ignoreMDefPercent;
-    private double ignorePDefFlat;
-    private double ignoreMDefFlat;
+    private double shieldValueFlat;
+    private double shieldRatePercent;
 
-    private double meleePDmgPercent;
-    private double rangePDmgPercent;
-    private double meleePDReductionPercent;
-    private double rangePDReductionPercent;
-
-    private double trueDamageFlat;
-
+    // Misc
     private boolean removeVanillaAttribute;
     private Integer customModelData;
-
     private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
-
-    // NEW: Skill Bindings (Triggers)
     private List<ItemSkillBinding> skillBindings = new ArrayList<>();
 
     public ItemAttribute() {}
@@ -93,115 +110,106 @@ public class ItemAttribute {
         if (root == null) return attr;
 
         attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
-        if (root.contains("custom-model-data")) {
-            attr.customModelData = root.getInt("custom-model-data");
-        } else if (root.contains("CustomModelData")) {
-            attr.customModelData = root.getInt("CustomModelData");
-        }
+        if (root.contains("custom-model-data")) attr.customModelData = root.getInt("custom-model-data");
+        else if (root.contains("CustomModelData")) attr.customModelData = root.getInt("CustomModelData");
 
         ConfigurationSection att = root.getConfigurationSection("attributes");
         if (att == null) return attr;
 
-        // ... (Load ตัวแปรเดิมทั้งหมด) ...
+        // Base
         attr.strGear = att.getInt("str", 0);
         attr.agiGear = att.getInt("agi", 0);
         attr.vitGear = att.getInt("vit", 0);
         attr.intGear = att.getInt("int", 0);
         attr.dexGear = att.getInt("dex", 0);
         attr.lukGear = att.getInt("luk", 0);
+        attr.maxHPPercent = att.getDouble("max-hp-%", 0);
+        attr.maxSPPercent = att.getDouble("max-sp-%", 0);
+        attr.hitFlat = att.getDouble("hit-flat", 0);
+        attr.fleeFlat = att.getDouble("flee-flat", 0);
+        attr.baseMSPD = att.getDouble("base-mspd", 0);
 
+        // Core Combat
         attr.weaponPAtk = att.getDouble("weapon-p-atk", 0);
         attr.weaponMAtk = att.getDouble("weapon-m-atk", 0);
         attr.pAtkFlat = att.getDouble("p-atk-flat", 0);
         attr.mAtkFlat = att.getDouble("m-atk-flat", 0);
 
-        attr.pDmgPercent = att.getDouble("p-dmg-%", 0);
-        attr.mDmgPercent = att.getDouble("m-dmg-%", 0);
-        attr.pDmgFlat = att.getDouble("p-dmg-flat", 0);
-        attr.mDmgFlat = att.getDouble("m-dmg-flat", 0);
-
-        attr.critDmgPercent = att.getDouble("crit-dmg-%", 0);
-        attr.critDmgResPercent = att.getDouble("crit-dmg-res-%", 0);
-        attr.critRes = att.getDouble("crit-res", 0);
-
+        // Pen & Ignore
         attr.pPenFlat = att.getDouble("p-pen-flat", 0);
-        attr.mPenFlat = att.getDouble("m-pen-flat", 0);
         attr.pPenPercent = att.getDouble("p-pen-%", 0);
+        attr.ignorePDefFlat = att.getDouble("ignore-p-def-flat", 0);
+        attr.ignorePDefPercent = att.getDouble("ignore-p-def-%", 0);
+        attr.mPenFlat = att.getDouble("m-pen-flat", 0);
         attr.mPenPercent = att.getDouble("m-pen-%", 0);
+        attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
+        attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
 
-        attr.finalDmgPercent = att.getDouble("final-dmg-%", 0);
-        attr.finalDmgResPercent = att.getDouble("final-dmg-res-%", 0);
-        attr.finalPDmgPercent = att.getDouble("final-p-dmg-%", 0);
-        attr.finalMDmgPercent = att.getDouble("final-m-dmg-%", 0);
-
-        attr.pveDmgPercent = att.getDouble("pve-dmg-%", 0);
-        attr.pvpDmgPercent = att.getDouble("pvp-dmg-%", 0);
-        attr.pveDmgReductionPercent = att.getDouble("pve-reduce-%", 0);
-        attr.pvpDmgReductionPercent = att.getDouble("pvp-reduce-%", 0);
-
-        attr.maxHPPercent = att.getDouble("max-hp-%", 0);
-        attr.maxSPPercent = att.getDouble("max-sp-%", 0);
-        attr.shieldValueFlat = att.getDouble("shield-flat", 0);
-        attr.shieldRatePercent = att.getDouble("shield-rate-%", 0);
-
-        attr.aSpdPercent = att.getDouble("aspd-%", 0);
-        attr.mSpdPercent = att.getDouble("mspd-%", 0);
-        attr.baseMSPD = att.getDouble("base-mspd", 0);
-
+        // Casting
         attr.varCTPercent = att.getDouble("var-ct-%", 0);
         attr.varCTFlat = att.getDouble("var-ct-flat", 0);
         attr.fixedCTPercent = att.getDouble("fixed-ct-%", 0);
         attr.fixedCTFlat = att.getDouble("fixed-ct-flat", 0);
 
+        // Speed
+        attr.aSpdPercent = att.getDouble("aspd-%", 0);
+        attr.mSpdPercent = att.getDouble("mspd-%", 0);
+
+        // Crit
+        attr.critRate = att.getDouble("crit-rate", 0);
+        attr.critDmgPercent = att.getDouble("crit-dmg-%", 0);
+        attr.critRes = att.getDouble("crit-res", 0);
+        attr.critDmgResPercent = att.getDouble("crit-dmg-res-%", 0);
+
+        // Universal Dmg
+        attr.pDmgPercent = att.getDouble("p-dmg-%", 0);
+        attr.pDmgFlat = att.getDouble("p-dmg-flat", 0);
+        attr.pDmgReductionPercent = att.getDouble("p-dmg-reduce-%", 0);
+        attr.mDmgPercent = att.getDouble("m-dmg-%", 0);
+        attr.mDmgFlat = att.getDouble("m-dmg-flat", 0);
+        attr.mDmgReductionPercent = att.getDouble("m-dmg-reduce-%", 0);
+        attr.finalDmgPercent = att.getDouble("final-dmg-%", 0);
+        attr.finalPDmgPercent = att.getDouble("final-p-dmg-%", 0);
+        attr.finalMDmgPercent = att.getDouble("final-m-dmg-%", 0);
+        attr.finalDmgResPercent = att.getDouble("final-dmg-res-%", 0);
+        attr.trueDamageFlat = att.getDouble("true-damage", 0);
+
+        // Distance & Content
+        attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
+        attr.meleePDReductionPercent = att.getDouble("melee-p-reduce-%", 0);
+        attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
+        attr.rangePDReductionPercent = att.getDouble("range-p-reduce-%", 0);
+        attr.pveDmgPercent = att.getDouble("pve-dmg-%", 0);
+        attr.pveDmgReductionPercent = att.getDouble("pve-reduce-%", 0);
+        attr.pvpDmgPercent = att.getDouble("pvp-dmg-%", 0);
+        attr.pvpDmgReductionPercent = att.getDouble("pvp-reduce-%", 0);
+
+        // Healing & Shield
         attr.healingEffectPercent = att.getDouble("heal-effect-%", 0);
         attr.healingReceivedPercent = att.getDouble("heal-received-%", 0);
         attr.lifestealPPercent = att.getDouble("lifesteal-p-%", 0);
         attr.lifestealMPercent = att.getDouble("lifesteal-m-%", 0);
+        attr.shieldValueFlat = att.getDouble("shield-flat", 0);
+        attr.shieldRatePercent = att.getDouble("shield-rate-%", 0);
 
-        attr.hitFlat = att.getDouble("hit-flat", 0);
-        attr.fleeFlat = att.getDouble("flee-flat", 0);
-
-        attr.pDmgReductionPercent = att.getDouble("p-dmg-reduce-%", 0);
-        attr.mDmgReductionPercent = att.getDouble("m-dmg-reduce-%", 0);
-
-        attr.ignorePDefFlat = att.getDouble("ignore-p-def-flat", 0);
-        attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
-        attr.ignorePDefPercent = att.getDouble("ignore-p-def-%", 0);
-        attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
-
-        attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
-        attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
-        attr.meleePDReductionPercent = att.getDouble("melee-p-reduce-%", 0);
-        attr.rangePDReductionPercent = att.getDouble("range-p-reduce-%", 0);
-
-        attr.trueDamageFlat = att.getDouble("true-damage", 0);
-
-        // Load Potion Effects
+        // Effects & Skills
         if (att.contains("effects")) {
             ConfigurationSection effectsSec = att.getConfigurationSection("effects");
             for (String key : effectsSec.getKeys(false)) {
                 PotionEffectType type = PotionEffectType.getByName(key);
-                if (type != null) {
-                    attr.potionEffects.put(type, effectsSec.getInt(key));
-                }
+                if (type != null) attr.potionEffects.put(type, effectsSec.getInt(key));
             }
         }
-
-        // NEW: Load Skill Bindings
         if (att.contains("skills")) {
             List<Map<?, ?>> skillList = att.getMapList("skills");
             for (Map<?, ?> map : skillList) {
                 try {
                     String skillId = (String) map.get("id");
-                    String triggerStr = (String) map.get("trigger");
-                    TriggerType trigger = TriggerType.valueOf(triggerStr);
+                    TriggerType trigger = TriggerType.valueOf((String) map.get("trigger"));
                     int level = (int) map.get("level");
                     double chance = ((Number) map.get("chance")).doubleValue();
-
                     attr.skillBindings.add(new ItemSkillBinding(skillId, trigger, level, chance));
-                } catch (Exception e) {
-                    // Ignore invalid skills
-                }
+                } catch (Exception ignored) {}
             }
         }
 
@@ -209,89 +217,83 @@ public class ItemAttribute {
     }
 
     public void saveToConfig(ConfigurationSection section) {
-        // ... (Save ตัวแปรเดิมทั้งหมด) ...
-        if (strGear != 0) section.set("str", strGear);
-        if (agiGear != 0) section.set("agi", agiGear);
-        if (vitGear != 0) section.set("vit", vitGear);
-        if (intGear != 0) section.set("int", intGear);
-        if (dexGear != 0) section.set("dex", dexGear);
-        if (lukGear != 0) section.set("luk", lukGear);
+        section.set("remove-vanilla", removeVanillaAttribute);
+        if (customModelData != null) section.set("custom-model-data", customModelData);
 
-        if (weaponPAtk != 0) section.set("weapon-p-atk", weaponPAtk);
-        if (weaponMAtk != 0) section.set("weapon-m-atk", weaponMAtk);
-        if (pAtkFlat != 0) section.set("p-atk-flat", pAtkFlat);
-        if (mAtkFlat != 0) section.set("m-atk-flat", mAtkFlat);
+        // Helper for cleanliness
+        setIfNonZero(section, "str", strGear);
+        setIfNonZero(section, "agi", agiGear);
+        setIfNonZero(section, "vit", vitGear);
+        setIfNonZero(section, "int", intGear);
+        setIfNonZero(section, "dex", dexGear);
+        setIfNonZero(section, "luk", lukGear);
 
-        if (pDmgPercent != 0) section.set("p-dmg-%", pDmgPercent);
-        if (mDmgPercent != 0) section.set("m-dmg-%", mDmgPercent);
-        if (pDmgFlat != 0) section.set("p-dmg-flat", pDmgFlat);
-        if (mDmgFlat != 0) section.set("m-dmg-flat", mDmgFlat);
+        setIfNonZero(section, "max-hp-%", maxHPPercent);
+        setIfNonZero(section, "max-sp-%", maxSPPercent);
+        setIfNonZero(section, "hit-flat", hitFlat);
+        setIfNonZero(section, "flee-flat", fleeFlat);
+        setIfNonZero(section, "base-mspd", baseMSPD);
 
-        if (critDmgPercent != 0) section.set("crit-dmg-%", critDmgPercent);
-        if (critDmgResPercent != 0) section.set("crit-dmg-res-%", critDmgResPercent);
-        if (critRes != 0) section.set("crit-res", critRes);
+        setIfNonZero(section, "weapon-p-atk", weaponPAtk);
+        setIfNonZero(section, "weapon-m-atk", weaponMAtk);
+        setIfNonZero(section, "p-atk-flat", pAtkFlat);
+        setIfNonZero(section, "m-atk-flat", mAtkFlat);
 
-        if (pPenFlat != 0) section.set("p-pen-flat", pPenFlat);
-        if (mPenFlat != 0) section.set("m-pen-flat", mPenFlat);
-        if (pPenPercent != 0) section.set("p-pen-%", pPenPercent);
-        if (mPenPercent != 0) section.set("m-pen-%", mPenPercent);
+        setIfNonZero(section, "p-pen-flat", pPenFlat);
+        setIfNonZero(section, "p-pen-%", pPenPercent);
+        setIfNonZero(section, "ignore-p-def-flat", ignorePDefFlat);
+        setIfNonZero(section, "ignore-p-def-%", ignorePDefPercent);
+        setIfNonZero(section, "m-pen-flat", mPenFlat);
+        setIfNonZero(section, "m-pen-%", mPenPercent);
+        setIfNonZero(section, "ignore-m-def-flat", ignoreMDefFlat);
+        setIfNonZero(section, "ignore-m-def-%", ignoreMDefPercent);
 
-        if (finalDmgPercent != 0) section.set("final-dmg-%", finalDmgPercent);
-        if (finalDmgResPercent != 0) section.set("final-dmg-res-%", finalDmgResPercent);
-        if (finalPDmgPercent != 0) section.set("final-p-dmg-%", finalPDmgPercent);
-        if (finalMDmgPercent != 0) section.set("final-m-dmg-%", finalMDmgPercent);
+        setIfNonZero(section, "var-ct-%", varCTPercent);
+        setIfNonZero(section, "var-ct-flat", varCTFlat);
+        setIfNonZero(section, "fixed-ct-%", fixedCTPercent);
+        setIfNonZero(section, "fixed-ct-flat", fixedCTFlat);
 
-        if (pveDmgPercent != 0) section.set("pve-dmg-%", pveDmgPercent);
-        if (pvpDmgPercent != 0) section.set("pvp-dmg-%", pvpDmgPercent);
-        if (pveDmgReductionPercent != 0) section.set("pve-reduce-%", pveDmgReductionPercent);
-        if (pvpDmgReductionPercent != 0) section.set("pvp-reduce-%", pvpDmgReductionPercent);
+        setIfNonZero(section, "aspd-%", aSpdPercent);
+        setIfNonZero(section, "mspd-%", mSpdPercent);
 
-        if (maxHPPercent != 0) section.set("max-hp-%", maxHPPercent);
-        if (maxSPPercent != 0) section.set("max-sp-%", maxSPPercent);
-        if (shieldValueFlat != 0) section.set("shield-flat", shieldValueFlat);
-        if (shieldRatePercent != 0) section.set("shield-rate-%", shieldRatePercent);
+        setIfNonZero(section, "crit-rate", critRate);
+        setIfNonZero(section, "crit-dmg-%", critDmgPercent);
+        setIfNonZero(section, "crit-res", critRes);
+        setIfNonZero(section, "crit-dmg-res-%", critDmgResPercent);
 
-        if (aSpdPercent != 0) section.set("aspd-%", aSpdPercent);
-        if (mSpdPercent != 0) section.set("mspd-%", mSpdPercent);
-        if (baseMSPD != 0) section.set("base-mspd", baseMSPD);
+        setIfNonZero(section, "p-dmg-%", pDmgPercent);
+        setIfNonZero(section, "p-dmg-flat", pDmgFlat);
+        setIfNonZero(section, "p-dmg-reduce-%", pDmgReductionPercent);
+        setIfNonZero(section, "m-dmg-%", mDmgPercent);
+        setIfNonZero(section, "m-dmg-flat", mDmgFlat);
+        setIfNonZero(section, "m-dmg-reduce-%", mDmgReductionPercent);
+        setIfNonZero(section, "final-dmg-%", finalDmgPercent);
+        setIfNonZero(section, "final-p-dmg-%", finalPDmgPercent);
+        setIfNonZero(section, "final-m-dmg-%", finalMDmgPercent);
+        setIfNonZero(section, "final-dmg-res-%", finalDmgResPercent);
+        setIfNonZero(section, "true-damage", trueDamageFlat);
 
-        if (varCTPercent != 0) section.set("var-ct-%", varCTPercent);
-        if (varCTFlat != 0) section.set("var-ct-flat", varCTFlat);
-        if (fixedCTPercent != 0) section.set("fixed-ct-%", fixedCTPercent);
-        if (fixedCTFlat != 0) section.set("fixed-ct-flat", fixedCTFlat);
+        setIfNonZero(section, "melee-p-dmg-%", meleePDmgPercent);
+        setIfNonZero(section, "melee-p-reduce-%", meleePDReductionPercent);
+        setIfNonZero(section, "range-p-dmg-%", rangePDmgPercent);
+        setIfNonZero(section, "range-p-reduce-%", rangePDReductionPercent);
+        setIfNonZero(section, "pve-dmg-%", pveDmgPercent);
+        setIfNonZero(section, "pve-reduce-%", pveDmgReductionPercent);
+        setIfNonZero(section, "pvp-dmg-%", pvpDmgPercent);
+        setIfNonZero(section, "pvp-reduce-%", pvpDmgReductionPercent);
 
-        if (healingEffectPercent != 0) section.set("heal-effect-%", healingEffectPercent);
-        if (healingReceivedPercent != 0) section.set("heal-received-%", healingReceivedPercent);
-        if (lifestealPPercent != 0) section.set("lifesteal-p-%", lifestealPPercent);
-        if (lifestealMPercent != 0) section.set("lifesteal-m-%", lifestealMPercent);
+        setIfNonZero(section, "heal-effect-%", healingEffectPercent);
+        setIfNonZero(section, "heal-received-%", healingReceivedPercent);
+        setIfNonZero(section, "lifesteal-p-%", lifestealPPercent);
+        setIfNonZero(section, "lifesteal-m-%", lifestealMPercent);
+        setIfNonZero(section, "shield-flat", shieldValueFlat);
+        setIfNonZero(section, "shield-rate-%", shieldRatePercent);
 
-        if (hitFlat != 0) section.set("hit-flat", hitFlat);
-        if (fleeFlat != 0) section.set("flee-flat", fleeFlat);
-
-        if (pDmgReductionPercent != 0) section.set("p-dmg-reduce-%", pDmgReductionPercent);
-        if (mDmgReductionPercent != 0) section.set("m-dmg-reduce-%", mDmgReductionPercent);
-
-        if (ignorePDefFlat != 0) section.set("ignore-p-def-flat", ignorePDefFlat);
-        if (ignoreMDefFlat != 0) section.set("ignore-m-def-flat", ignoreMDefFlat);
-        if (ignorePDefPercent != 0) section.set("ignore-p-def-%", ignorePDefPercent);
-        if (ignoreMDefPercent != 0) section.set("ignore-m-def-%", ignoreMDefPercent);
-
-        if (meleePDmgPercent != 0) section.set("melee-p-dmg-%", meleePDmgPercent);
-        if (rangePDmgPercent != 0) section.set("range-p-dmg-%", rangePDmgPercent);
-        if (meleePDReductionPercent != 0) section.set("melee-p-reduce-%", meleePDReductionPercent);
-        if (rangePDReductionPercent != 0) section.set("range-p-reduce-%", rangePDReductionPercent);
-
-        if (trueDamageFlat != 0) section.set("true-damage", trueDamageFlat);
-
-        // Save Potion Effects
         if (!potionEffects.isEmpty()) {
             ConfigurationSection effectsSec = section.createSection("effects");
-            for (Map.Entry<PotionEffectType, Integer> entry : potionEffects.entrySet()) {
-                effectsSec.set(entry.getKey().getName(), entry.getValue());
-            }
+            potionEffects.forEach((k, v) -> effectsSec.set(k.getName(), v));
         }
 
-        // NEW: Save Skill Bindings
         if (!skillBindings.isEmpty()) {
             List<Map<String, Object>> skillList = new ArrayList<>();
             for (ItemSkillBinding binding : skillBindings) {
@@ -306,149 +308,133 @@ public class ItemAttribute {
         }
     }
 
-    // Getters Setters เดิม (ตัดย่อให้เห็นภาพ)
+    private static void setIfNonZero(ConfigurationSection s, String k, double v) {
+        if (v != 0) s.set(k, v);
+    }
+
+    // Getters and Setters (Generated for all fields)
     public int getStrGear() { return strGear; }
-    public void setStrGear(int strGear) { this.strGear = strGear; }
+    public void setStrGear(int v) { this.strGear = v; }
     public int getAgiGear() { return agiGear; }
-    public void setAgiGear(int agiGear) { this.agiGear = agiGear; }
+    public void setAgiGear(int v) { this.agiGear = v; }
     public int getVitGear() { return vitGear; }
-    public void setVitGear(int vitGear) { this.vitGear = vitGear; }
+    public void setVitGear(int v) { this.vitGear = v; }
     public int getIntGear() { return intGear; }
-    public void setIntGear(int intGear) { this.intGear = intGear; }
+    public void setIntGear(int v) { this.intGear = v; }
     public int getDexGear() { return dexGear; }
-    public void setDexGear(int dexGear) { this.dexGear = dexGear; }
+    public void setDexGear(int v) { this.dexGear = v; }
     public int getLukGear() { return lukGear; }
-    public void setLukGear(int lukGear) { this.lukGear = lukGear; }
-
-    public double getWeaponPAtk() { return weaponPAtk; }
-    public void setWeaponPAtk(double weaponPAtk) { this.weaponPAtk = weaponPAtk; }
-    public double getWeaponMAtk() { return weaponMAtk; }
-    public void setWeaponMAtk(double weaponMAtk) { this.weaponMAtk = weaponMAtk; }
-    public double getPAtkFlat() { return pAtkFlat; }
-    public void setPAtkFlat(double pAtkFlat) { this.pAtkFlat = pAtkFlat; }
-    public double getMAtkFlat() { return mAtkFlat; }
-    public void setMAtkFlat(double mAtkFlat) { this.mAtkFlat = mAtkFlat; }
-
-    public double getPDmgPercent() { return pDmgPercent; }
-    public void setPDmgPercent(double pDmgPercent) { this.pDmgPercent = pDmgPercent; }
-    public double getMDmgPercent() { return mDmgPercent; }
-    public void setMDmgPercent(double mDmgPercent) { this.mDmgPercent = mDmgPercent; }
-    public double getPDmgFlat() { return pDmgFlat; }
-    public void setPDmgFlat(double pDmgFlat) { this.pDmgFlat = pDmgFlat; }
-    public double getMDmgFlat() { return mDmgFlat; }
-    public void setMDmgFlat(double mDmgFlat) { this.mDmgFlat = mDmgFlat; }
-
-    public double getCritDmgPercent() { return critDmgPercent; }
-    public void setCritDmgPercent(double critDmgPercent) { this.critDmgPercent = critDmgPercent; }
-    public double getCritDmgResPercent() { return critDmgResPercent; }
-    public void setCritDmgResPercent(double critDmgResPercent) { this.critDmgResPercent = critDmgResPercent; }
-    public double getCritRes() { return critRes; }
-    public void setCritRes(double critRes) { this.critRes = critRes; }
-
-    public double getPPenFlat() { return pPenFlat; }
-    public void setPPenFlat(double pPenFlat) { this.pPenFlat = pPenFlat; }
-    public double getMPenFlat() { return mPenFlat; }
-    public void setMPenFlat(double mPenFlat) { this.mPenFlat = mPenFlat; }
-    public double getPPenPercent() { return pPenPercent; }
-    public void setPPenPercent(double pPenPercent) { this.pPenPercent = pPenPercent; }
-    public double getMPenPercent() { return mPenPercent; }
-    public void setMPenPercent(double mPenPercent) { this.mPenPercent = mPenPercent; }
-
-    public double getFinalDmgPercent() { return finalDmgPercent; }
-    public void setFinalDmgPercent(double finalDmgPercent) { this.finalDmgPercent = finalDmgPercent; }
-    public double getFinalDmgResPercent() { return finalDmgResPercent; }
-    public void setFinalDmgResPercent(double finalDmgResPercent) { this.finalDmgResPercent = finalDmgResPercent; }
-    public double getFinalPDmgPercent() { return finalPDmgPercent; }
-    public void setFinalPDmgPercent(double finalPDmgPercent) { this.finalPDmgPercent = finalPDmgPercent; }
-    public double getFinalMDmgPercent() { return finalMDmgPercent; }
-    public void setFinalMDmgPercent(double finalMDmgPercent) { this.finalMDmgPercent = finalMDmgPercent; }
-
-    public double getPveDmgPercent() { return pveDmgPercent; }
-    public void setPveDmgPercent(double pveDmgPercent) { this.pveDmgPercent = pveDmgPercent; }
-    public double getPvpDmgPercent() { return pvpDmgPercent; }
-    public void setPvpDmgPercent(double pvpDmgPercent) { this.pvpDmgPercent = pvpDmgPercent; }
-    public double getPveDmgReductionPercent() { return pveDmgReductionPercent; }
-    public void setPveDmgReductionPercent(double pveDmgReductionPercent) { this.pveDmgReductionPercent = pveDmgReductionPercent; }
-    public double getPvpDmgReductionPercent() { return pvpDmgReductionPercent; }
-    public void setPvpDmgReductionPercent(double pvpDmgReductionPercent) { this.pvpDmgReductionPercent = pvpDmgReductionPercent; }
-
+    public void setLukGear(int v) { this.lukGear = v; }
     public double getMaxHPPercent() { return maxHPPercent; }
-    public void setMaxHPPercent(double maxHPPercent) { this.maxHPPercent = maxHPPercent; }
+    public void setMaxHPPercent(double v) { this.maxHPPercent = v; }
     public double getMaxSPPercent() { return maxSPPercent; }
-    public void setMaxSPPercent(double maxSPPercent) { this.maxSPPercent = maxSPPercent; }
-
-    public double getShieldValueFlat() { return shieldValueFlat; }
-    public void setShieldValueFlat(double shieldValueFlat) { this.shieldValueFlat = shieldValueFlat; }
-    public double getShieldRatePercent() { return shieldRatePercent; }
-    public void setShieldRatePercent(double shieldRatePercent) { this.shieldRatePercent = shieldRatePercent; }
-
-    public double getASpdPercent() { return aSpdPercent; }
-    public void setASpdPercent(double aSpdPercent) { this.aSpdPercent = aSpdPercent; }
-    public double getMSpdPercent() { return mSpdPercent; }
-    public void setMSpdPercent(double mSpdPercent) { this.mSpdPercent = mSpdPercent; }
-    public double getBaseMSPD() { return baseMSPD; }
-    public void setBaseMSPD(double baseMSPD) { this.baseMSPD = baseMSPD; }
-
-    public double getVarCTPercent() { return varCTPercent; }
-    public void setVarCTPercent(double varCTPercent) { this.varCTPercent = varCTPercent; }
-    public double getVarCTFlat() { return varCTFlat; }
-    public void setVarCTFlat(double varCTFlat) { this.varCTFlat = varCTFlat; }
-    public double getFixedCTPercent() { return fixedCTPercent; }
-    public void setFixedCTPercent(double fixedCTPercent) { this.fixedCTPercent = fixedCTPercent; }
-    public double getFixedCTFlat() { return fixedCTFlat; }
-    public void setFixedCTFlat(double fixedCTFlat) { this.fixedCTFlat = fixedCTFlat; }
-
-    public double getHealingEffectPercent() { return healingEffectPercent; }
-    public void setHealingEffectPercent(double healingEffectPercent) { this.healingEffectPercent = healingEffectPercent; }
-    public double getHealingReceivedPercent() { return healingReceivedPercent; }
-    public void setHealingReceivedPercent(double healingReceivedPercent) { this.healingReceivedPercent = healingReceivedPercent; }
-
-    public double getLifestealPPercent() { return lifestealPPercent; }
-    public void setLifestealPPercent(double lifestealPPercent) { this.lifestealPPercent = lifestealPPercent; }
-    public double getLifestealMPercent() { return lifestealMPercent; }
-    public void setLifestealMPercent(double lifestealMPercent) { this.lifestealMPercent = lifestealMPercent; }
-
+    public void setMaxSPPercent(double v) { this.maxSPPercent = v; }
     public double getHitFlat() { return hitFlat; }
-    public void setHitFlat(double hitFlat) { this.hitFlat = hitFlat; }
+    public void setHitFlat(double v) { this.hitFlat = v; }
     public double getFleeFlat() { return fleeFlat; }
-    public void setFleeFlat(double fleeFlat) { this.fleeFlat = fleeFlat; }
-
-    public double getPDmgReductionPercent() { return pDmgReductionPercent; }
-    public void setPDmgReductionPercent(double pDmgReductionPercent) { this.pDmgReductionPercent = pDmgReductionPercent; }
-    public double getMDmgReductionPercent() { return mDmgReductionPercent; }
-    public void setMDmgReductionPercent(double mDmgReductionPercent) { this.mDmgReductionPercent = mDmgReductionPercent; }
-
-    public double getIgnorePDefPercent() { return ignorePDefPercent; }
-    public void setIgnorePDefPercent(double ignorePDefPercent) { this.ignorePDefPercent = ignorePDefPercent; }
-    public double getIgnoreMDefPercent() { return ignoreMDefPercent; }
-    public void setIgnoreMDefPercent(double ignoreMDefPercent) { this.ignoreMDefPercent = ignoreMDefPercent; }
+    public void setFleeFlat(double v) { this.fleeFlat = v; }
+    public double getBaseMSPD() { return baseMSPD; }
+    public void setBaseMSPD(double v) { this.baseMSPD = v; }
+    public double getWeaponPAtk() { return weaponPAtk; }
+    public void setWeaponPAtk(double v) { this.weaponPAtk = v; }
+    public double getWeaponMAtk() { return weaponMAtk; }
+    public void setWeaponMAtk(double v) { this.weaponMAtk = v; }
+    public double getPAtkFlat() { return pAtkFlat; }
+    public void setPAtkFlat(double v) { this.pAtkFlat = v; }
+    public double getMAtkFlat() { return mAtkFlat; }
+    public void setMAtkFlat(double v) { this.mAtkFlat = v; }
+    public double getPPenFlat() { return pPenFlat; }
+    public void setPPenFlat(double v) { this.pPenFlat = v; }
+    public double getPPenPercent() { return pPenPercent; }
+    public void setPPenPercent(double v) { this.pPenPercent = v; }
     public double getIgnorePDefFlat() { return ignorePDefFlat; }
-    public void setIgnorePDefFlat(double ignorePDefFlat) { this.ignorePDefFlat = ignorePDefFlat; }
+    public void setIgnorePDefFlat(double v) { this.ignorePDefFlat = v; }
+    public double getIgnorePDefPercent() { return ignorePDefPercent; }
+    public void setIgnorePDefPercent(double v) { this.ignorePDefPercent = v; }
+    public double getMPenFlat() { return mPenFlat; }
+    public void setMPenFlat(double v) { this.mPenFlat = v; }
+    public double getMPenPercent() { return mPenPercent; }
+    public void setMPenPercent(double v) { this.mPenPercent = v; }
     public double getIgnoreMDefFlat() { return ignoreMDefFlat; }
-    public void setIgnoreMDefFlat(double ignoreMDefFlat) { this.ignoreMDefFlat = ignoreMDefFlat; }
-
-    public double getMeleePDmgPercent() { return meleePDmgPercent; }
-    public void setMeleePDmgPercent(double v) { this.meleePDmgPercent = v; }
-    public double getRangePDmgPercent() { return rangePDmgPercent; }
-    public void setRangePDmgPercent(double v) { this.rangePDmgPercent = v; }
-    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
-    public void setMeleePDReductionPercent(double v) { this.meleePDReductionPercent = v; }
-    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
-    public void setRangePDReductionPercent(double v) { this.rangePDReductionPercent = v; }
-
+    public void setIgnoreMDefFlat(double v) { this.ignoreMDefFlat = v; }
+    public double getIgnoreMDefPercent() { return ignoreMDefPercent; }
+    public void setIgnoreMDefPercent(double v) { this.ignoreMDefPercent = v; }
+    public double getVarCTPercent() { return varCTPercent; }
+    public void setVarCTPercent(double v) { this.varCTPercent = v; }
+    public double getVarCTFlat() { return varCTFlat; }
+    public void setVarCTFlat(double v) { this.varCTFlat = v; }
+    public double getFixedCTPercent() { return fixedCTPercent; }
+    public void setFixedCTPercent(double v) { this.fixedCTPercent = v; }
+    public double getFixedCTFlat() { return fixedCTFlat; }
+    public void setFixedCTFlat(double v) { this.fixedCTFlat = v; }
+    public double getASpdPercent() { return aSpdPercent; }
+    public void setASpdPercent(double v) { this.aSpdPercent = v; }
+    public double getMSpdPercent() { return mSpdPercent; }
+    public void setMSpdPercent(double v) { this.mSpdPercent = v; }
+    public double getCritRate() { return critRate; }
+    public void setCritRate(double v) { this.critRate = v; }
+    public double getCritDmgPercent() { return critDmgPercent; }
+    public void setCritDmgPercent(double v) { this.critDmgPercent = v; }
+    public double getCritRes() { return critRes; }
+    public void setCritRes(double v) { this.critRes = v; }
+    public double getCritDmgResPercent() { return critDmgResPercent; }
+    public void setCritDmgResPercent(double v) { this.critDmgResPercent = v; }
+    public double getPDmgPercent() { return pDmgPercent; }
+    public void setPDmgPercent(double v) { this.pDmgPercent = v; }
+    public double getPDmgFlat() { return pDmgFlat; }
+    public void setPDmgFlat(double v) { this.pDmgFlat = v; }
+    public double getPDmgReductionPercent() { return pDmgReductionPercent; }
+    public void setPDmgReductionPercent(double v) { this.pDmgReductionPercent = v; }
+    public double getMDmgPercent() { return mDmgPercent; }
+    public void setMDmgPercent(double v) { this.mDmgPercent = v; }
+    public double getMDmgFlat() { return mDmgFlat; }
+    public void setMDmgFlat(double v) { this.mDmgFlat = v; }
+    public double getMDmgReductionPercent() { return mDmgReductionPercent; }
+    public void setMDmgReductionPercent(double v) { this.mDmgReductionPercent = v; }
+    public double getFinalDmgPercent() { return finalDmgPercent; }
+    public void setFinalDmgPercent(double v) { this.finalDmgPercent = v; }
+    public double getFinalPDmgPercent() { return finalPDmgPercent; }
+    public void setFinalPDmgPercent(double v) { this.finalPDmgPercent = v; }
+    public double getFinalMDmgPercent() { return finalMDmgPercent; }
+    public void setFinalMDmgPercent(double v) { this.finalMDmgPercent = v; }
+    public double getFinalDmgResPercent() { return finalDmgResPercent; }
+    public void setFinalDmgResPercent(double v) { this.finalDmgResPercent = v; }
     public double getTrueDamageFlat() { return trueDamageFlat; }
     public void setTrueDamageFlat(double v) { this.trueDamageFlat = v; }
-
+    public double getMeleePDmgPercent() { return meleePDmgPercent; }
+    public void setMeleePDmgPercent(double v) { this.meleePDmgPercent = v; }
+    public double getMeleePDReductionPercent() { return meleePDReductionPercent; }
+    public void setMeleePDReductionPercent(double v) { this.meleePDReductionPercent = v; }
+    public double getRangePDmgPercent() { return rangePDmgPercent; }
+    public void setRangePDmgPercent(double v) { this.rangePDmgPercent = v; }
+    public double getRangePDReductionPercent() { return rangePDReductionPercent; }
+    public void setRangePDReductionPercent(double v) { this.rangePDReductionPercent = v; }
+    public double getPveDmgPercent() { return pveDmgPercent; }
+    public void setPveDmgPercent(double v) { this.pveDmgPercent = v; }
+    public double getPveDmgReductionPercent() { return pveDmgReductionPercent; }
+    public void setPveDmgReductionPercent(double v) { this.pveDmgReductionPercent = v; }
+    public double getPvpDmgPercent() { return pvpDmgPercent; }
+    public void setPvpDmgPercent(double v) { this.pvpDmgPercent = v; }
+    public double getPvpDmgReductionPercent() { return pvpDmgReductionPercent; }
+    public void setPvpDmgReductionPercent(double v) { this.pvpDmgReductionPercent = v; }
+    public double getHealingEffectPercent() { return healingEffectPercent; }
+    public void setHealingEffectPercent(double v) { this.healingEffectPercent = v; }
+    public double getHealingReceivedPercent() { return healingReceivedPercent; }
+    public void setHealingReceivedPercent(double v) { this.healingReceivedPercent = v; }
+    public double getLifestealPPercent() { return lifestealPPercent; }
+    public void setLifestealPPercent(double v) { this.lifestealPPercent = v; }
+    public double getLifestealMPercent() { return lifestealMPercent; }
+    public void setLifestealMPercent(double v) { this.lifestealMPercent = v; }
+    public double getShieldValueFlat() { return shieldValueFlat; }
+    public void setShieldValueFlat(double v) { this.shieldValueFlat = v; }
+    public double getShieldRatePercent() { return shieldRatePercent; }
+    public void setShieldRatePercent(double v) { this.shieldRatePercent = v; }
     public boolean isRemoveVanillaAttribute() { return removeVanillaAttribute; }
-    public void setRemoveVanillaAttribute(boolean removeVanillaAttribute) { this.removeVanillaAttribute = removeVanillaAttribute; }
-
+    public void setRemoveVanillaAttribute(boolean v) { this.removeVanillaAttribute = v; }
     public Integer getCustomModelData() { return customModelData; }
-    public void setCustomModelData(Integer customModelData) { this.customModelData = customModelData; }
-
+    public void setCustomModelData(Integer v) { this.customModelData = v; }
     public Map<PotionEffectType, Integer> getPotionEffects() { return potionEffects; }
-    public void setPotionEffects(Map<PotionEffectType, Integer> potionEffects) { this.potionEffects = potionEffects; }
-
-    // NEW Getter
+    public void setPotionEffects(Map<PotionEffectType, Integer> v) { this.potionEffects = v; }
     public List<ItemSkillBinding> getSkillBindings() { return skillBindings; }
-    public void setSkillBindings(List<ItemSkillBinding> bindings) { this.skillBindings = bindings; }
+    public void setSkillBindings(List<ItemSkillBinding> v) { this.skillBindings = v; }
 }
