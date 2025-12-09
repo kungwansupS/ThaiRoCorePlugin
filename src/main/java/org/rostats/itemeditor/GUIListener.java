@@ -97,15 +97,14 @@ public class GUIListener implements Listener {
 
         String dp = clicked.getItemMeta().getDisplayName();
 
-        // 1. Navigation Logic
+        // 1. Navigation Logic (เปลี่ยนหน้า Tab)
         if (dp.contains("Back to Library")) {
             new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
             return;
         }
-        // Check for Page Navigation
+        // ตรวจสอบชื่อปุ่มว่าเป็นชื่อ Tab หรือไม่
         for (Page p : Page.values()) {
-            // Because we added colors (e.g. §aGENERAL or §7GENERAL), we check if it contains the name
-            if (dp.contains(p.name())) {
+            if (dp.contains(p.name())) { // เช่น "§7OFFENSE" contains "OFFENSE"
                 new AttributeEditorGUI(plugin, itemFile).open(player, p);
                 return;
             }
@@ -161,7 +160,7 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // 3. Stat Modification Logic
+        // 3. Stat Modification Logic (กดปุ่มเพิ่ม/ลดค่า)
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
@@ -187,11 +186,7 @@ public class GUIListener implements Listener {
         new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, file).open(player, Page.GENERAL));
     }
 
-    // ... [Rest of the existing helper methods: handleSkillSelectClick, handleTriggerSelectClick, etc.] ...
-    // (Ensure you include the handleMaterialSelectClick and other methods from your previous code here if not already present)
-
     private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
-        // (Keep existing implementation)
         File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
         if(itemFile == null) return;
         ItemStack clicked = event.getCurrentItem();
@@ -207,7 +202,7 @@ public class GUIListener implements Listener {
         }
     }
 
-    // ... [Include remaining methods: handleSkillSelectClick, handleTriggerSelectClick, handleSkillBindingClick, handleEffectEnchantClick, handleConfirmDeleteClick, handleImportItem, handleLibraryClick, applyEffectEnchant, findFileByName] ...
+    // ... [ส่วนอื่นๆ ของ Method ที่เหลือ (ImportItem, LibraryClick, SkillBinding ฯลฯ) ให้คงเดิม] ...
 
     private void handleSkillSelectClick(InventoryClickEvent event, Player player, String relativePath) {
         File currentDir = plugin.getSkillManager().getFileFromRelative(relativePath);
