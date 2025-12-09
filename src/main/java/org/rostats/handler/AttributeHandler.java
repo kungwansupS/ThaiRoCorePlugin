@@ -19,12 +19,19 @@ import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.itemeditor.ItemAttribute;
+import org.rostats.itemeditor.ItemSkillBinding;
+import org.rostats.engine.trigger.TriggerType;
 
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AttributeHandler implements Listener {
 
     private final ThaiRoCorePlugin plugin;
+
+    private final Map<UUID, List<ItemSkillBinding>> cachedPassiveSkills = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<PotionEffectType, Integer>> cachedPassivePotions = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<TriggerType, List<ItemSkillBinding>>> cachedTriggers = new ConcurrentHashMap<>();
 
     public AttributeHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -63,23 +70,34 @@ public class AttributeHandler implements Listener {
         plugin.getServer().getScheduler().runTask(plugin, () -> updatePlayerStats(event.getPlayer()));
     }
 
+    // --- Caching Logic for CombatHandler ---
+    public List<ItemSkillBinding> getCachedTriggers(Player player, TriggerType type) {
+        Map<TriggerType, List<ItemSkillBinding>> map = cachedTriggers.get(player.getUniqueId());
+        if (map == null) return Collections.emptyList();
+        return map.getOrDefault(type, Collections.emptyList());
+    }
+
     // --- Passive Effects Task ---
     public void runPassiveEffectsTask() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (player.isDead()) continue;
-            for (ItemStack item : player.getInventory().getArmorContents()) applyPassiveEffects(player, item);
-            applyPassiveEffects(player, player.getInventory().getItemInMainHand());
-            applyPassiveEffects(player, player.getInventory().getItemInOffHand());
-        }
-    }
+            UUID uuid = player.getUniqueId();
 
-    private void applyPassiveEffects(Player player, ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return;
-        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-        Map<PotionEffectType, Integer> effects = attr.getPotionEffects();
-        if (effects != null && !effects.isEmpty()) {
-            for (Map.Entry<PotionEffectType, Integer> entry : effects.entrySet()) {
-                player.addPotionEffect(new PotionEffect(entry.getKey(), 40, entry.getValue(), false, false, true));
+            // 1. Potions
+            Map<PotionEffectType, Integer> potions = cachedPassivePotions.get(uuid);
+            if (potions != null && !potions.isEmpty()) {
+                for (Map.Entry<PotionEffectType, Integer> entry : potions.entrySet()) {
+                    player.addPotionEffect(new PotionEffect(entry.getKey(), 60, entry.getValue() - 1, true, false, true));
+                }
+            }
+
+            // 2. Passive Tick Skills
+            List<ItemSkillBinding> skills = cachedPassiveSkills.get(uuid);
+            if (skills != null && !skills.isEmpty()) {
+                for (ItemSkillBinding binding : skills) {
+                    if (binding.getTrigger() == TriggerType.PASSIVE_TICK) {
+                        plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
+                    }
+                }
             }
         }
     }
@@ -95,12 +113,8 @@ public class AttributeHandler implements Listener {
         // 1. Reset all gear bonuses
         data.resetGearBonuses();
 
-        // 2. Iterate items and accumulate stats
-        for (ItemStack item : player.getInventory().getArmorContents()) {
-            applyItemAttributes(data, item);
-        }
-        applyItemAttributes(data, player.getInventory().getItemInMainHand());
-        applyItemAttributes(data, player.getInventory().getItemInOffHand());
+        // 2. Apply attributes from all equipment & Rebuild Caches
+        applyAllEquipmentAttributes(player);
 
         // 3. Recalculate Logic
         data.calculateFinalStats();
@@ -109,11 +123,58 @@ public class AttributeHandler implements Listener {
         applyToBukkitPlayer(player, data);
     }
 
-    private void applyItemAttributes(PlayerData data, ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return;
+    private void applyAllEquipmentAttributes(Player player) {
+        UUID uuid = player.getUniqueId();
+        List<ItemSkillBinding> newPassiveSkills = new ArrayList<>();
+        Map<PotionEffectType, Integer> newPassivePotions = new HashMap<>();
+        Map<TriggerType, List<ItemSkillBinding>> newTriggers = new HashMap<>();
 
-        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+        List<ItemStack> items = new ArrayList<>();
+        if (player.getEquipment() != null) {
+            items.addAll(Arrays.asList(player.getEquipment().getArmorContents()));
+            items.add(player.getEquipment().getItemInMainHand());
+            items.add(player.getEquipment().getItemInOffHand());
+        }
 
+        PlayerData data = plugin.getStatManager().getData(uuid);
+
+        for (ItemStack item : items) {
+            if (item != null && item.getType() != Material.AIR) {
+                ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+
+                // Add Stats
+                applyItemAttributes(data, attr);
+
+                // Add Potions to Temp Cache
+                if (!attr.getPotionEffects().isEmpty()) {
+                    for (Map.Entry<PotionEffectType, Integer> entry : attr.getPotionEffects().entrySet()) {
+                        newPassivePotions.merge(entry.getKey(), entry.getValue(), Math::max);
+                    }
+                }
+
+                // Add Skills to Temp Cache
+                if (!attr.getSkillBindings().isEmpty()) {
+                    for (ItemSkillBinding binding : attr.getSkillBindings()) {
+                        TriggerType t = binding.getTrigger();
+                        if (t == TriggerType.PASSIVE_TICK) {
+                            newPassiveSkills.add(binding);
+                        } else if (t == TriggerType.PASSIVE_APPLY) {
+                            plugin.getSkillManager().castSkill(player, binding.getSkillId(), binding.getLevel(), player, true);
+                        } else if (t == TriggerType.ON_HIT || t == TriggerType.ON_DEFEND || t == TriggerType.ON_KILL) {
+                            newTriggers.computeIfAbsent(t, k -> new ArrayList<>()).add(binding);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update Caches
+        cachedPassiveSkills.put(uuid, newPassiveSkills);
+        cachedPassivePotions.put(uuid, newPassivePotions);
+        cachedTriggers.put(uuid, newTriggers);
+    }
+
+    private void applyItemAttributes(PlayerData data, ItemAttribute attr) {
         // Base
         data.addStr(attr.getStrGear());
         data.addAgi(attr.getAgiGear());

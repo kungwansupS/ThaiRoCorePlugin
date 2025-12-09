@@ -207,6 +207,7 @@ public class PlayerData {
     }
 
     public void calculateFinalStats() {
+        // Method placeholder for triggering any complex re-calculations.
         calculateMaxSP();
     }
 
@@ -354,6 +355,8 @@ public class PlayerData {
         double percentBonus = maxSPPercent + getEffectBonus("MAX_SP_PERCENT");
         return Math.floor(finalMaxSP * (1 + percentBonus / 100.0));
     }
+
+    public void calculateMaxSP() { if (this.currentSP > getMaxSP()) this.currentSP = getMaxSP(); }
 
     public double getHPRegen() {
         int vit = getStat("VIT") + vitBonusGear + (int)getEffectBonus("VIT");
