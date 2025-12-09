@@ -46,7 +46,7 @@ public class SkillManager {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
 
-        // Status Check (Crowd Control)
+        // Status Check
         if (plugin.getEffectManager().hasEffect(caster, EffectType.CROWD_CONTROL, "STUN")) {
             if (caster instanceof Player) caster.sendMessage("§cYou are stunned!");
             return;
@@ -56,9 +56,9 @@ public class SkillManager {
             return;
         }
 
-        List<SkillAction> finalActions = new LinkedList<>(skill.getActions()); // Create mutable list of actions
+        List<SkillAction> finalActions = new LinkedList<>(skill.getActions());
 
-        // Resource & Cooldown Check (Only for Players)
+        // Resource, Cooldown & Cast Time Check
         if (!isPassive && caster instanceof Player player) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
@@ -71,19 +71,18 @@ public class SkillManager {
             // 2. Cooldown Check (Skill CD & Global CD)
             long now = System.currentTimeMillis();
 
-            // --- Global Cooldown Check ---
+            // Global Cooldown
             long gcdEnd = data.getGlobalCooldownEndTime();
             if (now < gcdEnd) {
                 double remainingSeconds = (gcdEnd - now) / 1000.0;
                 player.sendMessage("§cGlobal Cooldown active! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
-                return; // Global Cooldown active
+                return;
             }
 
-            // --- Skill Cooldown Check (Flat + Percent) ---
+            // Skill Cooldown (Flat + Percent)
             long lastUse = data.getSkillCooldown(skillId);
             double baseCooldownSeconds = skill.getCooldown(level);
 
-            // Apply Reductions: (Base - Flat) * (1 - %)
             double flatRed = data.getSkillCooldownReductionFlat() + data.getEffectBonus("SKILL_CD_FLAT");
             double pctRed = data.getSkillCooldownReductionPercent() + data.getEffectBonus("SKILL_CD_PERCENT");
 
@@ -95,7 +94,7 @@ public class SkillManager {
             if (now - lastUse < cooldownMillis) {
                 double remainingSeconds = (cooldownMillis - (now - lastUse)) / 1000.0;
                 player.sendMessage("§cSkill is on cooldown! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
-                return; // On cooldown
+                return;
             }
 
             // 3. SP Cost Check
@@ -105,20 +104,21 @@ public class SkillManager {
                 return;
             }
 
-            // 4. CAST TIME & MOTION (Handling Pre-Motion + Cast Time)
-            // Order logic: Pre-Motion -> Cast Time -> Actions
+            // 4. CAST TIME CALCULATION (Variable & Fixed)
             double preMotion = skill.getPreMotion();
-            double baseCastTimeSeconds = skill.getCastTime();
+            double finalCastTimeSeconds = data.calculateTotalCastTime(
+                    skill.getVariableCastTime(),
+                    skill.getVariableCastTimeReduction(),
+                    skill.getFixedCastTime(),
+                    skill.getFixedCastTimeReduction()
+            );
 
             // Add Cast Time Delay
-            if (baseCastTimeSeconds > 0.0) {
-                double finalCastTimeSeconds = data.getFinalCastTime(baseCastTimeSeconds);
-                if (finalCastTimeSeconds > 0.0) {
-                    finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
-                }
+            if (finalCastTimeSeconds > 0.0) {
+                finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
             }
 
-            // Add Pre-Motion Delay (Animation windup) - added LAST so it becomes FIRST in list (add(0))
+            // Add Pre-Motion Delay (Animation windup) - added LAST so it becomes FIRST
             if (preMotion > 0.0) {
                 finalActions.add(0, new DelayAction((long) (preMotion * 20.0)));
             }
@@ -136,10 +136,9 @@ public class SkillManager {
             plugin.getManaManager().updateBar(player);
         }
 
-        // Execute via SkillRunner (using finalActions)
+        // Execute via SkillRunner
         SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
 
-        // Setup Runner for LoopActions
         for (SkillAction action : finalActions) {
             if (action instanceof LoopAction) {
                 ((LoopAction) action).setRunner(runner);
@@ -213,12 +212,17 @@ public class SkillManager {
                 skill.setCooldownPerLevel(cond.getDouble("cooldown-per-level", 0));
                 skill.setSpCostBase(cond.getInt("sp-cost", 0));
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
-                skill.setCastTime(cond.getDouble("cast-time", 0));
-                skill.setRequiredLevel(cond.getInt("required-level", 1));
 
-                // [NEW] Load Motions from YML
+                // [NEW] Load Cast Time & Motions
+                skill.setVariableCastTime(cond.getDouble("variable-cast-time", 0.0));
+                skill.setVariableCastTimeReduction(cond.getDouble("variable-ct-pct", 0.0));
+                skill.setFixedCastTime(cond.getDouble("fixed-cast-time", 0.0));
+                skill.setFixedCastTimeReduction(cond.getDouble("fixed-ct-pct", 0.0));
+
                 skill.setPreMotion(cond.getDouble("pre-motion", 0.0));
                 skill.setPostMotion(cond.getDouble("post-motion", 0.0));
+
+                skill.setRequiredLevel(cond.getInt("required-level", 1));
             }
 
             if (section.contains("actions")) {
@@ -226,8 +230,6 @@ public class SkillManager {
                 for (Map<?, ?> rawMap : actionList) {
                     try {
                         Map<String, Object> actionMap = (Map<String, Object>) rawMap;
-                        String typeStr = (String) actionMap.get("type");
-                        ActionType type = ActionType.valueOf(typeStr);
                         SkillAction action = parseAction(actionMap);
                         if (action != null) skill.addAction(action);
                     } catch (Exception e) {
@@ -363,8 +365,6 @@ public class SkillManager {
         }
     }
 
-    // --- File Utils ---
-
     public File getRootDir() { return skillFolder; }
 
     public String getRelativePath(File file) {
@@ -467,12 +467,16 @@ public class SkillManager {
         config.set(key + ".conditions.cooldown-per-level", skill.getCooldownPerLevel());
         config.set(key + ".conditions.sp-cost", skill.getSpCostBase());
         config.set(key + ".conditions.sp-cost-per-level", skill.getSpCostPerLevel());
-        config.set(key + ".conditions.cast-time", skill.getCastTime());
-        config.set(key + ".conditions.required-level", skill.getRequiredLevel());
 
-        // [NEW] Save Motions
+        // [NEW] Save Cast Times
+        config.set(key + ".conditions.variable-cast-time", skill.getVariableCastTime());
+        config.set(key + ".conditions.variable-ct-pct", skill.getVariableCastTimeReduction());
+        config.set(key + ".conditions.fixed-cast-time", skill.getFixedCastTime());
+        config.set(key + ".conditions.fixed-ct-pct", skill.getFixedCastTimeReduction());
+
         config.set(key + ".conditions.pre-motion", skill.getPreMotion());
         config.set(key + ".conditions.post-motion", skill.getPostMotion());
+        config.set(key + ".conditions.required-level", skill.getRequiredLevel());
 
         List<Map<String, Object>> serializedActions = new ArrayList<>();
         for (SkillAction action : skill.getActions()) {
@@ -523,6 +527,10 @@ public class SkillManager {
             config.set(key + ".conditions.cooldown", 5.0);
             config.set(key + ".conditions.sp-cost", 20);
             config.set(key + ".conditions.required-level", 1);
+
+            // Example Motions
+            config.set(key + ".conditions.variable-cast-time", 1.5);
+            config.set(key + ".conditions.fixed-cast-time", 0.5);
             config.set(key + ".conditions.pre-motion", 0.0);
             config.set(key + ".conditions.post-motion", 0.5);
 

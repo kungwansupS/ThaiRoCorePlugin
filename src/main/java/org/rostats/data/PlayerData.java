@@ -74,12 +74,13 @@ public class PlayerData {
     private double mSpdPercent = 0.0;
     private double baseMSPD = 0.1;
 
+    // Casting Stats
     private double varCTPercent = 0.0;
     private double varCTFlat = 0.0;
     private double fixedCTPercent = 0.0;
     private double fixedCTFlat = 0.0;
 
-    // [NEW] Skill Cooldown & Global Cooldown
+    // Skill Cooldown & Global Cooldown
     private double skillCooldownReductionPercent = 0.0;
     private double skillCooldownReductionFlat = 0.0;
     private long globalCooldownEndTime = 0L;
@@ -139,9 +140,6 @@ public class PlayerData {
         skillCooldowns.put(skillId, timestamp);
     }
 
-    public long getBaseExpReq() { return getBaseExpReq(this.baseLevel); }
-    public long getJobExpReq() { return getJobExpReq(this.jobLevel); }
-
     public void resetGearBonuses() {
         this.strBonusGear = 0; this.agiBonusGear = 0; this.vitBonusGear = 0;
         this.intBonusGear = 0; this.dexBonusGear = 0; this.lukBonusGear = 0;
@@ -160,10 +158,12 @@ public class PlayerData {
         this.maxHPPercent = 0; this.maxSPPercent = 0;
         this.shieldValueFlat = 0; this.shieldRatePercent = 0;
         this.aSpdPercent = 0; this.mSpdPercent = 0; this.baseMSPD = 0.1;
+
+        // Casting
         this.varCTPercent = 0; this.varCTFlat = 0;
         this.fixedCTPercent = 0; this.fixedCTFlat = 0;
 
-        // Reset Cooldown Stats
+        // Cooldown
         this.skillCooldownReductionPercent = 0;
         this.skillCooldownReductionFlat = 0;
 
@@ -179,7 +179,134 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // Getters/Setters for Cooldown Stats
+    // --- Core Stat Management ---
+
+    public void resetStats() { // [FIXED] Restored missing method
+        stats.put("STR", 1); stats.put("AGI", 1); stats.put("VIT", 1);
+        stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);
+        int totalPoints = 0;
+        for (int i = 1; i < baseLevel; i++) totalPoints += getStatPointsGain(i);
+        this.statPoints = totalPoints;
+        clearAllPendingStats();
+        calculateMaxSP();
+        this.currentSP = getMaxSP();
+    }
+
+    // --- EXP Logic ---
+
+    public void addBaseExp(long amount, UUID uuid) {
+        int maxBaseLevel = getMaxBaseLevel();
+        double multiplier = getExpBonusMultiplier(this.baseLevel);
+        amount = (long) (amount * multiplier);
+        plugin.showFloatingText(uuid, "§b+" + amount + " Base EXP", 0.5);
+        this.baseExp += amount;
+        while (this.baseLevel < maxBaseLevel && this.baseExp >= getBaseExpReq(this.baseLevel)) {
+            this.baseExp -= getBaseExpReq(this.baseLevel);
+            this.baseLevel++;
+            this.statPoints += getStatPointsGain(this.baseLevel);
+            plugin.showFloatingText(uuid, "§6LEVEL UP! §fLv " + this.baseLevel, 0.5);
+        }
+        calculateMaxSP();
+        if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateBaseExpBar(Bukkit.getPlayer(uuid));
+    }
+
+    public void addJobExp(long amount, UUID uuid) {
+        int maxJobLevel = getMaxJobLevel();
+        double multiplier = getExpBonusMultiplier(this.baseLevel);
+        amount = (long) (amount * multiplier);
+        plugin.showFloatingText(uuid, "§e+" + amount + " Job EXP", 0.0);
+        this.jobExp += amount;
+        while (this.jobLevel < maxJobLevel && this.jobExp >= getJobExpReq(this.jobLevel)) {
+            this.jobExp -= getJobExpReq(this.jobLevel);
+            this.jobLevel++;
+            this.skillPoints += 1;
+            plugin.showFloatingText(uuid, "§eJOB LEVEL UP! §fJob Lv " + this.jobLevel, 0.0);
+        }
+        if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateJobExpBar(Bukkit.getPlayer(uuid));
+    }
+
+    private double getExpBonusMultiplier(int baseLevel) {
+        int worldLevel = plugin.getConfig().getInt("exp-formula.max-level-world-base", 92);
+        int diff = worldLevel - baseLevel;
+        if (diff >= 30) return 4.0;
+        if (diff >= 20) return 3.0;
+        if (diff >= 10) return 2.0;
+        if (diff >= 1) return 1.5;
+        return 1.0;
+    }
+
+    public long getBaseExpReq(int level) {
+        double A = plugin.getConfig().getDouble("exp-formula.base-exp-multiplier", 0.0666);
+        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707);
+        return (long) Math.max(1, Math.ceil(A * Math.pow(level, B)));
+    }
+
+    public long getBaseExpReq() { return getBaseExpReq(this.baseLevel); }
+
+    public long getJobExpReq(int level) {
+        double A = plugin.getConfig().getDouble("exp-formula.job-exp-multiplier", 0.0666);
+        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707);
+        return (long) Math.max(1, Math.ceil(A * Math.pow(level, B)));
+    }
+
+    public long getJobExpReq() { return getJobExpReq(this.jobLevel); }
+
+    private int getStatPointsGain(int level) { return level <= 50 ? 5 : 8; }
+    public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
+    public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
+
+    // --- Stats Getters (Total Effective) ---
+    private int getTotalEffectiveStat(String key) {
+        return getStat(key) + getPendingStat(key) + switch(key) {
+            case "DEX" -> getDEXBonusGear();
+            case "INT" -> getINTBonusGear();
+            case "VIT" -> getVITBonusGear();
+            case "STR" -> getSTRBonusGear();
+            case "AGI" -> getAGIBonusGear();
+            case "LUK" -> getLUKBonusGear();
+            default -> 0;
+        } + (int)getEffectBonus(key);
+    }
+
+    // --- Cast Time Calculation ---
+
+    public double calculateTotalCastTime(double baseVar, double skillVarRedPercent, double baseFix, double skillFixRedPercent) {
+        // 1. Variable Cast Time
+        double playerVarRedPercent = getVariableCastTimeReductionPercent();
+        double totalVarRedPercent = playerVarRedPercent + skillVarRedPercent;
+
+        double finalVar = baseVar * Math.max(0.0, 1.0 - (totalVarRedPercent / 100.0));
+
+        // Apply Flat Variable Reduction
+        double varFlatRed = getVarCTFlat() + getEffectBonus("VAR_CT_FLAT");
+        finalVar = Math.max(0.0, finalVar - varFlatRed);
+
+        // 2. Fixed Cast Time
+        double playerFixRedPercent = getFixedCTPercent() + getEffectBonus("FIXED_CT_PERCENT");
+        double totalFixRedPercent = playerFixRedPercent + skillFixRedPercent;
+
+        double finalFix = baseFix * Math.max(0.0, 1.0 - (totalFixRedPercent / 100.0));
+
+        // Apply Flat Fixed Reduction
+        double fixFlatRed = getFixedCTFlat() + getEffectBonus("FIXED_CT_FLAT");
+        finalFix = Math.max(0.0, finalFix - fixFlatRed);
+
+        return finalVar + finalFix;
+    }
+
+    private double getVariableCastTimeReductionPercent() {
+        int totalDex = getTotalEffectiveStat("DEX");
+        int totalInt = getTotalEffectiveStat("INT");
+
+        // Formula: (DEX * 2 + INT) / 530 * 100
+        double statReduction = ((totalDex * 2.0) + totalInt) / 530.0 * 100.0;
+        double gearReduction = getVarCTPercent() + getEffectBonus("VAR_CT_PERCENT");
+
+        return statReduction + gearReduction;
+    }
+
+    // --- Standard Getters & Setters ---
+
     public double getSkillCooldownReductionPercent() { return skillCooldownReductionPercent; }
     public void setSkillCooldownReductionPercent(double v) { this.skillCooldownReductionPercent = v; }
 
@@ -189,7 +316,6 @@ public class PlayerData {
     public long getGlobalCooldownEndTime() { return globalCooldownEndTime; }
     public void setGlobalCooldownEndTime(long timestamp) { this.globalCooldownEndTime = timestamp; }
 
-    // --- (Standard Getters/Setters omitted for brevity but should be here) ---
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }
     public int getAGIBonusGear() { return agiBonusGear; }
@@ -334,7 +460,7 @@ public class PlayerData {
     }
 
     public double getMaxHP() {
-        int vit = getStat("VIT") + getPendingStat("VIT") + getVITBonusGear() + (int)getEffectBonus("VIT");
+        int vit = getTotalEffectiveStat("VIT");
         double baseHealth = 18 + (baseLevel * 2.0);
         double vitMultiplier = 1.0 + (vit * 0.01);
         double finalMaxHealth = baseHealth * vitMultiplier;
@@ -343,7 +469,7 @@ public class PlayerData {
     }
 
     public double getMaxSP() {
-        int intel = getStat("INT") + getPendingStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
+        int intel = getTotalEffectiveStat("INT");
         double baseSP = 20.0 + (baseLevel * 3.0);
         double intMultiplier = 1.0 + (intel * 0.01);
         double finalMaxSP = baseSP * intMultiplier;
@@ -352,7 +478,7 @@ public class PlayerData {
     }
 
     public double getHPRegen() {
-        int vit = getStat("VIT") + getVITBonusGear() + (int)getEffectBonus("VIT");
+        int vit = getTotalEffectiveStat("VIT");
         double baseRegen = 1.0 + (vit * 0.2);
         double healRecv = getHealingReceivedPercent() + getEffectBonus("HEAL_RECEIVED");
         return baseRegen * (1 + healRecv / 100.0);
@@ -363,97 +489,11 @@ public class PlayerData {
     public void regenSP() {
         double max = getMaxSP();
         if (this.currentSP < max) {
-            int intel = getStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
+            int intel = getTotalEffectiveStat("INT");
             double healRecv = getHealingReceivedPercent() + getEffectBonus("HEAL_RECEIVED");
             double regen = (1.0 + (intel / plugin.getConfig().getDouble("sp-regen.regen-int-divisor", 6.0))) * (1 + healRecv / 100.0);
             this.currentSP = Math.min(max, this.currentSP + regen);
         }
-    }
-
-    public void resetStats() {
-        stats.put("STR", 1); stats.put("AGI", 1); stats.put("VIT", 1);
-        stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);
-        int totalPoints = 0;
-        for (int i = 1; i < baseLevel; i++) totalPoints += getStatPointsGain(i);
-        this.statPoints = totalPoints;
-        clearAllPendingStats();
-        calculateMaxSP();
-        this.currentSP = getMaxSP();
-    }
-
-    public void addBaseExp(long amount, UUID uuid) {
-        int maxBaseLevel = getMaxBaseLevel();
-        double multiplier = getExpBonusMultiplier(this.baseLevel);
-        amount = (long) (amount * multiplier);
-        plugin.showFloatingText(uuid, "§b+" + amount + " Base EXP", 0.5);
-        this.baseExp += amount;
-        while (this.baseLevel < maxBaseLevel && this.baseExp >= getBaseExpReq(this.baseLevel)) {
-            this.baseExp -= getBaseExpReq(this.baseLevel);
-            this.baseLevel++;
-            this.statPoints += getStatPointsGain(this.baseLevel);
-            plugin.showFloatingText(uuid, "§6LEVEL UP! §fLv " + this.baseLevel, 0.5);
-        }
-        calculateMaxSP();
-        if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateBaseExpBar(Bukkit.getPlayer(uuid));
-    }
-
-    public void addJobExp(long amount, UUID uuid) {
-        int maxJobLevel = getMaxJobLevel();
-        double multiplier = getExpBonusMultiplier(this.baseLevel);
-        amount = (long) (amount * multiplier);
-        plugin.showFloatingText(uuid, "§e+" + amount + " Job EXP", 0.0);
-        this.jobExp += amount;
-        while (this.jobLevel < maxJobLevel && this.jobExp >= getJobExpReq(this.jobLevel)) {
-            this.jobExp -= getJobExpReq(this.jobLevel);
-            this.jobLevel++;
-            this.skillPoints += 1;
-            plugin.showFloatingText(uuid, "§eJOB LEVEL UP! §fJob Lv " + this.jobLevel, 0.0);
-        }
-        if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateJobExpBar(Bukkit.getPlayer(uuid));
-    }
-
-    private double getExpBonusMultiplier(int baseLevel) {
-        int worldLevel = plugin.getConfig().getInt("exp-formula.max-level-world-base", 92);
-        int diff = worldLevel - baseLevel;
-        if (diff >= 30) return 4.0;
-        if (diff >= 20) return 3.0;
-        if (diff >= 10) return 2.0;
-        if (diff >= 1) return 1.5;
-        return 1.0;
-    }
-
-    public long getBaseExpReq(int level) {
-        double A = plugin.getConfig().getDouble("exp-formula.base-exp-multiplier", 0.0666);
-        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707);
-        return (long) Math.max(1, Math.ceil(A * Math.pow(level, B)));
-    }
-
-    public long getJobExpReq(int level) {
-        double A = plugin.getConfig().getDouble("exp-formula.job-exp-multiplier", 0.0666);
-        double B = plugin.getConfig().getDouble("exp-formula.exp-exponent", 4.707);
-        return (long) Math.max(1, Math.ceil(A * Math.pow(level, B)));
-    }
-
-    private int getStatPointsGain(int level) { return level <= 50 ? 5 : 8; }
-    public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
-    public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
-
-    private double getVariableCastTimeReduction() {
-        int totalDex = getStat("DEX") + getPendingStat("DEX") + getDEXBonusGear() + (int)getEffectBonus("DEX");
-        int totalInt = getStat("INT") + getPendingStat("INT") + getINTBonusGear() + (int)getEffectBonus("INT");
-        double statReduction = (totalDex / 2.0) + (totalInt / 4.0);
-        double gearReduction = getVarCTPercent() + getEffectBonus("VAR_CT_PERCENT");
-        return statReduction + gearReduction;
-    }
-
-    public double getFinalCastTime(double baseCastTime) {
-        if (baseCastTime <= 0) return 0;
-        double reduction = getVariableCastTimeReduction();
-        double multiplier = Math.max(0.0, 1.0 - (reduction / 100.0));
-        double castTimeAfterVarReduction = baseCastTime * multiplier;
-        double fixedCTFlatReduction = getFixedCTFlat() + getEffectBonus("FIXED_CT_FLAT");
-        double finalCastTime = castTimeAfterVarReduction - fixedCTFlatReduction;
-        return Math.max(0.0, finalCastTime);
     }
 
     public int getBaseLevel() { return baseLevel; }

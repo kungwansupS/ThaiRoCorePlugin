@@ -68,19 +68,22 @@ public class SkillEditorGUI {
                 "§7เพื่อเปลี่ยนรูปไอคอนของสกิล"
         ));
 
-        // 6: Cooldown & Cast
+        // 6: Cooldown & Cast [UPDATED]
         inv.setItem(6, createGuiItem(Material.CLOCK, "§aTiming / เวลา",
                 "§7Cooldown: §f" + skillData.getCooldownBase() + "s",
-                "§7Cast Time: §f" + skillData.getCastTime() + "s",
+                "§7Var. Cast: §f" + skillData.getVariableCastTime() + "s",
+                "§7Fixed Cast: §f" + skillData.getFixedCastTime() + "s",
                 "§8---------------",
                 "§eLeft Click: §7Edit Cooldown",
-                "§eRight Click: §7Edit Cast Time",
+                "§eRight Click: §7Edit Variable Cast",
+                "§eShift+Right: §7Edit Fixed Cast",
                 "§8---------------",
                 "§eคลิกซ้าย: §7แก้คูลดาวน์",
-                "§eคลิกขวา: §7แก้เวลาร่าย"
+                "§eคลิกขวา: §7แก้ร่ายแปรผัน (ลดได้)",
+                "§eShift+ขวา: §7แก้ร่ายคงที่ (ลดไม่ได้)"
         ));
 
-        // 7: [NEW] Required Level
+        // 7: Required Level
         inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aRequirements / เงื่อนไข",
                 "§7Required Level: §e" + skillData.getRequiredLevel(),
                 "§8---------------",
@@ -168,7 +171,6 @@ public class SkillEditorGUI {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
         meta.setLore(Arrays.asList(lore));
-        // Removed HIDE_POTION_EFFECTS to fix compatibility
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
         return item;

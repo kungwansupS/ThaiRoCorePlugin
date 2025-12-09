@@ -132,7 +132,6 @@ public class GUIListener implements Listener {
                 ActionType type = ActionType.valueOf(typeStr);
                 SkillAction newAction = null;
 
-                // [UPDATED] ใช้ String.valueOf เพื่อรองรับ Placeholder ใน Action ต่างๆ
                 switch (type) {
                     case DAMAGE: newAction = new DamageAction(plugin, String.valueOf(data.getOrDefault("formula","ATK")), String.valueOf(data.getOrDefault("element","NEUTRAL"))); break;
                     case HEAL:
@@ -158,7 +157,6 @@ public class GUIListener implements Listener {
                         newAction = new SoundAction(snd, vol, pit);
                         break;
                     case PARTICLE:
-                        // 7 Arguments (Strings for Placeholder + 3 new for shape/radius/points)
                         newAction = new ParticleAction(plugin,
                                 (String)data.getOrDefault("particle", "VILLAGER_HAPPY"),
                                 String.valueOf(data.getOrDefault("count", "5")),
@@ -208,7 +206,6 @@ public class GUIListener implements Listener {
 
                         SkillAction originalAction = skill.getActions().get(index);
                         if (originalAction instanceof LoopAction loop) {
-                            // [FIXED] เรียกใช้ getSubActions() เพื่อดึงรายการ Action ย่อย
                             newAction = new LoopAction(plugin, startExpr, endExpr, stepExpr, varName, loop.getSubActions());
                         } else {
                             player.sendMessage("§cError: Cannot save LOOP without sub-actions.");
@@ -222,14 +219,14 @@ public class GUIListener implements Listener {
                         newAction = new CommandAction(command, console);
                         break;
 
-                    case RAYCAST: // [NEW]
+                    case RAYCAST:
                         String rangeExpr = String.valueOf(data.getOrDefault("range", "10.0"));
                         String subSkillId = String.valueOf(data.getOrDefault("sub-skill", "none"));
                         String targetType = String.valueOf(data.getOrDefault("target-type", "SINGLE"));
                         newAction = new RaycastAction(plugin, rangeExpr, subSkillId, targetType);
                         break;
 
-                    case SPAWN_ENTITY: // [NEW]
+                    case SPAWN_ENTITY:
                         String entityType = String.valueOf(data.getOrDefault("entity-type", "LIGHTNING_BOLT"));
                         String onSpawnSkill = String.valueOf(data.getOrDefault("skill-id", "none"));
                         newAction = new SpawnEntityAction(plugin, entityType, onSpawnSkill);
@@ -322,7 +319,6 @@ public class GUIListener implements Listener {
                         case APPLY_EFFECT: action = new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR"); break;
                         case SOUND: action = new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f); break;
                         case PARTICLE:
-                            // [UPDATED] Default Particle Action
                             action = new ParticleAction(plugin, "VILLAGER_HAPPY", "5", "0.1", "POINT", "0.5", "20");
                             break;
                         case POTION: action = new PotionAction("SPEED", 60, 0, true); break;
@@ -333,8 +329,8 @@ public class GUIListener implements Listener {
                         case LOOP: action = new LoopAction(plugin, "0", "10", "1", "i", Collections.emptyList()); break;
                         case COMMAND: action = new CommandAction("say Hi %player%", false); break;
 
-                        case RAYCAST: action = new RaycastAction(plugin, "10.0", "none", "SINGLE"); break; // [NEW]
-                        case SPAWN_ENTITY: action = new SpawnEntityAction(plugin, "LIGHTNING_BOLT", "none"); break; // [NEW]
+                        case RAYCAST: action = new RaycastAction(plugin, "10.0", "none", "SINGLE"); break;
+                        case SPAWN_ENTITY: action = new SpawnEntityAction(plugin, "LIGHTNING_BOLT", "none"); break;
                     }
                     if (action != null) {
                         skill.addAction(action);
@@ -378,7 +374,6 @@ public class GUIListener implements Listener {
                 }
 
                 if (index != -1 && index < skill.getActions().size()) {
-                    // [UPDATED] Reordering Logic
                     if (event.isShiftClick() && event.isRightClick()) {
                         // Remove
                         skill.getActions().remove(index);
@@ -425,11 +420,26 @@ public class GUIListener implements Listener {
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
         }
+        // [FIXED] Slot 6: Cooldown & Cast Time Handling
         else if (slot == 6) {
-            if (event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> { try { skill.setCooldownBase(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
-            else plugin.getChatInputHandler().awaitInput(player, "CastTime:", (str) -> { try { skill.setCastTime(Double.parseDouble(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
+            if (event.isLeftClick() && !event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> {
+                    try { skill.setCooldownBase(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isRightClick() && !event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Variable CastTime:", (str) -> {
+                    try { skill.setVariableCastTime(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isRightClick() && event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Fixed CastTime:", (str) -> {
+                    try { skill.setFixedCastTime(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            }
         }
-        // [NEW] Slot 7: Required Level
+        // Slot 7: Required Level
         else if (slot == 7) {
             plugin.getChatInputHandler().awaitInput(player, "Required Level:", (str) -> {
                 try {

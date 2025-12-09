@@ -22,9 +22,13 @@ public class SkillData {
     private int spCostBase;
     private int spCostPerLevel;
 
-    private double castTime;
+    // Cast Time (Variable & Fixed)
+    private double variableCastTime;
+    private double variableCastTimeReduction; // Skill specific reduction %
+    private double fixedCastTime;
+    private double fixedCastTimeReduction; // Skill specific reduction %
 
-    // [NEW] Motion & Global Cooldown (From SkillEditor)
+    // Motion & Global Cooldown
     private double preMotion;
     private double postMotion;
 
@@ -76,9 +80,20 @@ public class SkillData {
     public int getSpCostPerLevel() { return spCostPerLevel; }
     public void setSpCostPerLevel(int spCostPerLevel) { this.spCostPerLevel = spCostPerLevel; }
 
-    public double getCastTime() { return castTime; }
-    public void setCastTime(double castTime) { this.castTime = castTime; }
+    // Cast Time Getters/Setters
+    public double getVariableCastTime() { return variableCastTime; }
+    public void setVariableCastTime(double variableCastTime) { this.variableCastTime = variableCastTime; }
 
+    public double getVariableCastTimeReduction() { return variableCastTimeReduction; }
+    public void setVariableCastTimeReduction(double variableCastTimeReduction) { this.variableCastTimeReduction = variableCastTimeReduction; }
+
+    public double getFixedCastTime() { return fixedCastTime; }
+    public void setFixedCastTime(double fixedCastTime) { this.fixedCastTime = fixedCastTime; }
+
+    public double getFixedCastTimeReduction() { return fixedCastTimeReduction; }
+    public void setFixedCastTimeReduction(double fixedCastTimeReduction) { this.fixedCastTimeReduction = fixedCastTimeReduction; }
+
+    // Motion Getters/Setters
     public double getPreMotion() { return preMotion; }
     public void setPreMotion(double preMotion) { this.preMotion = preMotion; }
 
