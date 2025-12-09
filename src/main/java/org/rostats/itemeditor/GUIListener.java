@@ -39,7 +39,6 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // --- 1. Item Library Logic ---
         if (title.startsWith("Library: ")) {
             event.setCancelled(true);
             String relativePath = title.substring(9);
@@ -49,7 +48,6 @@ public class GUIListener implements Listener {
                 handleLibraryClick(event, player, relativePath);
             }
         }
-        // --- 2. Item Editor Logic ---
         else if (title.startsWith("Editor: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -64,64 +62,153 @@ public class GUIListener implements Listener {
             }
             handleEditorClick(event, player, title);
         }
-        // --- 3. Confirm Delete Logic ---
         else if (title.startsWith("Confirm Delete: ")) {
             event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
         }
-        // --- 4. Skill Select Logic ---
         else if (title.startsWith("SkillSelect: ")) {
             event.setCancelled(true);
-            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             handleSkillSelectClick(event, player, title.substring(13));
         }
-        // --- 5. Trigger Select Logic ---
         else if (title.startsWith("Select Trigger: ")) {
             event.setCancelled(true);
-            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             handleTriggerSelectClick(event, player, title.substring(16));
         }
-        // --- 6. [NEW] Material Select Logic ---
         else if (title.startsWith("Material Select: ")) {
             event.setCancelled(true);
-            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             handleMaterialSelectClick(event, player, title.substring(17));
         }
     }
 
-    // --- NEW: Material Select Handler ---
-    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
+    private void handleEditorClick(InventoryClickEvent event, Player player, String title) {
+        int lastSpaceIndex = title.lastIndexOf(" [");
+        if (lastSpaceIndex == -1) return;
+        String fileName = title.substring(8, lastSpaceIndex);
+
         File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null) return;
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-
-        if (clicked.getType() == Material.ARROW) {
-            // Cancel -> Back
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+        if (itemFile == null || !itemFile.exists()) {
+            player.sendMessage("§cError: File not found: " + fileName);
+            player.closeInventory();
             return;
         }
 
-        if (clicked.getType() != Material.AIR) {
-            // Material Selected
-            Material newType = clicked.getType();
-            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
-            stack.setType(newType); // Change type
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || !clicked.hasItemMeta()) return;
 
-            // Save
+        String dp = clicked.getItemMeta().getDisplayName();
+
+        // 1. Navigation Logic
+        if (dp.contains("Back to Library")) {
+            new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
+            return;
+        }
+        // Check for Page Navigation
+        for (Page p : Page.values()) {
+            // Because we added colors (e.g. §aGENERAL or §7GENERAL), we check if it contains the name
+            if (dp.contains(p.name())) {
+                new AttributeEditorGUI(plugin, itemFile).open(player, p);
+                return;
+            }
+        }
+
+        // 2. General Tab Actions
+        if (dp.contains("Change Type")) {
+            new ItemTypeSelectorGUI(plugin, itemFile).open(player);
+            return;
+        }
+        if (dp.contains("Edit Effects")) {
+            new EffectEnchantGUI(plugin, itemFile, Mode.EFFECT).open(player);
+            return;
+        }
+        if (dp.contains("Edit Enchantments")) {
+            new EffectEnchantGUI(plugin, itemFile, Mode.ENCHANT).open(player);
+            return;
+        }
+        if (dp.contains("Edit Skills")) {
+            new SkillBindingGUI(plugin, itemFile).open(player);
+            return;
+        }
+        if (dp.contains("Rename Item")) {
+            plugin.getChatInputHandler().awaitInput(player, "Enter new name:", (str) -> {
+                ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+                ItemMeta meta = stack.getItemMeta();
+                if (meta != null) meta.setDisplayName(str.replace("&", "§"));
+                stack.setItemMeta(meta);
+                saveAndRefresh(player, itemFile, stack);
+            });
+            return;
+        }
+        if (dp.contains("Edit Lore")) {
+            plugin.getChatInputHandler().awaitMultiLineInput(player, "Edit Lore:", (lines) -> {
+                ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+                ItemMeta meta = stack.getItemMeta();
+                if (meta != null) meta.setLore(lines);
+                stack.setItemMeta(meta);
+                saveAndRefresh(player, itemFile, stack);
+            });
+            return;
+        }
+        if (dp.contains("Remove Vanilla")) {
             ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-            plugin.getItemManager().saveItem(itemFile, attr, stack);
-
-            player.sendMessage("§aMaterial changed to " + newType.name());
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-
-            // Back to Editor
+            attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
+            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            return;
+        }
+        if (dp.contains("Save to File")) {
+            player.sendMessage("§aItem Saved!");
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
+            return;
+        }
+
+        // 3. Stat Modification Logic
+        for (ItemAttributeType type : ItemAttributeType.values()) {
+            if (dp.equals(type.getDisplayName())) {
+                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+                double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
+                double change = 0;
+
+                if (event.getClick() == ClickType.LEFT) change = type.getClickStep();
+                else if (event.getClick() == ClickType.RIGHT) change = -type.getClickStep();
+                else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
+                else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
+
+                plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
+                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+                new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
+                return;
+            }
         }
     }
 
-    // --- NEW HANDLERS FOR SKILL FLOW (Existing from previous request) ---
+    private void saveAndRefresh(Player player, File file, ItemStack stack) {
+        ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
+        plugin.getItemManager().saveItem(file, attr, stack);
+        new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, file).open(player, Page.GENERAL));
+    }
+
+    // ... [Rest of the existing helper methods: handleSkillSelectClick, handleTriggerSelectClick, etc.] ...
+    // (Ensure you include the handleMaterialSelectClick and other methods from your previous code here if not already present)
+
+    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
+        // (Keep existing implementation)
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if(itemFile == null) return;
+        ItemStack clicked = event.getCurrentItem();
+        if(clicked == null) return;
+        if(clicked.getType() == Material.ARROW) {
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            return;
+        }
+        if(clicked.getType() != Material.AIR) {
+            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+            stack.setType(clicked.getType());
+            saveAndRefresh(player, itemFile, stack);
+        }
+    }
+
+    // ... [Include remaining methods: handleSkillSelectClick, handleTriggerSelectClick, handleSkillBindingClick, handleEffectEnchantClick, handleConfirmDeleteClick, handleImportItem, handleLibraryClick, applyEffectEnchant, findFileByName] ...
+
     private void handleSkillSelectClick(InventoryClickEvent event, Player player, String relativePath) {
         File currentDir = plugin.getSkillManager().getFileFromRelative(relativePath);
         if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
@@ -251,108 +338,6 @@ public class GUIListener implements Listener {
                     player.sendMessage("§cRemoved skill binding.");
                     new SkillBindingGUI(plugin, itemFile).open(player);
                 }
-            }
-        }
-    }
-
-    private void handleEditorClick(InventoryClickEvent event, Player player, String title) {
-        int lastSpaceIndex = title.lastIndexOf(" [");
-        if (lastSpaceIndex == -1) return;
-        String fileName = title.substring(8, lastSpaceIndex);
-
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null || !itemFile.exists()) {
-            player.sendMessage("§cError: File not found: " + fileName);
-            player.closeInventory();
-            return;
-        }
-
-        final File finalItemFile = itemFile;
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || !clicked.hasItemMeta()) return;
-
-        String dp = clicked.getItemMeta().getDisplayName();
-
-        if (dp.contains("Change Type")) {
-            new ItemTypeSelectorGUI(plugin, finalItemFile).open(player);
-            return;
-        }
-
-        if (dp.contains("Edit Effects")) {
-            new EffectEnchantGUI(plugin, finalItemFile, Mode.EFFECT).open(player);
-            return;
-        }
-        if (dp.contains("Edit Enchantments")) {
-            new EffectEnchantGUI(plugin, finalItemFile, Mode.ENCHANT).open(player);
-            return;
-        }
-        if (dp.contains("Edit Skills")) {
-            new SkillBindingGUI(plugin, finalItemFile).open(player);
-            return;
-        }
-
-        if (dp.contains("Back to Library")) {
-            new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
-            return;
-        }
-        for (Page p : Page.values()) {
-            if (dp.contains(p.name())) {
-                new AttributeEditorGUI(plugin, itemFile).open(player, p);
-                return;
-            }
-        }
-
-        if (dp.contains("Rename Item")) {
-            plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ (รองรับสี &#RRGGBB):", (str) -> {
-                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
-                ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setDisplayName(str.replace("&", "§"));
-                stack.setItemMeta(meta);
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
-                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
-                new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
-            });
-            return;
-        }
-        if (dp.contains("Edit Lore")) {
-            plugin.getChatInputHandler().awaitMultiLineInput(player, "แก้ไข Lore:", (lines) -> {
-                ItemStack stack = plugin.getItemManager().loadItemStack(finalItemFile);
-                ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setLore(lines);
-                stack.setItemMeta(meta);
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(finalItemFile);
-                plugin.getItemManager().saveItem(finalItemFile, attr, stack);
-                new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, finalItemFile).open(player, Page.GENERAL));
-            });
-            return;
-        }
-        if (dp.contains("Remove Vanilla")) {
-            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-            attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
-            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-            return;
-        }
-        if (dp.contains("Save to File")) {
-            player.sendMessage("§aSaved!");
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
-            return;
-        }
-
-        for (ItemAttributeType type : ItemAttributeType.values()) {
-            if (dp.equals(type.getDisplayName())) {
-                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-                double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
-                double change = 0;
-                if (event.getClick() == ClickType.LEFT) change = type.getClickStep();
-                else if (event.getClick() == ClickType.RIGHT) change = -type.getClickStep();
-                else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
-                else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
-
-                plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
-                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-                new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
-                return;
             }
         }
     }
