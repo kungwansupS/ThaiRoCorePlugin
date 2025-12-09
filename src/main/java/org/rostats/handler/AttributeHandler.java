@@ -209,9 +209,16 @@ public class AttributeHandler implements Listener {
         data.setFixedCTPercent(data.getFixedCTPercent() + attr.getFixedCTPercent());
         data.setFixedCTFlat(data.getFixedCTFlat() + attr.getFixedCTFlat());
 
-        // [NEW] Added logic to apply Item Cooldown Attributes to PlayerData
+        // Cooldown Reductions
         data.setSkillCooldownReductionPercent(data.getSkillCooldownReductionPercent() + attr.getSkillCooldownPercent());
         data.setSkillCooldownReductionFlat(data.getSkillCooldownReductionFlat() + attr.getSkillCooldownFlat());
+
+        data.setAcdReductionPercent(data.getAcdReductionPercent() + attr.getAcdPercent());
+        data.setAcdReductionFlat(data.getAcdReductionFlat() + attr.getAcdFlat());
+
+        // [NEW] Apply Global Cooldown Reduction
+        data.setGcdReductionPercent(data.getGcdReductionPercent() + attr.getGlobalCooldownPercent());
+        data.setGcdReductionFlat(data.getGcdReductionFlat() + attr.getGlobalCooldownFlat());
 
         data.setHealingEffectPercent(data.getHealingEffectPercent() + attr.getHealingEffectPercent());
         data.setHealingReceivedPercent(data.getHealingReceivedPercent() + attr.getHealingReceivedPercent());

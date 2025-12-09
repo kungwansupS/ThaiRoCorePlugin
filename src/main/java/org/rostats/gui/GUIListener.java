@@ -271,11 +271,9 @@ public class GUIListener implements Listener {
                             data.put(fKey, intVal);
                         } else if (fKey.equals("power") || fKey.equals("chance") || fKey.equals("speed") || fKey.equals("offset") || fKey.equals("range") || fKey.equals("volume") || fKey.equals("pitch") || fKey.equals("radius") || fKey.equals("x") || fKey.equals("y") || fKey.equals("z")) {
                             double dVal = Double.parseDouble(str);
-                            // Allow negative values for coordinates, but not for others
                             if (dVal < 0 && !fKey.equals("x") && !fKey.equals("y") && !fKey.equals("z")) throw new NumberFormatException("Negative");
                             data.put(fKey, dVal);
                         } else if (fKey.equals("start") || fKey.equals("end") || fKey.equals("step") || fKey.equals("points")) {
-                            // Allow number strings for expression fields
                             data.put(fKey, str);
                         } else {
                             data.put(fKey, str);
@@ -420,7 +418,26 @@ public class GUIListener implements Listener {
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
         }
-        // [FIXED] Slot 6: Cooldown & Cast Time Handling
+        // [NEW] Slot 5: Animation & Delay Handling
+        else if (slot == 5) {
+            if (event.isLeftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "ACD (After-Cast Delay):", (str) -> {
+                    try { skill.setAfterCastDelayBase(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isRightClick() && !event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Post-Motion:", (str) -> {
+                    try { skill.setPostMotion(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isRightClick() && event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Pre-Motion:", (str) -> {
+                    try { skill.setPreMotion(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            }
+        }
+        // Slot 6: Cooldown & Cast
         else if (slot == 6) {
             if (event.isLeftClick() && !event.isShiftClick()) {
                 plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> {

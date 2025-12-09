@@ -26,6 +26,9 @@ public class SkillManager {
     private final Map<String, SkillData> skillMap = new HashMap<>();
     private final File skillFolder;
 
+    // Default Global Cooldown Base (can be config)
+    private static final double BASE_GCD_SECONDS = 0.5;
+
     public SkillManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
         this.skillFolder = new File(plugin.getDataFolder(), "skills");
@@ -58,7 +61,7 @@ public class SkillManager {
 
         List<SkillAction> finalActions = new LinkedList<>(skill.getActions());
 
-        // Resource, Cooldown & Cast Time Check
+        // Resource, Cooldown & Delay Checks
         if (!isPassive && caster instanceof Player player) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
 
@@ -68,18 +71,18 @@ public class SkillManager {
                 return;
             }
 
-            // 2. Cooldown Check (Skill CD & Global CD)
             long now = System.currentTimeMillis();
 
-            // Global Cooldown
-            long gcdEnd = data.getGlobalCooldownEndTime();
-            if (now < gcdEnd) {
-                double remainingSeconds = (gcdEnd - now) / 1000.0;
-                player.sendMessage("§cGlobal Cooldown active! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
+            // 2. Global Delay Check (Priority Lock)
+            long globalDelayEnd = data.getGlobalDelayEndTime();
+            if (now < globalDelayEnd) {
+                // Allows checking remaining delay time
+                // double remaining = (globalDelayEnd - now) / 1000.0;
+                // player.sendMessage("§cCannot use skill yet! (Delay: " + String.format("%.1f", remaining) + "s)");
                 return;
             }
 
-            // Skill Cooldown (Flat + Percent)
+            // 3. Skill Specific Cooldown Check
             long lastUse = data.getSkillCooldown(skillId);
             double baseCooldownSeconds = skill.getCooldown(level);
 
@@ -93,18 +96,23 @@ public class SkillManager {
 
             if (now - lastUse < cooldownMillis) {
                 double remainingSeconds = (cooldownMillis - (now - lastUse)) / 1000.0;
-                player.sendMessage("§cSkill is on cooldown! Remaining: " + String.format("%.2f", remainingSeconds) + "s");
+                player.sendMessage("§cSkill is on cooldown! Remaining: " + String.format("%.1f", remainingSeconds) + "s");
                 return;
             }
 
-            // 3. SP Cost Check
+            // 4. SP Cost Check
             int spCost = skill.getSpCost(level);
             if (data.getCurrentSP() < spCost) {
                 player.sendMessage("§cNot enough SP!");
                 return;
             }
 
-            // 4. CAST TIME CALCULATION (Variable & Fixed)
+            // --- Timeline Construction ---
+            // 1. Pre-Motion
+            // 2. Cast Time (Var + Fix)
+            // 3. Action Execution (Animation/Motion implied here)
+            // 4. Set Delays (Post-Motion, ACD, GCD)
+
             double preMotion = skill.getPreMotion();
             double finalCastTimeSeconds = data.calculateTotalCastTime(
                     skill.getVariableCastTime(),
@@ -113,30 +121,47 @@ public class SkillManager {
                     skill.getFixedCastTimeReduction()
             );
 
-            // Add Cast Time Delay
+            // Add Cast Time Delay (Reverse order insertion at index 0)
             if (finalCastTimeSeconds > 0.0) {
                 finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
             }
-
-            // Add Pre-Motion Delay (Animation windup) - added LAST so it becomes FIRST
+            // Add Pre-Motion Delay
             if (preMotion > 0.0) {
                 finalActions.add(0, new DelayAction((long) (preMotion * 20.0)));
             }
 
-            // 5. Deduct SP & Set Cooldowns
+            // --- Apply Costs & Delays ---
             data.setCurrentSP(data.getCurrentSP() - spCost);
-            data.setSkillCooldown(skillId, now);
+            data.setSkillCooldown(skillId, now); // Set CD immediately on cast start/success
 
-            // Set Global Cooldown based on Skill's Post-Motion
+            // Priority Lock Calculation: max(Motion, PostMotion, ACD, GCD)
+            // Note: We use Post-Motion as "Motion" proxy if Motion isn't explicitly defined yet
+            double motion = 0.0; // Placeholder for future Animation duration
             double postMotion = skill.getPostMotion();
-            if (postMotion > 0.0) {
-                data.setGlobalCooldownEndTime(now + (long)(postMotion * 1000));
+
+            // Calculate Final ACD
+            double baseACD = skill.getAfterCastDelayBase();
+            double acdRedPct = data.getAcdReductionPercent();
+            double acdRedFlat = data.getAcdReductionFlat();
+            double finalACD = Math.max(0.0, baseACD * Math.max(0.0, 1.0 - (acdRedPct / 100.0)) - acdRedFlat);
+
+            // Calculate Final GCD
+            double baseGCD = BASE_GCD_SECONDS;
+            double gcdRedPct = data.getGcdReductionPercent();
+            double gcdRedFlat = data.getGcdReductionFlat();
+            double finalGCD = Math.max(0.0, baseGCD * Math.max(0.0, 1.0 - (gcdRedPct / 100.0)) - gcdRedFlat);
+
+            // Determine Lock Time
+            double lockTimeSeconds = Math.max(motion, Math.max(postMotion, Math.max(finalACD, finalGCD)));
+
+            if (lockTimeSeconds > 0) {
+                data.setGlobalDelayEndTime(now + (long)(lockTimeSeconds * 1000.0));
             }
 
             plugin.getManaManager().updateBar(player);
         }
 
-        // Execute via SkillRunner
+        // Execute Actions
         SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
 
         for (SkillAction action : finalActions) {
@@ -213,14 +238,16 @@ public class SkillManager {
                 skill.setSpCostBase(cond.getInt("sp-cost", 0));
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
 
-                // [NEW] Load Cast Time & Motions
+                // Cast Time
                 skill.setVariableCastTime(cond.getDouble("variable-cast-time", 0.0));
                 skill.setVariableCastTimeReduction(cond.getDouble("variable-ct-pct", 0.0));
                 skill.setFixedCastTime(cond.getDouble("fixed-cast-time", 0.0));
                 skill.setFixedCastTimeReduction(cond.getDouble("fixed-ct-pct", 0.0));
 
+                // Motions & ACD
                 skill.setPreMotion(cond.getDouble("pre-motion", 0.0));
                 skill.setPostMotion(cond.getDouble("post-motion", 0.0));
+                skill.setAfterCastDelayBase(cond.getDouble("acd-base", 0.0)); // [NEW] Load ACD
 
                 skill.setRequiredLevel(cond.getInt("required-level", 1));
             }
@@ -468,14 +495,17 @@ public class SkillManager {
         config.set(key + ".conditions.sp-cost", skill.getSpCostBase());
         config.set(key + ".conditions.sp-cost-per-level", skill.getSpCostPerLevel());
 
-        // [NEW] Save Cast Times
+        // Cast Time
         config.set(key + ".conditions.variable-cast-time", skill.getVariableCastTime());
         config.set(key + ".conditions.variable-ct-pct", skill.getVariableCastTimeReduction());
         config.set(key + ".conditions.fixed-cast-time", skill.getFixedCastTime());
         config.set(key + ".conditions.fixed-ct-pct", skill.getFixedCastTimeReduction());
 
+        // Motions & ACD
         config.set(key + ".conditions.pre-motion", skill.getPreMotion());
         config.set(key + ".conditions.post-motion", skill.getPostMotion());
+        config.set(key + ".conditions.acd-base", skill.getAfterCastDelayBase()); // [NEW] Save ACD
+
         config.set(key + ".conditions.required-level", skill.getRequiredLevel());
 
         List<Map<String, Object>> serializedActions = new ArrayList<>();
@@ -528,11 +558,12 @@ public class SkillManager {
             config.set(key + ".conditions.sp-cost", 20);
             config.set(key + ".conditions.required-level", 1);
 
-            // Example Motions
+            // Example Motions & Delays
             config.set(key + ".conditions.variable-cast-time", 1.5);
             config.set(key + ".conditions.fixed-cast-time", 0.5);
             config.set(key + ".conditions.pre-motion", 0.0);
             config.set(key + ".conditions.post-motion", 0.5);
+            config.set(key + ".conditions.acd-base", 1.0);
 
             List<Map<String, Object>> actions = new ArrayList<>();
 

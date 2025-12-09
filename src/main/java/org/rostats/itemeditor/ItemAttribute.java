@@ -52,8 +52,13 @@ public class ItemAttribute {
 
     private double skillCooldownPercent;
     private double skillCooldownFlat;
+
+    // [NEW] Global Cooldown (GCD) & ACD
     private double globalCooldownPercent;
     private double globalCooldownFlat;
+
+    private double acdPercent;
+    private double acdFlat;
 
     // --- 5. Speed & Mobility ---
     private double aSpdPercent;
@@ -157,8 +162,12 @@ public class ItemAttribute {
         attr.fixedCTFlat = att.getDouble("fixed-ct-flat", 0);
         attr.skillCooldownPercent = att.getDouble("skill-cd-%", 0);
         attr.skillCooldownFlat = att.getDouble("skill-cd-flat", 0);
+
+        // [FIXED] Load Global CD & ACD
         attr.globalCooldownPercent = att.getDouble("global-cd-%", 0);
         attr.globalCooldownFlat = att.getDouble("global-cd-flat", 0);
+        attr.acdPercent = att.getDouble("acd-%", 0);
+        attr.acdFlat = att.getDouble("acd-flat", 0);
 
         // Speed
         attr.aSpdPercent = att.getDouble("aspd-%", 0);
@@ -263,8 +272,12 @@ public class ItemAttribute {
         setIfNonZero(section, "fixed-ct-flat", fixedCTFlat);
         setIfNonZero(section, "skill-cd-%", skillCooldownPercent);
         setIfNonZero(section, "skill-cd-flat", skillCooldownFlat);
+
+        // [FIXED] Save Global CD & ACD
         setIfNonZero(section, "global-cd-%", globalCooldownPercent);
         setIfNonZero(section, "global-cd-flat", globalCooldownFlat);
+        setIfNonZero(section, "acd-%", acdPercent);
+        setIfNonZero(section, "acd-flat", acdFlat);
 
         setIfNonZero(section, "aspd-%", aSpdPercent);
         setIfNonZero(section, "mspd-%", mSpdPercent);
@@ -385,10 +398,16 @@ public class ItemAttribute {
     public void setSkillCooldownPercent(double v) { this.skillCooldownPercent = v; }
     public double getSkillCooldownFlat() { return skillCooldownFlat; }
     public void setSkillCooldownFlat(double v) { this.skillCooldownFlat = v; }
+
+    // [FIXED] Global CD & ACD Getters/Setters
     public double getGlobalCooldownPercent() { return globalCooldownPercent; }
     public void setGlobalCooldownPercent(double v) { this.globalCooldownPercent = v; }
     public double getGlobalCooldownFlat() { return globalCooldownFlat; }
     public void setGlobalCooldownFlat(double v) { this.globalCooldownFlat = v; }
+    public double getAcdPercent() { return acdPercent; }
+    public void setAcdPercent(double v) { this.acdPercent = v; }
+    public double getAcdFlat() { return acdFlat; }
+    public void setAcdFlat(double v) { this.acdFlat = v; }
 
     public double getASpdPercent() { return aSpdPercent; }
     public void setASpdPercent(double v) { this.aSpdPercent = v; }

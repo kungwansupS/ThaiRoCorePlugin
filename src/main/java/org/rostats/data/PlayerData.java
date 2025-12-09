@@ -80,10 +80,20 @@ public class PlayerData {
     private double fixedCTPercent = 0.0;
     private double fixedCTFlat = 0.0;
 
-    // Skill Cooldown & Global Cooldown
+    // Cooldown & Delay System
     private double skillCooldownReductionPercent = 0.0;
     private double skillCooldownReductionFlat = 0.0;
-    private long globalCooldownEndTime = 0L;
+
+    // [NEW] After-Cast Delay (ACD) Reduction
+    private double acdReductionPercent = 0.0;
+    private double acdReductionFlat = 0.0;
+
+    // [NEW] Global Cooldown (GCD) Reduction
+    private double gcdReductionPercent = 0.0;
+    private double gcdReductionFlat = 0.0;
+
+    // "Global Delay" - Blocks ALL skills (Priority Lock Result)
+    private long globalDelayEndTime = 0L;
 
     private double healingEffectPercent = 0.0;
     private double healingReceivedPercent = 0.0;
@@ -163,9 +173,13 @@ public class PlayerData {
         this.varCTPercent = 0; this.varCTFlat = 0;
         this.fixedCTPercent = 0; this.fixedCTFlat = 0;
 
-        // Cooldown
+        // Cooldowns
         this.skillCooldownReductionPercent = 0;
         this.skillCooldownReductionFlat = 0;
+        this.acdReductionPercent = 0;
+        this.acdReductionFlat = 0;
+        this.gcdReductionPercent = 0;
+        this.gcdReductionFlat = 0;
 
         this.healingEffectPercent = 0; this.healingReceivedPercent = 0;
         this.lifestealPPercent = 0; this.lifestealMPercent = 0;
@@ -179,9 +193,7 @@ public class PlayerData {
         this.trueDamageFlat = 0;
     }
 
-    // --- Core Stat Management ---
-
-    public void resetStats() { // [FIXED] Restored missing method
+    public void resetStats() {
         stats.put("STR", 1); stats.put("AGI", 1); stats.put("VIT", 1);
         stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);
         int totalPoints = 0;
@@ -255,7 +267,6 @@ public class PlayerData {
     public int getMaxBaseLevel() { return plugin.getConfig().getInt("exp-formula.max-level-world-base", 92) + 8; }
     public int getMaxJobLevel() { return plugin.getConfig().getInt("exp-formula.max-job-level", 10); }
 
-    // --- Stats Getters (Total Effective) ---
     private int getTotalEffectiveStat(String key) {
         return getStat(key) + getPendingStat(key) + switch(key) {
             case "DEX" -> getDEXBonusGear();
@@ -268,26 +279,16 @@ public class PlayerData {
         } + (int)getEffectBonus(key);
     }
 
-    // --- Cast Time Calculation ---
-
     public double calculateTotalCastTime(double baseVar, double skillVarRedPercent, double baseFix, double skillFixRedPercent) {
-        // 1. Variable Cast Time
         double playerVarRedPercent = getVariableCastTimeReductionPercent();
         double totalVarRedPercent = playerVarRedPercent + skillVarRedPercent;
-
         double finalVar = baseVar * Math.max(0.0, 1.0 - (totalVarRedPercent / 100.0));
-
-        // Apply Flat Variable Reduction
         double varFlatRed = getVarCTFlat() + getEffectBonus("VAR_CT_FLAT");
         finalVar = Math.max(0.0, finalVar - varFlatRed);
 
-        // 2. Fixed Cast Time
         double playerFixRedPercent = getFixedCTPercent() + getEffectBonus("FIXED_CT_PERCENT");
         double totalFixRedPercent = playerFixRedPercent + skillFixRedPercent;
-
         double finalFix = baseFix * Math.max(0.0, 1.0 - (totalFixRedPercent / 100.0));
-
-        // Apply Flat Fixed Reduction
         double fixFlatRed = getFixedCTFlat() + getEffectBonus("FIXED_CT_FLAT");
         finalFix = Math.max(0.0, finalFix - fixFlatRed);
 
@@ -297,15 +298,10 @@ public class PlayerData {
     private double getVariableCastTimeReductionPercent() {
         int totalDex = getTotalEffectiveStat("DEX");
         int totalInt = getTotalEffectiveStat("INT");
-
-        // Formula: (DEX * 2 + INT) / 530 * 100
         double statReduction = ((totalDex * 2.0) + totalInt) / 530.0 * 100.0;
         double gearReduction = getVarCTPercent() + getEffectBonus("VAR_CT_PERCENT");
-
         return statReduction + gearReduction;
     }
-
-    // --- Standard Getters & Setters ---
 
     public double getSkillCooldownReductionPercent() { return skillCooldownReductionPercent; }
     public void setSkillCooldownReductionPercent(double v) { this.skillCooldownReductionPercent = v; }
@@ -313,8 +309,20 @@ public class PlayerData {
     public double getSkillCooldownReductionFlat() { return skillCooldownReductionFlat; }
     public void setSkillCooldownReductionFlat(double v) { this.skillCooldownReductionFlat = v; }
 
-    public long getGlobalCooldownEndTime() { return globalCooldownEndTime; }
-    public void setGlobalCooldownEndTime(long timestamp) { this.globalCooldownEndTime = timestamp; }
+    public long getGlobalDelayEndTime() { return globalDelayEndTime; }
+    public void setGlobalDelayEndTime(long timestamp) { this.globalDelayEndTime = timestamp; }
+
+    // ACD Getters/Setters
+    public double getAcdReductionPercent() { return acdReductionPercent; }
+    public void setAcdReductionPercent(double v) { this.acdReductionPercent = v; }
+    public double getAcdReductionFlat() { return acdReductionFlat; }
+    public void setAcdReductionFlat(double v) { this.acdReductionFlat = v; }
+
+    // [NEW] GCD Getters/Setters
+    public double getGcdReductionPercent() { return gcdReductionPercent; }
+    public void setGcdReductionPercent(double v) { this.gcdReductionPercent = v; }
+    public double getGcdReductionFlat() { return gcdReductionFlat; }
+    public void setGcdReductionFlat(double v) { this.gcdReductionFlat = v; }
 
     public int getSTRBonusGear() { return strBonusGear; }
     public void setSTRBonusGear(int v) { this.strBonusGear = v; }

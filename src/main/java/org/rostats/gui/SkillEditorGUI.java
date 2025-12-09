@@ -68,7 +68,18 @@ public class SkillEditorGUI {
                 "§7เพื่อเปลี่ยนรูปไอคอนของสกิล"
         ));
 
-        // 6: Cooldown & Cast [UPDATED]
+        // [NEW] 5: Animation & Delay
+        inv.setItem(5, createGuiItem(Material.COMPASS, "§6Animation & Delay / ดีเลย์",
+                "§7ACD (Global): §f" + skillData.getAfterCastDelayBase() + "s",
+                "§7Post-Motion: §f" + skillData.getPostMotion() + "s",
+                "§7Pre-Motion: §f" + skillData.getPreMotion() + "s",
+                "§8---------------",
+                "§eLeft Click: §7Edit ACD (ดีเลย์หลังร่าย)",
+                "§eRight Click: §7Edit Post-Motion",
+                "§eShift+Right: §7Edit Pre-Motion"
+        ));
+
+        // 6: Cooldown & Cast
         inv.setItem(6, createGuiItem(Material.CLOCK, "§aTiming / เวลา",
                 "§7Cooldown: §f" + skillData.getCooldownBase() + "s",
                 "§7Var. Cast: §f" + skillData.getVariableCastTime() + "s",
@@ -76,11 +87,7 @@ public class SkillEditorGUI {
                 "§8---------------",
                 "§eLeft Click: §7Edit Cooldown",
                 "§eRight Click: §7Edit Variable Cast",
-                "§eShift+Right: §7Edit Fixed Cast",
-                "§8---------------",
-                "§eคลิกซ้าย: §7แก้คูลดาวน์",
-                "§eคลิกขวา: §7แก้ร่ายแปรผัน (ลดได้)",
-                "§eShift+ขวา: §7แก้ร่ายคงที่ (ลดไม่ได้)"
+                "§eShift+Right: §7Edit Fixed Cast"
         ));
 
         // 7: Required Level
@@ -102,11 +109,10 @@ public class SkillEditorGUI {
         ));
 
         // --- Row 2-5: Action Timeline ---
-        // Render added actions
         int slot = 18;
         int index = 0;
         for (SkillAction action : skillData.getActions()) {
-            if (slot > 44) break; // Limit display
+            if (slot > 44) break;
 
             Material mat = Material.PAPER;
             switch(action.getType()) {
@@ -157,7 +163,6 @@ public class SkillEditorGUI {
                 "§7กลับไปหน้าคลังสกิล"
         ));
 
-        // Fill bg
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);

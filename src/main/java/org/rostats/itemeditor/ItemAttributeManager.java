@@ -50,7 +50,7 @@ public class ItemAttributeManager {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
 
-        // 1. Apply Visuals (Custom Model & Flags)
+        // 1. Apply Visuals
         if (attr.getCustomModelData() != null) {
             meta.setCustomModelData(attr.getCustomModelData());
         }
@@ -60,10 +60,9 @@ public class ItemAttributeManager {
             meta.removeItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         }
 
-        // 2. [IMPORTANT] Store Stats into PersistentDataContainer (NBT)
+        // 2. Store Stats into PDC
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
-        // Loop all stat types and store them
         for (ItemAttributeType type : ItemAttributeType.values()) {
             double value = getAttributeValueFromAttrObject(attr, type);
             NamespacedKey key = new NamespacedKey(plugin, "RO_STAT_" + type.getKey().toUpperCase());
@@ -71,16 +70,14 @@ public class ItemAttributeManager {
             if (value != 0) {
                 pdc.set(key, PersistentDataType.DOUBLE, value);
             } else {
-                // Remove key if value is 0 to save space
                 pdc.remove(key);
             }
         }
 
-        // Store Skills (Serialized String)
+        // Store Skills
         if (!attr.getSkillBindings().isEmpty()) {
             StringBuilder sb = new StringBuilder();
             for (ItemSkillBinding binding : attr.getSkillBindings()) {
-                // Format: skillId:trigger:level:chance|...
                 sb.append(binding.getSkillId()).append(":")
                         .append(binding.getTrigger().name()).append(":")
                         .append(binding.getLevel()).append(":")
@@ -91,11 +88,10 @@ public class ItemAttributeManager {
             pdc.remove(SKILLS_KEY);
         }
 
-        // Store Potions (Serialized String)
+        // Store Potions
         if (!attr.getPotionEffects().isEmpty()) {
             StringBuilder sb = new StringBuilder();
             attr.getPotionEffects().forEach((type, level) -> {
-                // Format: PotionName:Level|...
                 sb.append(type.getName()).append(":").append(level).append("|");
             });
             pdc.set(POTIONS_KEY, PersistentDataType.STRING, sb.toString());
@@ -150,7 +146,6 @@ public class ItemAttributeManager {
         item.setItemMeta(meta);
     }
 
-    // --- [FIXED] Read stats from Item NBT/PDC ---
     public ItemAttribute readFromItem(ItemStack item) {
         ItemAttribute attr = new ItemAttribute();
         if (item == null || !item.hasItemMeta()) return attr;
@@ -247,6 +242,10 @@ public class ItemAttributeManager {
             case FIXED_CT_FLAT -> attr.getFixedCTFlat();
             case SKILL_CD_PERCENT -> attr.getSkillCooldownPercent();
             case SKILL_CD_FLAT -> attr.getSkillCooldownFlat();
+
+            // [NEW] ACD & GCD Support
+            case ACD_PERCENT -> attr.getAcdPercent();
+            case ACD_FLAT -> attr.getAcdFlat();
             case GLOBAL_CD_PERCENT -> attr.getGlobalCooldownPercent();
             case GLOBAL_CD_FLAT -> attr.getGlobalCooldownFlat();
 
@@ -327,6 +326,10 @@ public class ItemAttributeManager {
             case FIXED_CT_FLAT -> attr.setFixedCTFlat(value);
             case SKILL_CD_PERCENT -> attr.setSkillCooldownPercent(value);
             case SKILL_CD_FLAT -> attr.setSkillCooldownFlat(value);
+
+            // [NEW] ACD & GCD Support
+            case ACD_PERCENT -> attr.setAcdPercent(value);
+            case ACD_FLAT -> attr.setAcdFlat(value);
             case GLOBAL_CD_PERCENT -> attr.setGlobalCooldownPercent(value);
             case GLOBAL_CD_FLAT -> attr.setGlobalCooldownFlat(value);
 

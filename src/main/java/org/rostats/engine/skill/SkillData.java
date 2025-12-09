@@ -24,18 +24,21 @@ public class SkillData {
 
     // Cast Time (Variable & Fixed)
     private double variableCastTime;
-    private double variableCastTimeReduction; // Skill specific reduction %
+    private double variableCastTimeReduction;
     private double fixedCastTime;
-    private double fixedCastTimeReduction; // Skill specific reduction %
+    private double fixedCastTimeReduction;
 
     // Motion & Global Cooldown
     private double preMotion;
     private double postMotion;
 
+    // [NEW] Base After-Cast Delay (ACD)
+    private double afterCastDelayBase;
+
     // Required Level
     private int requiredLevel = 1;
 
-    // Actions List (Sequence of logic)
+    // Actions List
     private final List<SkillAction> actions = new ArrayList<>();
 
     public SkillData(String id) {
@@ -99,6 +102,10 @@ public class SkillData {
 
     public double getPostMotion() { return postMotion; }
     public void setPostMotion(double postMotion) { this.postMotion = postMotion; }
+
+    // ACD Getter/Setter
+    public double getAfterCastDelayBase() { return afterCastDelayBase; }
+    public void setAfterCastDelayBase(double afterCastDelayBase) { this.afterCastDelayBase = afterCastDelayBase; }
 
     public int getRequiredLevel() { return requiredLevel; }
     public void setRequiredLevel(int requiredLevel) { this.requiredLevel = requiredLevel; }
