@@ -201,16 +201,16 @@ public class CombatHandler implements Listener {
             }
             double afterSkillBonus = skillBase * (1 + skillDMGPercent / 100.0);
 
-            // --- STEP 4: DEF / MDEF Subtraction (Section 3 & 4) ---
+            // --- STEP 4: DEF / MDEF Calculation (Section 3 & 4) ---
             // Formula: EffectiveDEF = (DEF × (1 - Pen%/100)) - PenFlat
-            // Formula: DamageAfterDEF = max(0, AfterSkillBonus - EffectiveDEF)
+            // HTML Section 16 Example uses Ratio Formula: Damage * 500 / (500 + Def)
 
             double rawDefense = 0.0;
             if (D != null && defenderEntity instanceof Player defP) {
                 checkTriggers(defP, attackerPlayer, TriggerType.ON_DEFEND);
                 rawDefense = isMagic ? stats.getSoftMDef(defP) : stats.getSoftDef(defP);
             } else {
-                // Mob Defense (Placeholder)
+                // Mob Defense (Placeholder - could fetch from config)
                 rawDefense = 0.0;
             }
 
@@ -221,7 +221,10 @@ public class CombatHandler implements Listener {
             double effectiveDef = (rawDefense * (1 - penPercent / 100.0)) - penFlat;
             effectiveDef = Math.max(0, effectiveDef); // DEF cannot be negative
 
-            double damageAfterDEF = Math.max(0, afterSkillBonus - effectiveDef);
+            // [FIX] Use Ratio Formula (Softcap) matching HTML Section 16 Example
+            // Formula: Damage * DEF_Scale / (DEF_Scale + EffectiveDEF)
+            double defScale = 500.0; // Standard ROO Scale
+            double damageAfterDEF = afterSkillBonus * (defScale / (defScale + effectiveDef));
 
             // --- STEP 5: Final Damage Modifiers ---
             // Formula: FinalDamage = DamageAfterDEF × (1 + FinalDMG%/100) + FinalFlat
@@ -288,8 +291,10 @@ public class CombatHandler implements Listener {
             // MOB ATTACKER LOGIC (Simplified)
             finalDamage = vanillaDamage;
             if (D != null && defenderEntity instanceof Player defP) {
-                // Apply Mob vs Player Defense (Subtractive)
+                // Apply Mob vs Player Defense
                 double def = isMagic ? stats.getSoftMDef(defP) : stats.getSoftDef(defP);
+                // For mobs hitting players, we usually stick to simple reduction or ratio.
+                // Keeping simple flat reduction here for mob balance unless spec says otherwise for PVE incoming.
                 finalDamage = Math.max(0, finalDamage - def);
 
                 // Apply Reductions
@@ -338,6 +343,9 @@ public class CombatHandler implements Listener {
             PlayerData D = plugin.getStatManager().getData(defenderPlayer.getUniqueId());
             defenderCritRes = D.getCritRes();
             // Formula: (LUK * 0.2) + CritRes
+            // Note: This needs access to total LUK from StatManager if not in PlayerData directly
+            // StatManager.getTotalStat is private, so we approximate or expose it.
+            // Using raw stats from PlayerData + Gear
             int totalLuk = D.getStat("LUK") + D.getPendingStat("LUK") + D.getLUKBonusGear();
             defenderCritRes += (totalLuk * 0.2);
         }

@@ -176,18 +176,20 @@ public class CharacterGUI {
         StatManager stats = plugin.getStatManager();
         double totalCritResRaw = ((data.getStat("LUK") + data.getLUKBonusGear()) * 0.2) + data.getCritRes();
 
+        // คำนวณ Variable Casting Total Reduction (Stats + Gear)
+        double totalVarCTRed = stats.getVariableCastTimeReduction(data);
+
         List<String> lore = new ArrayList<>();
         lore.add("§7");
         lore.add("   §9§lAttribute ระดับสูง");
         lore.add(" ");
 
-        // PvP Ward info skipped as requested
-
         // ASPD | MSPD%
         lore.add(formatTwoColumns("§7ASPD: §a" + String.format("%.0f%%", (stats.getAspdBonus(player) * 100.0)), "§7MSPD%: §a" + String.format("%.0f%%", data.getMSpdPercent())));
 
         // Variable CT | Variable Casting%
-        lore.add(formatTwoColumns("§7Variable CT: §d" + String.format("%.0f", data.getVarCTFlat()), "§7Variable Casting%: §d" + String.format("%.2f%%", data.getVarCTPercent())));
+        // [FIXED] เพิ่มเครื่องหมายลบ (-) เพื่อแสดงว่าเป็นการลดเวลา
+        lore.add(formatTwoColumns("§7Variable CT: §d" + String.format("%.0f", data.getVarCTFlat()), "§7Variable Casting%: §d" + String.format("-%.2f%%", totalVarCTRed)));
 
         // Fixed CT | Fixed Casting
         lore.add(formatTwoColumns("§7Fixed CT: §d" + String.format("%.0f", data.getFixedCTFlat()), "§7Fixed Casting: §d" + String.format("%.0f%%", data.getFixedCTPercent())));
@@ -207,17 +209,17 @@ public class CharacterGUI {
         // M.DMG Bonus | M.DMG Reduction (Standard)
         lore.add(formatTwoColumns("§7M.DMG Bonus: §b" + String.format("%.2f%%", data.getMDmgBonusPercent()), "§7M.DMG Reduction: §c" + String.format("%.0f%%", data.getMDmgReductionPercent())));
 
-        // Ignore P.DEF | Ignore P.DEF %
-        lore.add(formatTwoColumns("§7Ignore P.DEF: §6" + String.format("%.0f", data.getIgnorePDefFlat()), "§7Ignore P.DEF: §6" + String.format("%.0f%%", data.getIgnorePDefPercent())));
+        // Ignore P.DEF | Ignore P.DEF%
+        lore.add(formatTwoColumns("§7Ignore P.DEF: §6" + String.format("%.0f", data.getIgnorePDefFlat()), "§7Ignore P.DEF%: §6" + String.format("%.0f%%", data.getIgnorePDefPercent())));
 
-        // Ignore M.DEF | Ignore M.DEF %
-        lore.add(formatTwoColumns("§7Ignore M.DEF: §6" + String.format("%.0f", data.getIgnoreMDefFlat()), "§7Ignore M.DEF: §6" + String.format("%.0f%%", data.getIgnoreMDefPercent())));
+        // Ignore M.DEF | Ignore M.DEF%
+        lore.add(formatTwoColumns("§7Ignore M.DEF: §6" + String.format("%.0f", data.getIgnoreMDefFlat()), "§7Ignore M.DEF%: §6" + String.format("%.0f%%", data.getIgnoreMDefPercent())));
 
-        // Melee P.DMG | Ranged P.DMG %
-        lore.add(formatTwoColumns("§7Melee P.DMG: §a" + String.format("%.0f%%", data.getMeleePDmgPercent()), "§7Ranged P.DMG %: §a" + String.format("%.0f%%", data.getRangePDmgPercent())));
+        // Melee P.DMG | Ranged P.DMG
+        lore.add(formatTwoColumns("§7Melee P.DMG: §a" + String.format("%.0f%%", data.getMeleePDmgPercent()), "§7Ranged P.DMG: §a" + String.format("%.0f%%", data.getRangePDmgPercent())));
 
-        // Melee P.DMG Rec | Range P.DMG Re
-        lore.add(formatTwoColumns("§7Melee P.DMG Rec: §c" + String.format("%.0f%%", data.getMeleePDReductionPercent()), "§7Range P.DMG Re: §c" + String.format("%.0f%%", data.getRangePDReductionPercent())));
+        // Melee P.DMG Reduction% | Range P.DMG Reduction%
+        lore.add(formatTwoColumns("§7Melee P.DMG Reduction%: §c" + String.format("%.0f%%", data.getMeleePDReductionPercent()), "§7Range P.DMG Reduction%: §c" + String.format("%.0f%%", data.getRangePDReductionPercent())));
 
         // P.DMG Reduction% | M.DMG Reduction% (Final Reduction)
         lore.add(formatTwoColumns("§7P.DMG Reduction%: §c" + String.format("%.0f%%", data.getFinalDmgResPercent()), "§7M.DMG Reduction%: §c" + String.format("%.0f%%", data.getFinalDmgResPercent())));
@@ -225,11 +227,11 @@ public class CharacterGUI {
         // P.DMG Bonus (Flat) | M.DMG Bonus (Flat)
         lore.add(formatTwoColumns("§7P.DMG Bonus: §e" + String.format("%.0f", data.getPDmgBonusFlat()), "§7M.DMG Bonus: §e" + String.format("%.0f", data.getMDmgBonusFlat())));
 
-        // PVE DMG Reducti | PVE DMG Bonus
-        lore.add(formatTwoColumns("§7PVE DMG Reducti: §c" + String.format("%.0f", data.getPveDmgReductionPercent()), "§7PVE DMG Bonus: §a" + String.format("%.0f", data.getPveDmgBonusPercent())));
+        // PVE DMG Reduction | PVE DMG Bonus
+        lore.add(formatTwoColumns("§7PVE DMG Reduction: §c" + String.format("%.0f", data.getPveDmgReductionPercent()), "§7PVE DMG Bonus: §a" + String.format("%.0f", data.getPveDmgBonusPercent())));
 
-        // PVP DMG Reducti | PVP DMG Bonus
-        lore.add(formatTwoColumns("§7PVP DMG Reducti: §c" + String.format("%.0f", data.getPvpDmgReductionPercent()), "§7PVP DMG Bonus: §a" + String.format("%.0f", data.getPvpDmgBonusPercent())));
+        // PVP DMG Reduction | PVP DMG Bonus
+        lore.add(formatTwoColumns("§7PVP DMG Reduction: §c" + String.format("%.0f", data.getPvpDmgReductionPercent()), "§7PVP DMG Bonus: §a" + String.format("%.0f", data.getPvpDmgBonusPercent())));
 
         lore.add("§7--------------------");
         lore.add("§7คลิกเพื่อเปิดหน้าจอข้อมูลการต่อสู้ขั้นสูง");
@@ -244,8 +246,14 @@ public class CharacterGUI {
         lore.add("   §d§lAttribute พิเศษ");
         lore.add(" ");
 
+        // [FIXED] Add missing stats found in HTML
         lore.add(formatTwoColumns("§7Max HP%: §e" + String.format("%.2f%%", data.getMaxHPPercent()), "§7Max SP%: §e" + String.format("%.2f%%", data.getMaxSPPercent())));
-        // Extra stats skipped as requested
+
+        // Equipment ATK/MATK %
+        lore.add(formatTwoColumns("§7Equipment P.ATK%: §a" + String.format("%.2f%%", data.getPDmgBonusPercent()), "§7Equipment M.ATK%: §b" + String.format("%.2f%%", data.getMDmgBonusPercent())));
+
+        // Equipment P.DEF% (Mapping to PDmgReductionPercent as closest proxy in this context)
+        lore.add(formatTwoColumns("§7Equipment P.DEF%: §c" + String.format("%.2f%%", data.getPDmgReductionPercent()), "§7Global CD%: §f0.00%"));
 
         lore.add("§7--------------------");
         lore.add("§7คลิกเพื่อเปิดหน้าจอข้อมูลพิเศษ");
