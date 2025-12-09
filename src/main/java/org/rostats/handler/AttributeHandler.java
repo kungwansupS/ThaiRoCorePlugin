@@ -209,16 +209,19 @@ public class AttributeHandler implements Listener {
         data.setFixedCTPercent(data.getFixedCTPercent() + attr.getFixedCTPercent());
         data.setFixedCTFlat(data.getFixedCTFlat() + attr.getFixedCTFlat());
 
-        // Cooldown Reductions
-        data.setSkillCooldownReductionPercent(data.getSkillCooldownReductionPercent() + attr.getSkillCooldownPercent());
-        data.setSkillCooldownReductionFlat(data.getSkillCooldownReductionFlat() + attr.getSkillCooldownFlat());
+        // [FIXED] Inverted Logic for Cooldowns:
+        // Item Value (+) = Increase CD = Bad -> Should decrease Reduction
+        // Item Value (-) = Decrease CD = Good -> Should increase Reduction (Subtract negative)
+        // So we SUBTRACT the item value from the reduction stats.
 
-        data.setAcdReductionPercent(data.getAcdReductionPercent() + attr.getAcdPercent());
-        data.setAcdReductionFlat(data.getAcdReductionFlat() + attr.getAcdFlat());
+        data.setSkillCooldownReductionPercent(data.getSkillCooldownReductionPercent() - attr.getSkillCooldownPercent());
+        data.setSkillCooldownReductionFlat(data.getSkillCooldownReductionFlat() - attr.getSkillCooldownFlat());
 
-        // [NEW] Apply Global Cooldown Reduction
-        data.setGcdReductionPercent(data.getGcdReductionPercent() + attr.getGlobalCooldownPercent());
-        data.setGcdReductionFlat(data.getGcdReductionFlat() + attr.getGlobalCooldownFlat());
+        data.setAcdReductionPercent(data.getAcdReductionPercent() - attr.getAcdPercent());
+        data.setAcdReductionFlat(data.getAcdReductionFlat() - attr.getAcdFlat());
+
+        data.setGcdReductionPercent(data.getGcdReductionPercent() - attr.getGlobalCooldownPercent());
+        data.setGcdReductionFlat(data.getGcdReductionFlat() - attr.getGlobalCooldownFlat());
 
         data.setHealingEffectPercent(data.getHealingEffectPercent() + attr.getHealingEffectPercent());
         data.setHealingReceivedPercent(data.getHealingReceivedPercent() + attr.getHealingReceivedPercent());

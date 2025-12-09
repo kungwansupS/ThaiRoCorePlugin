@@ -74,21 +74,19 @@ public enum ItemAttributeType {
             "ลดระยะเวลาร่ายเวท (คงที่) วินาที"),
 
     SKILL_CD_PERCENT("SkillCDPercent", "§bSkill CD %", Material.MUSIC_DISC_CAT, "%.1f%%", 1.0, 10.0,
-            "ลดคูลดาวน์สกิล %"),
+            "เวลาคูลดาวน์สกิล % (-ลด / +เพิ่ม)"),
     SKILL_CD_FLAT("SkillCDFlat", "§bSkill CD (s)", Material.MUSIC_DISC_13, "%.1f", 0.1, 1.0,
-            "ลดคูลดาวน์สกิล (วินาที)"),
+            "เวลาคูลดาวน์สกิล วินาที (-ลด / +เพิ่ม)"),
 
-    // [FIXED] Added missing Global Cooldown Enums
     GLOBAL_CD_PERCENT("GlobalCDPercent", "§eGlobal CD %", Material.RECOVERY_COMPASS, "%.1f%%", 1.0, 10.0,
-            "ลด Global Cooldown (GCD) %"),
+            "Global Cooldown % (-ลด / +เพิ่ม)"),
     GLOBAL_CD_FLAT("GlobalCDFlat", "§eGlobal CD (s)", Material.GOAT_HORN, "%.1f", 0.1, 1.0,
-            "ลด Global Cooldown (GCD) วินาที"),
+            "Global Cooldown วินาที (-ลด / +เพิ่ม)"),
 
-    // [NEW] After-Cast Delay (ACD)
     ACD_PERCENT("AfterCastDelayPercent", "§eACD (Delay) %", Material.RECOVERY_COMPASS, "%.1f%%", 1.0, 10.0,
-            "ลดดีเลย์หลังร่าย (ACD) %", "ทำให้กดสกิลอื่นต่อได้ไวขึ้น"),
+            "ดีเลย์หลังร่าย ACD % (-ลด / +เพิ่ม)", "ทำให้กดสกิลอื่นต่อได้ไวขึ้น"),
     ACD_FLAT("AfterCastDelayFlat", "§eACD (Delay) (s)", Material.GOAT_HORN, "%.1f", 0.1, 1.0,
-            "ลดดีเลย์หลังร่าย (ACD) วินาที"),
+            "ดีเลย์หลังร่าย ACD วินาที (-ลด / +เพิ่ม)"),
 
     // --- 5. Speed & Mobility ---
     ASPD_PERCENT("ASpdPercent", "§aASPD %", Material.FEATHER, "%.1f%%", 1.0, 10.0,
