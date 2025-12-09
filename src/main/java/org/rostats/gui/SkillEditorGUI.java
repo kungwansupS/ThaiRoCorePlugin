@@ -47,15 +47,31 @@ public class SkillEditorGUI {
                 "§7คลิกเพื่อเปลี่ยนชื่อผ่านช่องแชท"
         ));
 
+        // [NEW] 1: Max Level
+        inv.setItem(1, createGuiItem(Material.LADDER, "§bMax Level / เลเวลสูงสุด",
+                "§7Current: §f" + skillData.getMaxLevel(),
+                "§8---------------",
+                "§eClick: §7Edit Max Level",
+                "§8---------------"
+        ));
+
         // 2: Trigger
         inv.setItem(2, createGuiItem(Material.LEVER, "§6Trigger / เงื่อนไขการทำงาน",
                 "§7Current: §e" + skillData.getTrigger().name(),
                 "§8---------------",
                 "§7Click to cycle trigger types.",
-                "§7(CAST, ON_HIT, ON_DEFEND, etc.)",
+                "§7(CAST, ON_HIT, ON_DEFEND, etc.)"
+        ));
+
+        // [NEW] 3: Meta (Type & Range)
+        inv.setItem(3, createGuiItem(Material.OAK_SIGN, "§fMeta / ประเภท & ระยะ",
+                "§7Skill Type: §b" + skillData.getSkillType(),
+                "§7Attack Type: §e" + skillData.getAttackType(),
+                "§7Cast Range: §a" + skillData.getCastRange() + "m",
                 "§8---------------",
-                "§7คลิกเพื่อเปลี่ยนเงื่อนไขการทำงาน",
-                "§7(เช่น กดใช้, ตีโดน, ถูกตี)"
+                "§eL-Click: §7Edit Cast Range",
+                "§eR-Click: §7Change Attack Type (Melee/Ranged)",
+                "§eShift+Right: §7Change Skill Type (Phys/Magic)"
         ));
 
         // 4: Icon (Center)
@@ -68,7 +84,7 @@ public class SkillEditorGUI {
                 "§7เพื่อเปลี่ยนรูปไอคอนของสกิล"
         ));
 
-        // [NEW] 5: Animation & Delay
+        // 5: Animation & Delay
         inv.setItem(5, createGuiItem(Material.COMPASS, "§6Animation & Delay / ดีเลย์",
                 "§7ACD (Global): §f" + skillData.getAfterCastDelayBase() + "s",
                 "§7Post-Motion: §f" + skillData.getPostMotion() + "s",
@@ -81,31 +97,29 @@ public class SkillEditorGUI {
 
         // 6: Cooldown & Cast
         inv.setItem(6, createGuiItem(Material.CLOCK, "§aTiming / เวลา",
-                "§7Cooldown: §f" + skillData.getCooldownBase() + "s",
+                "§7Cooldown: §f" + skillData.getCooldownBase() + "s §7(Lv.Up: " + skillData.getCooldownPerLevel() + "s)",
                 "§7Var. Cast: §f" + skillData.getVariableCastTime() + "s",
                 "§7Fixed Cast: §f" + skillData.getFixedCastTime() + "s",
                 "§8---------------",
-                "§eLeft Click: §7Edit Cooldown",
-                "§eRight Click: §7Edit Variable Cast",
-                "§eShift+Right: §7Edit Fixed Cast"
+                "§eL-Click: §7Edit Base Cooldown",
+                "§6Shift+L: §7Edit Cooldown Per Level",
+                "§eR-Click: §7Edit Variable Cast",
+                "§eShift+R: §7Edit Fixed Cast"
         ));
 
         // 7: Required Level
         inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§aRequirements / เงื่อนไข",
                 "§7Required Level: §e" + skillData.getRequiredLevel(),
                 "§8---------------",
-                "§eClick: §7Edit Required Level",
-                "§8---------------",
-                "§eคลิก: §7แก้เลเวลที่ต้องการ"
+                "§eClick: §7Edit Required Level"
         ));
 
         // 8: Cost
         inv.setItem(8, createGuiItem(Material.POTION, "§dCost / ค่าใช้จ่าย",
-                "§7SP Cost: §f" + skillData.getSpCostBase(),
+                "§7SP Cost: §f" + skillData.getSpCostBase() + " §7(Lv.Up: " + skillData.getSpCostPerLevel() + ")",
                 "§8---------------",
-                "§eLeft Click: §7Edit SP Cost",
-                "§8---------------",
-                "§eคลิกซ้าย: §7แก้ค่า SP ที่ใช้"
+                "§eL-Click: §7Edit Base SP Cost",
+                "§6Shift+L: §7Edit SP Cost Per Level"
         ));
 
         // --- Row 2-5: Action Timeline ---

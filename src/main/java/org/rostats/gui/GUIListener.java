@@ -404,10 +404,44 @@ public class GUIListener implements Listener {
                 skill.setDisplayName(str.replace("&", "§")); runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
             });
         }
+        // [NEW] Slot 1: Max Level
+        else if (slot == 1) {
+            plugin.getChatInputHandler().awaitInput(player, "Max Level:", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    if (lvl < 1) lvl = 1;
+                    skill.setMaxLevel(lvl);
+                } catch (Exception e){}
+                runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+            });
+        }
         else if (slot == 2) {
             TriggerType[] types = TriggerType.values();
             skill.setTrigger(types[(skill.getTrigger().ordinal() + 1) % types.length]);
             new SkillEditorGUI(plugin, skillId).open(player);
+        }
+        // [NEW] Slot 3: Type & Range
+        else if (slot == 3) {
+            if (event.isLeftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Cast Range:", (str) -> {
+                    try { skill.setCastRange(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isShiftClick() && event.isRightClick()) {
+                // Cycle Skill Type
+                String[] types = {"PHYSICAL", "MAGIC", "MIXED", "HEAL", "SUPPORT"};
+                String current = skill.getSkillType();
+                int idx = 0;
+                for(int i=0; i<types.length; i++) if(types[i].equals(current)) idx = i;
+                skill.setSkillType(types[(idx+1) % types.length]);
+                new SkillEditorGUI(plugin, skillId).open(player);
+            } else if (event.isRightClick()) {
+                // Cycle Attack Type
+                String[] types = {"MELEE", "RANGED"};
+                String current = skill.getAttackType();
+                skill.setAttackType(current.equals("MELEE") ? "RANGED" : "MELEE");
+                new SkillEditorGUI(plugin, skillId).open(player);
+            }
         }
         else if (slot == 4) {
             ItemStack cursor = event.getCursor();
@@ -418,7 +452,7 @@ public class GUIListener implements Listener {
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
         }
-        // [NEW] Slot 5: Animation & Delay Handling
+        // Slot 5: Animation & Delay
         else if (slot == 5) {
             if (event.isLeftClick()) {
                 plugin.getChatInputHandler().awaitInput(player, "ACD (After-Cast Delay):", (str) -> {
@@ -437,11 +471,17 @@ public class GUIListener implements Listener {
                 });
             }
         }
-        // Slot 6: Cooldown & Cast
+        // Slot 6: Cooldown
         else if (slot == 6) {
             if (event.isLeftClick() && !event.isShiftClick()) {
-                plugin.getChatInputHandler().awaitInput(player, "Cooldown:", (str) -> {
+                plugin.getChatInputHandler().awaitInput(player, "Base Cooldown:", (str) -> {
                     try { skill.setCooldownBase(Double.parseDouble(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isLeftClick() && event.isShiftClick()) {
+                // [NEW] Per Level
+                plugin.getChatInputHandler().awaitInput(player, "Cooldown Per Level:", (str) -> {
+                    try { skill.setCooldownPerLevel(Double.parseDouble(str)); } catch(Exception e){}
                     runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
                 });
             } else if (event.isRightClick() && !event.isShiftClick()) {
@@ -467,8 +507,19 @@ public class GUIListener implements Listener {
                 runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
             });
         }
+        // Slot 8: SP Cost
         else if (slot == 8) {
-            plugin.getChatInputHandler().awaitInput(player, "SP Cost:", (str) -> { try { skill.setSpCostBase(Integer.parseInt(str)); } catch(Exception e){} runSync(() -> new SkillEditorGUI(plugin, skillId).open(player)); });
+            if (event.isLeftClick() && !event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "Base SP Cost:", (str) -> {
+                    try { skill.setSpCostBase(Integer.parseInt(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            } else if (event.isLeftClick() && event.isShiftClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "SP Cost Per Level:", (str) -> {
+                    try { skill.setSpCostPerLevel(Integer.parseInt(str)); } catch(Exception e){}
+                    runSync(() -> new SkillEditorGUI(plugin, skillId).open(player));
+                });
+            }
         }
     }
 

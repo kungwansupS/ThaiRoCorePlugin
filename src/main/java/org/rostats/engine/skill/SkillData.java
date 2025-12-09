@@ -15,6 +15,11 @@ public class SkillData {
     private int maxLevel;
     private TriggerType trigger;
 
+    // [NEW] Meta Data
+    private String skillType = "PHYSICAL"; // PHYSICAL, MAGIC, MIXED, HEAL
+    private String attackType = "MELEE";   // MELEE, RANGED
+    private double castRange = 5.0;        // Max distance to target
+
     // Conditions / Costs
     private double cooldownBase;
     private double cooldownPerLevel;
@@ -32,7 +37,7 @@ public class SkillData {
     private double preMotion;
     private double postMotion;
 
-    // [NEW] Base After-Cast Delay (ACD)
+    // Base After-Cast Delay (ACD)
     private double afterCastDelayBase;
 
     // Required Level
@@ -70,6 +75,16 @@ public class SkillData {
 
     public TriggerType getTrigger() { return trigger; }
     public void setTrigger(TriggerType trigger) { this.trigger = trigger; }
+
+    // [NEW] Meta Getters/Setters
+    public String getSkillType() { return skillType; }
+    public void setSkillType(String skillType) { this.skillType = skillType; }
+
+    public String getAttackType() { return attackType; }
+    public void setAttackType(String attackType) { this.attackType = attackType; }
+
+    public double getCastRange() { return castRange; }
+    public void setCastRange(double castRange) { this.castRange = castRange; }
 
     public double getCooldownBase() { return cooldownBase; }
     public void setCooldownBase(double cooldownBase) { this.cooldownBase = cooldownBase; }
