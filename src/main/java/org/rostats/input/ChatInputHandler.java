@@ -15,6 +15,8 @@ import org.rostats.ThaiRoCorePlugin;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChatInputHandler implements Listener {
 
@@ -22,6 +24,9 @@ public class ChatInputHandler implements Listener {
     private final Map<UUID, Consumer<String>> singleInputs = new HashMap<>();
     private final Map<UUID, List<String>> multiLineBuffers = new HashMap<>();
     private final Map<UUID, Consumer<List<String>>> multiLineCallbacks = new HashMap<>();
+
+    // Pattern สำหรับ Hex Color &#RRGGBB
+    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})");
 
     public ChatInputHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -53,12 +58,11 @@ public class ChatInputHandler implements Listener {
         multiLineCallbacks.put(player.getUniqueId(), callback);
     }
 
-    // เพิ่ม Event Listener สำหรับดักจับคำสั่งจากการคลิกปุ่ม
     @EventHandler(priority = EventPriority.LOWEST)
     public void onCommandPreprocess(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
-        String message = event.getMessage(); // ข้อความจะขึ้นต้นด้วย /
+        String message = event.getMessage();
 
         if (multiLineBuffers.containsKey(uuid)) {
             if (message.equalsIgnoreCase("/cancel")) {
@@ -109,9 +113,6 @@ public class ChatInputHandler implements Listener {
         if (multiLineBuffers.containsKey(uuid)) {
             event.setCancelled(true);
 
-            // Note: การเช็ค /done และ /cancel ย้ายไปที่ onCommandPreprocess แล้ว
-            // เพราะปุ่มกดใช้ ClickEvent.runCommand ซึ่งจะส่งเป็น Command ไม่ใช่ Chat
-
             List<String> buffer = multiLineBuffers.get(uuid);
             buffer.add(translateColorCodes(message));
             player.sendMessage("§a+ บันทึกบรรทัดที่ " + buffer.size());
@@ -119,7 +120,20 @@ public class ChatInputHandler implements Listener {
     }
 
     private String translateColorCodes(String text) {
-        // Support RGB &#RRGGBB and Legacy &c
-        return text.replace("&", "§");
+        // 1. แปลง Hex Color &#RRGGBB -> §x§R§R§G§G§B§B (Format ของ Bukkit)
+        Matcher matcher = hexPattern.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String color = matcher.group(1);
+            StringBuilder sb = new StringBuilder("§x");
+            for (char c : color.toCharArray()) {
+                sb.append("§").append(c);
+            }
+            matcher.appendReplacement(buffer, sb.toString());
+        }
+        matcher.appendTail(buffer);
+
+        // 2. แปลง Legacy Color Code (&c, &l ฯลฯ)
+        return buffer.toString().replace("&", "§");
     }
 }

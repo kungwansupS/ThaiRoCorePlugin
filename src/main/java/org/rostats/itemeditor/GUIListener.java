@@ -97,14 +97,13 @@ public class GUIListener implements Listener {
 
         String dp = clicked.getItemMeta().getDisplayName();
 
-        // 1. Navigation Logic (เปลี่ยนหน้า Tab)
+        // 1. Navigation Logic
         if (dp.contains("Back to Library")) {
             new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
             return;
         }
-        // ตรวจสอบชื่อปุ่มว่าเป็นชื่อ Tab หรือไม่
         for (Page p : Page.values()) {
-            if (dp.contains(p.name())) { // เช่น "§7OFFENSE" contains "OFFENSE"
+            if (dp.contains(p.name())) {
                 new AttributeEditorGUI(plugin, itemFile).open(player, p);
                 return;
             }
@@ -128,17 +127,18 @@ public class GUIListener implements Listener {
             return;
         }
         if (dp.contains("Rename Item")) {
-            plugin.getChatInputHandler().awaitInput(player, "Enter new name:", (str) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Enter new name (รองรับ Hex &#RRGGBB):", (str) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
                 ItemMeta meta = stack.getItemMeta();
-                if (meta != null) meta.setDisplayName(str.replace("&", "§"));
+                // [UPDATED] ใช้ str ตรงๆ เพราะผ่านการแปลงสีจาก ChatInputHandler แล้ว
+                if (meta != null) meta.setDisplayName(str);
                 stack.setItemMeta(meta);
                 saveAndRefresh(player, itemFile, stack);
             });
             return;
         }
         if (dp.contains("Edit Lore")) {
-            plugin.getChatInputHandler().awaitMultiLineInput(player, "Edit Lore:", (lines) -> {
+            plugin.getChatInputHandler().awaitMultiLineInput(player, "Edit Lore (รองรับ Hex &#RRGGBB):", (lines) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
                 ItemMeta meta = stack.getItemMeta();
                 if (meta != null) meta.setLore(lines);
@@ -160,7 +160,7 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // 3. Stat Modification Logic (กดปุ่มเพิ่ม/ลดค่า)
+        // 3. Stat Modification Logic
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
@@ -201,8 +201,6 @@ public class GUIListener implements Listener {
             saveAndRefresh(player, itemFile, stack);
         }
     }
-
-    // ... [ส่วนอื่นๆ ของ Method ที่เหลือ (ImportItem, LibraryClick, SkillBinding ฯลฯ) ให้คงเดิม] ...
 
     private void handleSkillSelectClick(InventoryClickEvent event, Player player, String relativePath) {
         File currentDir = plugin.getSkillManager().getFileFromRelative(relativePath);
