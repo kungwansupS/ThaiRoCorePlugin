@@ -11,6 +11,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.skill.SkillData;
+import org.rostats.engine.action.impl.ConditionAction;
 
 import java.util.Arrays;
 import java.util.List;
@@ -22,7 +23,7 @@ public class SkillEditorGUI {
     private final SkillData rootSkill;
     private final List<SkillAction> currentList;
     private final int page;
-    private final String pathName; // Breadcrumb title
+    private final String pathName;
 
     private static final int ACTIONS_PER_PAGE = 27;
 
@@ -51,20 +52,22 @@ public class SkillEditorGUI {
 
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("SkillEditor: " + skillId + " #P" + page));
 
-        // Row 1-2: Meta Data (Only show if at Main level, else show Breadcrumbs/Back)
         if (pathName.equals("Main")) {
             renderMetaData(inv);
         } else {
             inv.setItem(4, createGuiItem(Material.OAK_SIGN, "§eCurrent Path: §f" + pathName, "§7Editing nested actions."));
         }
 
-        // Row 3-5: Action List
         int startIndex = page * ACTIONS_PER_PAGE;
         int endIndex = Math.min(startIndex + ACTIONS_PER_PAGE, currentList.size());
 
         int slot = 18;
         for (int i = startIndex; i < endIndex; i++) {
             SkillAction action = currentList.get(i);
+            String extra = "";
+            if (action.getType().name().equals("CONDITION")) extra = "§b(R-Click: Success | Shift+R: Fail)";
+            else if (action.getType().name().equals("LOOP")) extra = "§b(R-Click: Edit Body)";
+
             inv.setItem(slot, createGuiItem(getActionIcon(action),
                     "§f#" + (i+1) + ": " + action.getType().name(),
                     "§7Index: " + i,
@@ -72,14 +75,13 @@ public class SkillEditorGUI {
                     "§8---------------",
                     "§eL-Click: §7Edit Properties",
                     "§eShift+L: §6Move Up",
-                    "§eR-Click: §6Move Down / Drill Down (Logic)",
+                    "§eR-Click: §6Move Down / Drill Down",
                     "§eShift+R: §cRemove",
-                    (action.getType().name().equals("CONDITION") ? "§b(R-Click: Success List | Shift+R: Fail List)" : "")
+                    extra
             ));
             slot++;
         }
 
-        // Controls
         if (page > 0) inv.setItem(45, createGuiItem(Material.ARROW, "§ePrevious Page", "§7Page: " + page));
         if (endIndex < currentList.size()) inv.setItem(53, createGuiItem(Material.ARROW, "§eNext Page", "§7Page: " + (page + 2)));
 
@@ -124,7 +126,7 @@ public class SkillEditorGUI {
             case LOOP: return Material.REPEATER;
             case CONDITION: return Material.COMPARATOR;
             case SET_VARIABLE: return Material.WRITABLE_BOOK;
-            case SELECT_TARGET: return Material.SPYGLASS;
+            case SELECT_TARGET: return Material.SPYGLASS; // [Phase 3] Icon
             default: return Material.PAPER;
         }
     }

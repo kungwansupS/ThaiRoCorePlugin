@@ -20,6 +20,7 @@ D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\RaycastA
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SetVariableAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SoundAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\SpawnEntityAction.java
+D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\TargetSelectorAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\TeleportAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\impl\VelocityAction.java
 D:\github\ThaiRoCorePlugin\src\main\java\org\rostats\engine\action\SkillAction.java

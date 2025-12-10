@@ -18,7 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
+import java.util.stream.Collectors; // [FIXED] Added Import
 
 public class SkillManager {
 
@@ -58,7 +58,7 @@ public class SkillManager {
             return;
         }
 
-        // [NEW] Range Check (if target exists and not passive/self)
+        // Range Check
         if (!isPassive && target != null && !target.equals(caster)) {
             double range = skill.getCastRange();
             if (range > 0 && caster.getLocation().distance(target.getLocation()) > range) {
@@ -81,13 +81,13 @@ public class SkillManager {
 
             long now = System.currentTimeMillis();
 
-            // 2. Global Delay Check (Priority Lock)
+            // 2. Global Delay Check
             long globalDelayEnd = data.getGlobalDelayEndTime();
             if (now < globalDelayEnd) {
                 return;
             }
 
-            // 3. Skill Specific Cooldown Check
+            // 3. Skill Cooldown Check
             long lastUse = data.getSkillCooldown(skillId);
             double baseCooldownSeconds = skill.getCooldown(level);
 
@@ -159,13 +159,6 @@ public class SkillManager {
 
         // Execute Actions
         SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
-
-        for (SkillAction action : finalActions) {
-            if (action instanceof LoopAction) {
-                ((LoopAction) action).setRunner(runner);
-            }
-        }
-
         runner.runNext();
     }
 
@@ -227,7 +220,7 @@ public class SkillManager {
                 skill.setTrigger(TriggerType.CAST);
             }
 
-            // [NEW] Load Meta Data
+            // Meta Data
             skill.setSkillType(section.getString("type", "PHYSICAL"));
             skill.setAttackType(section.getString("attack-type", "MELEE"));
             skill.setCastRange(section.getDouble("range", 5.0));
@@ -239,13 +232,11 @@ public class SkillManager {
                 skill.setSpCostBase(cond.getInt("sp-cost", 0));
                 skill.setSpCostPerLevel(cond.getInt("sp-cost-per-level", 0));
 
-                // Cast Time
                 skill.setVariableCastTime(cond.getDouble("variable-cast-time", 0.0));
                 skill.setVariableCastTimeReduction(cond.getDouble("variable-ct-pct", 0.0));
                 skill.setFixedCastTime(cond.getDouble("fixed-cast-time", 0.0));
                 skill.setFixedCastTimeReduction(cond.getDouble("fixed-ct-pct", 0.0));
 
-                // Motions & ACD
                 skill.setPreMotion(cond.getDouble("pre-motion", 0.0));
                 skill.setPostMotion(cond.getDouble("post-motion", 0.0));
                 skill.setAfterCastDelayBase(cond.getDouble("acd-base", 0.0));
@@ -384,6 +375,34 @@ public class SkillManager {
                     String onSpawnSkill = (String) map.getOrDefault("skill-id", "none");
                     return new SpawnEntityAction(plugin, entityType, onSpawnSkill);
 
+                // [Phase 3] Add Target Selector Parsing
+                case SELECT_TARGET:
+                    String modeStr = String.valueOf(map.getOrDefault("mode", "SELF"));
+                    double tRadius = map.containsKey("radius") ? ((Number) map.get("radius")).doubleValue() : 10.0;
+                    TargetSelectorAction.SelectorMode mode = TargetSelectorAction.SelectorMode.SELF;
+                    try { mode = TargetSelectorAction.SelectorMode.valueOf(modeStr); } catch(Exception e){}
+                    return new TargetSelectorAction(mode, tRadius);
+
+                // [Phase 2] Add Logic Parsing
+                case CONDITION:
+                    String formula = String.valueOf(map.getOrDefault("formula", "true"));
+                    List<SkillAction> success = new ArrayList<>();
+                    if (map.containsKey("success")) {
+                        List<Map<?, ?>> sList = (List<Map<?, ?>>) map.get("success");
+                        for (Map<?, ?> m : sList) success.add(parseAction((Map<String, Object>)m));
+                    }
+                    List<SkillAction> fail = new ArrayList<>();
+                    if (map.containsKey("fail")) {
+                        List<Map<?, ?>> fList = (List<Map<?, ?>>) map.get("fail");
+                        for (Map<?, ?> m : fList) fail.add(parseAction((Map<String, Object>)m));
+                    }
+                    return new ConditionAction(plugin, formula, success, fail);
+
+                case SET_VARIABLE:
+                    String vName = String.valueOf(map.getOrDefault("var", "temp"));
+                    String vVal = String.valueOf(map.getOrDefault("val", "0"));
+                    return new SetVariableAction(plugin, vName, vVal);
+
                 default:
                     return null;
             }
@@ -491,7 +510,7 @@ public class SkillManager {
         config.set(key + ".max-level", skill.getMaxLevel());
         config.set(key + ".trigger", skill.getTrigger().name());
 
-        // [NEW] Save Meta
+        // Save Meta
         config.set(key + ".type", skill.getSkillType());
         config.set(key + ".attack-type", skill.getAttackType());
         config.set(key + ".range", skill.getCastRange());
