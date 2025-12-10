@@ -5,7 +5,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
+import org.rostats.engine.action.impl.ConditionAction;
 import org.rostats.engine.action.impl.DelayAction;
+import org.rostats.engine.action.impl.LoopAction;
 
 import java.util.*;
 
@@ -16,8 +18,11 @@ public class SkillRunner {
     private final LivingEntity target;
     private final int level;
 
-    // Queue now holds Entry containing Action + Context
-    private final LinkedList<QueueEntry> actionQueue = new LinkedList<>();
+    // Queue of actions to execute
+    private final LinkedList<SkillAction> actionQueue = new LinkedList<>();
+
+    // [Phase 2] Shared Context for the entire skill run (Variable Persistence)
+    private final Map<String, Double> globalContext = new HashMap<>();
 
     public SkillRunner(ThaiRoCorePlugin plugin, LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions) {
         this.plugin = plugin;
@@ -25,14 +30,15 @@ public class SkillRunner {
         this.target = target;
         this.level = level;
 
-        // Initial load with empty context
-        for (SkillAction action : actions) {
-            actionQueue.add(new QueueEntry(action, new HashMap<>()));
+        // Load initial actions
+        if (actions != null) {
+            this.actionQueue.addAll(actions);
         }
     }
 
-    public void injectActions(List<QueueEntry> entries) {
-        // Insert new actions at the front (for Loops/Sub-skills)
+    public void injectActions(List<SkillAction> entries) {
+        if (entries == null || entries.isEmpty()) return;
+        // Insert new actions at the front (Stack behavior for nesting)
         for (int i = entries.size() - 1; i >= 0; i--) {
             actionQueue.addFirst(entries.get(i));
         }
@@ -41,13 +47,10 @@ public class SkillRunner {
     public void runNext() {
         if (actionQueue.isEmpty()) return;
 
-        QueueEntry entry = actionQueue.poll();
-        SkillAction action = entry.action;
-        Map<String, Double> context = entry.context;
+        SkillAction action = actionQueue.poll();
 
         if (action.getType() == ActionType.DELAY) {
-            // Calculate delay using context (allows dynamic delay)
-            long delayTicks = ((DelayAction) action).getDelay(); // Or calculate using context if updated
+            long delayTicks = ((DelayAction) action).getDelay();
             new BukkitRunnable() {
                 @Override
                 public void run() {
@@ -58,33 +61,28 @@ public class SkillRunner {
             }.runTaskLater(plugin, delayTicks);
         }
         else if (action.getType() == ActionType.LOOP) {
-            // LoopAction handles injection
-            action.execute(caster, target, level, context);
-            // Don't forget to pass the runner instance to LoopAction if needed,
-            // but simpler: LoopAction calls plugin.getSkillManager() or casts caster to get runner?
-            // Actually, we need to pass this runner to LoopAction.
-            // *Hack*: We will handle Loop logic *inside* LoopAction via a callback or by passing runner.
-            // See LoopAction implementation below.
+            // LoopAction executes and potentially injects more actions or runs logic
+            ((LoopAction) action).executeWithRunner(this, caster, target, level, globalContext);
+            runNext();
+        }
+        else if (action.getType() == ActionType.CONDITION) {
+            // [Phase 2] Condition Logic
+            ConditionAction condition = (ConditionAction) action;
+            boolean result = condition.check(caster, target, level, globalContext);
+
+            List<SkillAction> outcome = result ? condition.getSuccessActions() : condition.getFailActions();
+            if (outcome != null && !outcome.isEmpty()) {
+                injectActions(outcome);
+            }
             runNext();
         }
         else {
             try {
-                action.execute(caster, target, level, context);
+                action.execute(caster, target, level, globalContext);
             } catch (Exception e) {
                 e.printStackTrace();
             }
             runNext();
-        }
-    }
-
-    // Wrapper class to hold action and its variables
-    public static class QueueEntry {
-        public final SkillAction action;
-        public final Map<String, Double> context;
-
-        public QueueEntry(SkillAction action, Map<String, Double> context) {
-            this.action = action;
-            this.context = context;
         }
     }
 }

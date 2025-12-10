@@ -17,8 +17,7 @@ public enum ActionType {
     RAYCAST,
     SPAWN_ENTITY,
 
-    // [NEW] Logic & Targeting (Phase 2-3 Prep)
-    CONDITION,      // เงื่อนไข If-Else
-    SET_VARIABLE,   // ตั้งค่าตัวแปร
-    SELECT_TARGET   // เปลี่ยนเป้าหมาย
+    // [Phase 2] Logic Actions
+    CONDITION,      // ตรวจสอบเงื่อนไข If-Else
+    SET_VARIABLE    // กำหนดค่าตัวแปร
 }
