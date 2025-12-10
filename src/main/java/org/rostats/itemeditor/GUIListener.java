@@ -2,6 +2,7 @@ package org.rostats.itemeditor;
 
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -12,6 +13,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.trigger.TriggerType;
@@ -39,6 +41,7 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
+        // 1. Library Handling
         if (title.startsWith("Library: ")) {
             event.setCancelled(true);
             String relativePath = title.substring(9);
@@ -48,6 +51,7 @@ public class GUIListener implements Listener {
                 handleLibraryClick(event, player, relativePath);
             }
         }
+        // 2. Editor Handling
         else if (title.startsWith("Editor: ")) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -62,10 +66,12 @@ public class GUIListener implements Listener {
             }
             handleEditorClick(event, player, title);
         }
+        // 3. Confirm Dialog
         else if (title.startsWith("Confirm Delete: ")) {
             event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
         }
+        // 4. Selectors
         else if (title.startsWith("SkillSelect: ")) {
             event.setCancelled(true);
             handleSkillSelectClick(event, player, title.substring(13));
@@ -77,6 +83,84 @@ public class GUIListener implements Listener {
         else if (title.startsWith("Material Select: ")) {
             event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
+        }
+    }
+
+    private void handleLibraryClick(InventoryClickEvent event, Player player, String relativePath) {
+        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
+        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
+        final File finalCurrentDir = currentDir;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        // อ่านชื่อไฟล์จาก PDC (PersistentDataContainer) เพื่อความแม่นยำ
+        // เพราะ DisplayName อาจจะเป็นชื่อไอเทมจริงๆ ที่มีสีสันและยาว
+        String fileName = null;
+        if (clicked.hasItemMeta()) {
+            NamespacedKey key = new NamespacedKey(plugin, "filename");
+            if (clicked.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
+                fileName = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+            }
+        }
+
+        // กรณีไอเทมพิเศษที่ไม่มี PDC หรือปุ่ม Navigation
+        if (fileName != null) {
+            if (fileName.equals("back")) {
+                new ItemLibraryGUI(plugin, currentDir.getParentFile()).open(player);
+                return;
+            }
+            if (fileName.equals("root")) {
+                // Already at root or just refresh
+                new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player);
+                return;
+            }
+            if (fileName.equals("new_folder")) {
+                plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อ Folder ใหม่:", (str) -> {
+                    plugin.getItemManager().createFolder(finalCurrentDir, str);
+                    new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
+                });
+                return;
+            }
+            if (fileName.equals("new_item")) {
+                plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อ Item ใหม่:", (str) -> {
+                    plugin.getItemManager().createItem(finalCurrentDir, str, Material.STONE);
+                    new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
+                });
+                return;
+            }
+        }
+
+        // กรณีคลิก Folder/File
+        if (fileName == null) return;
+
+        File target = new File(currentDir, fileName);
+        final File finalTarget = target;
+
+        if (target.isDirectory()) {
+            // Folder Actions
+            if (event.getClick().isLeftClick() && !event.isShiftClick()) {
+                new ItemLibraryGUI(plugin, target).open(player);
+            } else if (event.isShiftClick() && event.isLeftClick()) {
+                new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
+            } else if (event.isShiftClick() && event.isRightClick()) {
+                plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ของ Folder:", (str) -> {
+                    plugin.getItemManager().renameFile(finalTarget, str);
+                    new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
+                });
+            }
+        } else {
+            // File Actions
+            if (event.getClick() == ClickType.LEFT) {
+                new AttributeEditorGUI(plugin, target).open(player, Page.GENERAL);
+            } else if (event.getClick() == ClickType.SHIFT_RIGHT) {
+                ItemStack item = plugin.getItemManager().loadItemStack(target);
+                player.getInventory().addItem(item);
+                player.sendMessage("§aได้รับไอเทมแล้ว!");
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1f, 1f);
+            } else if (event.getClick() == ClickType.SHIFT_LEFT) {
+                new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
+            }
         }
     }
 
@@ -109,7 +193,7 @@ public class GUIListener implements Listener {
             }
         }
 
-        // 2. General Tab Actions
+        // 2. Editor Actions
         if (dp.contains("Change Type")) {
             new ItemTypeSelectorGUI(plugin, itemFile).open(player);
             return;
@@ -130,7 +214,7 @@ public class GUIListener implements Listener {
             plugin.getChatInputHandler().awaitInput(player, "Enter new name (รองรับ Hex &#RRGGBB):", (str) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
                 ItemMeta meta = stack.getItemMeta();
-                // [UPDATED] ใช้ str ตรงๆ เพราะผ่านการแปลงสีจาก ChatInputHandler แล้ว
+                // [IMPORTANT] ใช้ str ได้เลย เพราะ ChatInputHandler แปลงสีมาให้แล้ว
                 if (meta != null) meta.setDisplayName(str);
                 stack.setItemMeta(meta);
                 saveAndRefresh(player, itemFile, stack);
@@ -160,7 +244,7 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // 3. Stat Modification Logic
+        // 3. Stat Modification
         for (ItemAttributeType type : ItemAttributeType.values()) {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
@@ -180,26 +264,32 @@ public class GUIListener implements Listener {
         }
     }
 
-    private void saveAndRefresh(Player player, File file, ItemStack stack) {
-        ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
-        plugin.getItemManager().saveItem(file, attr, stack);
-        new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, file).open(player, Page.GENERAL));
-    }
+    private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
+        ItemStack item = event.getCurrentItem();
+        if (item == null || item.getType() == Material.AIR) return;
 
-    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if(itemFile == null) return;
-        ItemStack clicked = event.getCurrentItem();
-        if(clicked == null) return;
-        if(clicked.getType() == Material.ARROW) {
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-            return;
-        }
-        if(clicked.getType() != Material.AIR) {
-            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
-            stack.setType(clicked.getType());
-            saveAndRefresh(player, itemFile, stack);
-        }
+        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
+        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
+        final File finalCurrentDir = currentDir;
+
+        player.closeInventory();
+        plugin.getChatInputHandler().awaitInput(player, "§eตั้งชื่อไฟล์สำหรับไอเทมนี้ (ไม่ต้องใส่ .yml):", (name) -> {
+            String fileName = name.endsWith(".yml") ? name : name + ".yml";
+            File newFile = new File(finalCurrentDir, fileName);
+
+            if (newFile.exists()) {
+                player.sendMessage("§cไฟล์ชื่อนี้มีอยู่แล้ว!");
+                return;
+            }
+
+            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+            plugin.getItemManager().saveItem(newFile, attr, item);
+
+            player.sendMessage("§aนำเข้าไอเทมเรียบร้อย!");
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+
+            new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
+        });
     }
 
     private void handleSkillSelectClick(InventoryClickEvent event, Player player, String relativePath) {
@@ -270,11 +360,10 @@ public class GUIListener implements Listener {
                     if (level < 1) level = 1;
 
                     int finalLevel = level;
-                    plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0 - 1.0, e.g. 1.0 = 100%):", (chanceStr) -> {
+                    plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0 - 1.0):", (chanceStr) -> {
                         try {
                             double chance = Double.parseDouble(chanceStr);
-                            if (chance < 0) chance = 0;
-                            if (chance > 1) chance = 1;
+                            if (chance < 0) chance = 0; if (chance > 1) chance = 1;
 
                             File itemFile = (File) flowData.get("itemFile");
                             String sId = (String) flowData.get("skillId");
@@ -292,14 +381,9 @@ public class GUIListener implements Listener {
                             skillBindingFlow.remove(player.getUniqueId());
                             new BukkitRunnableWrapper(plugin, () -> new SkillBindingGUI(plugin, itemFile).open(player));
 
-                        } catch (Exception e) {
-                            player.sendMessage("§cInvalid Chance Number");
-                        }
+                        } catch (Exception e) { player.sendMessage("§cInvalid Chance"); }
                     });
-
-                } catch (Exception e) {
-                    player.sendMessage("§cInvalid Level Number");
-                }
+                } catch (Exception e) { player.sendMessage("§cInvalid Level"); }
             });
         }
     }
@@ -360,7 +444,7 @@ public class GUIListener implements Listener {
             new EffectEnchantGUI(plugin, itemFile, mode).open(player);
         }
         else if (slot == 50 && selected != null) {
-            plugin.getChatInputHandler().awaitInput(player, "Enter Level for " + selected + ":", (str) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
                 try {
                     int lvl = Integer.parseInt(str);
                     applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
@@ -379,126 +463,6 @@ public class GUIListener implements Listener {
         else if (slot == 53) {
             player.removeMetadata(metaKey, plugin);
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-        }
-    }
-
-    private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
-        String fileName = title.substring("Confirm Delete: ".length());
-        File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-
-        if (event.getCurrentItem() == null) return;
-        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
-
-        if (dp.contains("CONFIRM DELETE")) {
-            if (target != null && target.exists()) {
-                File parent = target.getParentFile();
-                plugin.getItemManager().deleteFile(target);
-                player.sendMessage("§cDeleted: " + fileName);
-                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
-                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, parent).open(player));
-            } else {
-                player.sendMessage("§cFile not found.");
-                player.closeInventory();
-            }
-        } else if (dp.contains("CANCEL")) {
-            if (target != null && target.exists()) {
-                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
-            } else {
-                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player));
-            }
-        }
-    }
-
-    private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
-        ItemStack item = event.getCurrentItem();
-        if (item == null || item.getType() == Material.AIR) return;
-
-        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
-        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
-        final File finalCurrentDir = currentDir;
-
-        player.closeInventory();
-        plugin.getChatInputHandler().awaitInput(player, "§eตั้งชื่อไฟล์สำหรับไอเทมนี้ (ไม่ต้องใส่ .yml):", (name) -> {
-            String fileName = name.endsWith(".yml") ? name : name + ".yml";
-            File newFile = new File(finalCurrentDir, fileName);
-
-            if (newFile.exists()) {
-                player.sendMessage("§cไฟล์ชื่อนี้มีอยู่แล้ว!");
-                return;
-            }
-
-            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-            plugin.getItemManager().saveItem(newFile, attr, item);
-
-            player.sendMessage("§aนำเข้าไอเทมเรียบร้อย!");
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
-
-            new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
-        });
-    }
-
-    private void handleLibraryClick(InventoryClickEvent event, Player player, String relativePath) {
-        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
-        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
-        final File finalCurrentDir = currentDir;
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-        if (!clicked.hasItemMeta() || !clicked.getItemMeta().hasDisplayName()) return;
-
-        String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
-
-        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("Back")) {
-            new ItemLibraryGUI(plugin, currentDir.getParentFile()).open(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
-            plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อ Folder ใหม่:", (str) -> {
-                plugin.getItemManager().createFolder(finalCurrentDir, str);
-                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
-            });
-            return;
-        }
-
-        if (clicked.getType() == Material.EMERALD && clicked.getItemMeta().getDisplayName().contains("New Item")) {
-            plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อ Item ใหม่:", (str) -> {
-                plugin.getItemManager().createItem(finalCurrentDir, str, Material.STONE);
-                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
-            });
-            return;
-        }
-
-        File target = new File(currentDir, name + (clicked.getType() == Material.CHEST ? "" : ".yml"));
-        final File finalTarget = target;
-
-        if (!target.exists() && clicked.getType() != Material.CHEST) {
-            target = new File(currentDir, name + ".yml");
-            if (!target.exists()) return;
-        }
-
-        if (target.isDirectory()) {
-            if (event.getClick().isLeftClick() && !event.isShiftClick()) {
-                new ItemLibraryGUI(plugin, target).open(player);
-            } else if (event.isShiftClick() && event.isLeftClick()) {
-                new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            } else if (event.isShiftClick() && event.isRightClick()) {
-                plugin.getChatInputHandler().awaitInput(player, "พิมพ์ชื่อใหม่ของ Folder:", (str) -> {
-                    plugin.getItemManager().renameFile(finalTarget, str);
-                    new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, finalCurrentDir).open(player));
-                });
-            }
-        } else {
-            if (event.getClick() == ClickType.LEFT) {
-                new AttributeEditorGUI(plugin, target).open(player, Page.GENERAL);
-            } else if (event.getClick() == ClickType.SHIFT_RIGHT) {
-                ItemStack item = plugin.getItemManager().loadItemStack(target);
-                player.getInventory().addItem(item);
-                player.sendMessage("§aได้รับไอเทมแล้ว!");
-                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1f, 1f);
-            } else if (event.getClick() == ClickType.SHIFT_LEFT) {
-                new ItemLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            }
         }
     }
 
@@ -536,6 +500,55 @@ public class GUIListener implements Listener {
                 new EffectEnchantGUI(plugin, file, mode).open(player);
             }
         });
+    }
+
+    private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
+        String fileName = title.substring("Confirm Delete: ".length());
+        File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+
+        if (event.getCurrentItem() == null) return;
+        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
+
+        if (dp.contains("CONFIRM DELETE")) {
+            if (target != null && target.exists()) {
+                File parent = target.getParentFile();
+                plugin.getItemManager().deleteFile(target);
+                player.sendMessage("§cDeleted: " + fileName);
+                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
+                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, parent).open(player));
+            } else {
+                player.sendMessage("§cFile not found.");
+                player.closeInventory();
+            }
+        } else if (dp.contains("CANCEL")) {
+            if (target != null && target.exists()) {
+                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
+            } else {
+                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player));
+            }
+        }
+    }
+
+    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if(itemFile == null) return;
+        ItemStack clicked = event.getCurrentItem();
+        if(clicked == null) return;
+        if(clicked.getType() == Material.ARROW) {
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            return;
+        }
+        if(clicked.getType() != Material.AIR) {
+            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+            stack.setType(clicked.getType());
+            saveAndRefresh(player, itemFile, stack);
+        }
+    }
+
+    private void saveAndRefresh(Player player, File file, ItemStack stack) {
+        ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
+        plugin.getItemManager().saveItem(file, attr, stack);
+        new BukkitRunnableWrapper(plugin, () -> new AttributeEditorGUI(plugin, file).open(player, Page.GENERAL));
     }
 
     private File findFileByName(File dir, String name) {
