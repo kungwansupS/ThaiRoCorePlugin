@@ -12,8 +12,13 @@ public enum ActionType {
     AREA_EFFECT,
     DELAY,
     COMMAND,
-    VELOCITY, // สำหรับการพุ่ง/กระแทก
-    LOOP,      // สำหรับการวนลูป
-    RAYCAST,    // [NEW] สำหรับการโจมตีแบบ Hitscan / Line-of-sight
-    SPAWN_ENTITY // [NEW] สำหรับการสร้าง Entity (เช่น Lightning Bolt, Mob)
+    VELOCITY,
+    LOOP,
+    RAYCAST,
+    SPAWN_ENTITY,
+
+    // [NEW] Logic & Targeting (Phase 2-3 Prep)
+    CONDITION,      // เงื่อนไข If-Else
+    SET_VARIABLE,   // ตั้งค่าตัวแปร
+    SELECT_TARGET   // เปลี่ยนเป้าหมาย
 }
