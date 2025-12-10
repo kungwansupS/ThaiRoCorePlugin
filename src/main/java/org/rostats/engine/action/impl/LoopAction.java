@@ -44,7 +44,7 @@ public class LoopAction implements SkillAction {
         // 1. คำนวณค่า Start, End, Step
         double start = FormulaParser.eval(startExpr, caster, target, level, context, plugin);
         double end = FormulaParser.eval(endExpr, caster, target, level, context, plugin);
-        double step = FormulaParser.eval(stepExpr, caster, target, level, context, plugin); // Step calculated once per loop start or dynamic? Let's keep it dynamic if needed, or simplified.
+        double step = FormulaParser.eval(stepExpr, caster, target, level, context, plugin);
 
         // 2. เช็ค/Initalize ตัวแปรลูป
         // ถ้ายังไม่มีตัวแปรนี้ใน Context ให้เริ่มที่ Start
@@ -54,14 +54,12 @@ public class LoopAction implements SkillAction {
 
         double currentVal = context.get(varName);
 
-        // 3. เช็คเงื่อนไขลูป (current < end หรือ current > end กรณี step ติดลบ)
+        // 3. เช็คเงื่อนไขลูป
         boolean continueLoop;
         if (step >= 0) {
-            continueLoop = currentVal < end; // ใช้ < หรือ <= ตาม Logic ที่ต้องการ (ปกติ Loop programming มักจะเป็น < end ถ้า end เป็น exclusive, แต่ถ้า inclusive ใช้ <=)
-            // สมมติเป็น inclusive เหมือน for(i=start; i<=end; i++)
-            continueLoop = currentVal <= end + 0.0001;
+            continueLoop = currentVal <= end + 0.0001; // Inclusive <=
         } else {
-            continueLoop = currentVal >= end - 0.0001;
+            continueLoop = currentVal >= end - 0.0001; // Inclusive >=
         }
 
         if (continueLoop) {
@@ -71,7 +69,7 @@ public class LoopAction implements SkillAction {
             // เพิ่ม Action พิเศษต่อท้ายเพื่อ "เพิ่มค่าตัวแปร" และ "วนลูปซ้ำ"
             batch.add(new LoopIncrementAction(plugin, this, runner));
 
-            // Inject เข้าไปที่หัวแถวของ Queue
+            // Inject เข้าไปที่หัวแถวของ Queue (ใช้ injectActions แบบ List<SkillAction>)
             runner.injectActions(batch);
         } else {
             // ลูปจบแล้ว ลบตัวแปรออกเพื่อความสะอาด

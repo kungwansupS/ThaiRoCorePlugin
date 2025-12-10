@@ -17,9 +17,9 @@ public class SkillRunner {
     private final ThaiRoCorePlugin plugin;
     private final LivingEntity caster;
 
-    // [Phase 3] Dynamic Targeting System
-    private final LivingEntity originalTarget; // เป้าหมายแรกสุด (เก็บไว้เผื่อกลับมาใช้)
-    private LivingEntity currentTarget;        // เป้าหมายปัจจุบัน (เปลี่ยนไปเรื่อยๆ)
+    // Dynamic Targeting System
+    private final LivingEntity originalTarget;
+    private LivingEntity currentTarget;
 
     private final int level;
     private final LinkedList<SkillAction> actionQueue = new LinkedList<>();
@@ -29,7 +29,7 @@ public class SkillRunner {
         this.plugin = plugin;
         this.caster = caster;
         this.originalTarget = target;
-        this.currentTarget = target; // เริ่มต้นด้วยเป้าหมายแรก
+        this.currentTarget = target; // Start with original target (can be null for Right-Click skills)
         this.level = level;
 
         if (actions != null) {
@@ -54,12 +54,11 @@ public class SkillRunner {
             TargetSelectorAction selector = (TargetSelectorAction) action;
             LivingEntity newTarget = selector.resolveTarget(caster, originalTarget);
 
-            // ถ้าหาเป้าไม่เจอ (null) ให้คงเป้าเดิมไว้ หรือจะให้หยุดสกิล?
-            // ในที่นี้ให้คงเป้าเดิมไว้เพื่อความต่อเนื่อง (หรือจะให้เป็น null เพื่อหยุดก็ได้)
+            // If found, update current target
             if (newTarget != null) {
                 this.currentTarget = newTarget;
             }
-            runNext(); // ทำคำสั่งถัดไปทันที
+            runNext();
             return;
         }
 
@@ -76,13 +75,11 @@ public class SkillRunner {
             }.runTaskLater(plugin, delayTicks);
         }
         else if (action.getType() == ActionType.LOOP) {
-            // ส่ง currentTarget ไปให้ Loop
             ((LoopAction) action).executeWithRunner(this, caster, currentTarget, level, globalContext);
             runNext();
         }
         else if (action.getType() == ActionType.CONDITION) {
             ConditionAction condition = (ConditionAction) action;
-            // เช็คเงื่อนไขโดยใช้ currentTarget
             boolean result = condition.check(caster, currentTarget, level, globalContext);
             List<SkillAction> outcome = result ? condition.getSuccessActions() : condition.getFailActions();
             if (outcome != null && !outcome.isEmpty()) {
@@ -90,13 +87,13 @@ public class SkillRunner {
             }
             runNext();
         }
-        // 3. Execute Standard Actions (Damage, Heal, etc.)
+        // 3. Execute Standard Actions
         else {
             try {
-                // IMPORTANT: ใช้ currentTarget แทน target เดิม
-                if (currentTarget != null && currentTarget.isValid()) {
-                    action.execute(caster, currentTarget, level, globalContext);
-                }
+                // [FIXED] Removed strictly blocking null targets.
+                // Actions like Raycast, Sound, Particle do not need a target to run.
+                // Individual Actions (like Damage) should handle null checks internally if required.
+                action.execute(caster, currentTarget, level, globalContext);
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -376,7 +376,7 @@ public class CombatHandler implements Listener {
 
     private void showCritEffects(Player attacker, LivingEntity victim, double finalDamage) {
         // ใช้สัญลักษณ์ระเบิด 💥 สีแดง ตัวหนา
-        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0),  String.format("%.0f", finalDamage) +"§c§l💥 ");
+        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0),  "§c§l" + String.format("%.0f", finalDamage) + "💥 ");
 
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 1f);
         attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20);

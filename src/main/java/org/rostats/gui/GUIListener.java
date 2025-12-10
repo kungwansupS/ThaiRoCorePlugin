@@ -120,16 +120,23 @@ public class GUIListener implements Listener {
 
         if (slot == 45) { if (page > 0) refreshGUI(player, skillId, page - 1); return; }
         if (slot == 53) { if ((page + 1) * 27 < activeList.size()) refreshGUI(player, skillId, page + 1); return; }
+
+        // [FIXED] Improved Logic for Back Button
         if (slot == 48) {
-            if (activeList == rootSkill.getActions()) {
-                currentEditingList.remove(player.getUniqueId());
+            // Check if we are currently editing a nested list
+            boolean isNested = currentEditingList.containsKey(player.getUniqueId());
+
+            if (!isNested) {
+                // We are at Root -> Go Back to Library
                 new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
             } else {
+                // We are Nested -> Go Up to Root (Remove nesting context)
                 currentEditingList.remove(player.getUniqueId());
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
             return;
         }
+
         if (slot == 49) {
             plugin.getSkillManager().saveSkill(rootSkill);
             player.sendMessage("§aSkill Structure Saved!");
@@ -193,7 +200,7 @@ public class GUIListener implements Listener {
             return;
         }
 
-        if (activeList == rootSkill.getActions()) {
+        if (!currentEditingList.containsKey(player.getUniqueId())) {
             handleMetaDataEdit(event, player, skillId, page, rootSkill);
         }
     }
@@ -201,7 +208,7 @@ public class GUIListener implements Listener {
     private void refreshGUI(Player player, String skillId, int page) {
         SkillData root = plugin.getSkillManager().getSkill(skillId);
         List<SkillAction> list = currentEditingList.getOrDefault(player.getUniqueId(), root.getActions());
-        String name = (list == root.getActions()) ? "Main" : "Nested List";
+        String name = currentEditingList.containsKey(player.getUniqueId()) ? "Nested List" : "Main";
         new SkillEditorGUI(plugin, skillId, list, page, name).open(player);
     }
 
@@ -210,6 +217,12 @@ public class GUIListener implements Listener {
     private void handleActionSelectorClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        // [FIXED] Handle Back Button in Selector
+        if (clicked.getType() == Material.ARROW || clicked.getType() == Material.BOOK) {
+            refreshGUI(player, skillId, 0); // Return to editor
+            return;
+        }
 
         List<String> lore = clicked.getItemMeta().getLore();
         if (lore != null) {
@@ -241,7 +254,7 @@ public class GUIListener implements Listener {
             case CONDITION: return new ConditionAction(plugin, "hp < 50", new ArrayList<>(), new ArrayList<>());
             case SET_VARIABLE: return new SetVariableAction(plugin, "temp", "1");
             case LOOP: return new LoopAction(plugin, "0", "5", "1", "i", new ArrayList<>());
-            case SELECT_TARGET: return new TargetSelectorAction(TargetSelectorAction.SelectorMode.SELF, 10.0); // [Phase 3] Default
+            case SELECT_TARGET: return new TargetSelectorAction(TargetSelectorAction.SelectorMode.SELF, 10.0);
             case SOUND: return new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f);
             case APPLY_EFFECT: return new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR");
             case PARTICLE: return new ParticleAction(plugin, "VILLAGER_HAPPY", "5", "0.1", "POINT", "0.5", "20");
@@ -274,6 +287,7 @@ public class GUIListener implements Listener {
             editingProperties.put(player.getUniqueId(), data);
         }
 
+        // [FIXED] Cancel Button Logic
         if (clicked.getType() == Material.RED_CONCRETE) {
             editingProperties.remove(player.getUniqueId());
             refreshGUI(player, skillId, index / 27);
@@ -321,7 +335,7 @@ public class GUIListener implements Listener {
                     try {
                         if (isIntegerKey(fKey)) fData.put(fKey, Integer.parseInt(str));
                         else if (isDoubleKey(fKey)) fData.put(fKey, Double.parseDouble(str));
-                        else if (fKey.equals("mode")) fData.put(fKey, str.toUpperCase()); // Enum Mode
+                        else if (fKey.equals("mode")) fData.put(fKey, str.toUpperCase());
                         else fData.put(fKey, str);
 
                         runSync(() -> reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType()));
@@ -336,7 +350,6 @@ public class GUIListener implements Listener {
 
     private SkillAction reconstructAction(ActionType type, Map<String, Object> data, SkillAction oldAction) {
         switch(type) {
-            // [Phase 3] Reconstruct Target Selector
             case SELECT_TARGET:
                 return new TargetSelectorAction(
                         TargetSelectorAction.SelectorMode.valueOf(String.valueOf(data.getOrDefault("mode", "SELF"))),
@@ -385,7 +398,7 @@ public class GUIListener implements Listener {
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }
 
-    // --- Other Handlers (Copied from Phase 2 FULL CODE) ---
+    // --- Other Handlers ---
 
     private void handleMetaDataEdit(InventoryClickEvent event, Player player, String skillId, int page, SkillData skill) {
         int slot = event.getSlot();
@@ -437,6 +450,7 @@ public class GUIListener implements Listener {
             if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Base SP:", (str)->{try{skill.setSpCostBase(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
             else plugin.getChatInputHandler().awaitInput(player, "SP Per Lvl:", (str)->{try{skill.setSpCostPerLevel(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
+        // Row 2
         else if (slot == 10) {
             if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Var Cast:", (str)->{try{skill.setVariableCastTime(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
             else plugin.getChatInputHandler().awaitInput(player, "Reduct %:", (str)->{try{skill.setVariableCastTimeReduction(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
