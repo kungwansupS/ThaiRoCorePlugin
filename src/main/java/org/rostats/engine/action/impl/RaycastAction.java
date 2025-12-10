@@ -1,9 +1,11 @@
 package org.rostats.engine.action.impl;
 
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
@@ -20,7 +22,7 @@ public class RaycastAction implements SkillAction {
     private final ThaiRoCorePlugin plugin;
     private final String rangeExpr;
     private final String subSkillId;
-    private final String targetType; // SINGLE, AOE
+    private final String targetType; // SINGLE, AOE, LOCATION
 
     public RaycastAction(ThaiRoCorePlugin plugin, String range, String subSkillId, String targetType) {
         this.plugin = plugin;
@@ -42,13 +44,49 @@ public class RaycastAction implements SkillAction {
         try {
             range = FormulaParser.eval(rangeExpr, caster, target, level, context, plugin);
         } catch (Exception e) {
-            // Fallback to default
+            // Fallback
         }
         if (range <= 0.0) return;
 
-        if (targetType.equals("SINGLE")) {
-            Predicate<Entity> filter = e -> e instanceof LivingEntity && !e.equals(caster);
+        // [UPDATE] รองรับ LOCATION (ยิงลงพื้น)
+        if (targetType.equals("LOCATION")) {
+            RayTraceResult result = caster.getWorld().rayTrace(
+                    caster.getEyeLocation(),
+                    caster.getEyeLocation().getDirection(),
+                    range,
+                    FluidCollisionMode.NEVER,
+                    true, // สนใจ Block ด้วย
+                    0.5,
+                    e -> e instanceof LivingEntity && !e.equals(caster)
+            );
 
+            Location hitLoc = null;
+            if (result != null) {
+                if (result.getHitEntity() != null) {
+                    hitLoc = result.getHitEntity().getLocation();
+                } else if (result.getHitBlock() != null) {
+                    hitLoc = result.getHitBlock().getLocation().add(0.5, 1.0, 0.5);
+                }
+            }
+
+            if (hitLoc != null) {
+                // สร้าง ArmorStand ชั่วคราวเพื่อเป็นเป้าหมายสกิล (เพราะระบบต้องการ LivingEntity)
+                final ArmorStand marker = (ArmorStand) hitLoc.getWorld().spawnEntity(hitLoc, EntityType.ARMOR_STAND);
+                marker.setVisible(false);
+                marker.setGravity(false);
+                marker.setMarker(true);
+                marker.setSmall(true);
+
+                // ร่ายสกิลใส่ Marker
+                plugin.getSkillManager().castSkill(caster, subSkillId, level, marker, true);
+
+                // ลบ Marker ทิ้ง
+                plugin.getServer().getScheduler().runTaskLater(plugin, marker::remove, 20L); // ลบหลัง 1 วินาที
+            }
+
+        } else if (targetType.equals("SINGLE")) {
+            // Logic เดิมสำหรับยิงคน
+            Predicate<Entity> filter = e -> e instanceof LivingEntity && !e.equals(caster);
             RayTraceResult result = caster.getWorld().rayTraceEntities(
                     caster.getEyeLocation(),
                     caster.getEyeLocation().getDirection(),
@@ -61,7 +99,7 @@ public class RaycastAction implements SkillAction {
                 plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
             }
         } else if (targetType.equals("AOE")) {
-            // Simple AOE logic (simulates MOB_AROUND)
+            // Logic เดิม
             Location center = (target != null) ? target.getLocation() : caster.getLocation();
             Collection<Entity> nearby = center.getNearbyEntities(range, range, range);
             for (Entity e : nearby) {

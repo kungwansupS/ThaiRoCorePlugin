@@ -119,6 +119,9 @@ public class ItemManager {
             config.set("custom-model-data", attr.getCustomModelData());
         }
 
+        // [FIX] บันทึกค่า Unbreakable ลง Config
+        config.set("unbreakable", attr.isUnbreakable());
+
         config.set("remove-vanilla", attr.isRemoveVanillaAttribute());
         attr.saveToConfig(config.createSection("attributes"));
 

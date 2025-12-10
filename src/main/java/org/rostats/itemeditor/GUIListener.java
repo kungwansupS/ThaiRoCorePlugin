@@ -94,8 +94,7 @@ public class GUIListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
-        // อ่านชื่อไฟล์จาก PDC (PersistentDataContainer) เพื่อความแม่นยำ
-        // เพราะ DisplayName อาจจะเป็นชื่อไอเทมจริงๆ ที่มีสีสันและยาว
+        // อ่านชื่อไฟล์จาก PDC
         String fileName = null;
         if (clicked.hasItemMeta()) {
             NamespacedKey key = new NamespacedKey(plugin, "filename");
@@ -104,14 +103,12 @@ public class GUIListener implements Listener {
             }
         }
 
-        // กรณีไอเทมพิเศษที่ไม่มี PDC หรือปุ่ม Navigation
         if (fileName != null) {
             if (fileName.equals("back")) {
                 new ItemLibraryGUI(plugin, currentDir.getParentFile()).open(player);
                 return;
             }
             if (fileName.equals("root")) {
-                // Already at root or just refresh
                 new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player);
                 return;
             }
@@ -131,14 +128,12 @@ public class GUIListener implements Listener {
             }
         }
 
-        // กรณีคลิก Folder/File
         if (fileName == null) return;
 
         File target = new File(currentDir, fileName);
         final File finalTarget = target;
 
         if (target.isDirectory()) {
-            // Folder Actions
             if (event.getClick().isLeftClick() && !event.isShiftClick()) {
                 new ItemLibraryGUI(plugin, target).open(player);
             } else if (event.isShiftClick() && event.isLeftClick()) {
@@ -150,7 +145,6 @@ public class GUIListener implements Listener {
                 });
             }
         } else {
-            // File Actions
             if (event.getClick() == ClickType.LEFT) {
                 new AttributeEditorGUI(plugin, target).open(player, Page.GENERAL);
             } else if (event.getClick() == ClickType.SHIFT_RIGHT) {
@@ -181,7 +175,7 @@ public class GUIListener implements Listener {
 
         String dp = clicked.getItemMeta().getDisplayName();
 
-        // 1. Navigation Logic
+        // 1. Navigation
         if (dp.contains("Back to Library")) {
             new ItemLibraryGUI(plugin, itemFile.getParentFile()).open(player);
             return;
@@ -214,7 +208,6 @@ public class GUIListener implements Listener {
             plugin.getChatInputHandler().awaitInput(player, "Enter new name (รองรับ Hex &#RRGGBB):", (str) -> {
                 ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
                 ItemMeta meta = stack.getItemMeta();
-                // [IMPORTANT] ใช้ str ได้เลย เพราะ ChatInputHandler แปลงสีมาให้แล้ว
                 if (meta != null) meta.setDisplayName(str);
                 stack.setItemMeta(meta);
                 saveAndRefresh(player, itemFile, stack);
@@ -238,6 +231,26 @@ public class GUIListener implements Listener {
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
             return;
         }
+
+        // [FIXED] Unbreakable Toggle Logic
+        if (dp.contains("Unbreakable")) {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            // 1. สลับค่า True/False ใน Object Attribute
+            attr.setUnbreakable(!attr.isUnbreakable());
+
+            // 2. โหลดไอเทม และอัปเดตสถานะ Unbreakable ใส่ ItemStack โดยตรงด้วย
+            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+            plugin.getItemAttributeManager().applyAttributesToItem(stack, attr); // สำคัญ: ต้อง Apply ค่าใหม่ใส่ไอเทมก่อนบันทึก
+
+            // 3. บันทึกทั้ง Attribute และ ItemStack ลงไฟล์
+            plugin.getItemManager().saveItem(itemFile, attr, stack);
+
+            // 4. รีเฟรชหน้าต่าง
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
+
         if (dp.contains("Save to File")) {
             player.sendMessage("§aItem Saved!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);

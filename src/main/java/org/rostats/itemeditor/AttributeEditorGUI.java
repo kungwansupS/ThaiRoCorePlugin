@@ -84,6 +84,13 @@ public class AttributeEditorGUI {
                 "§cRemove Vanilla: " + removeVanilla,
                 "§7Toggle hiding vanilla attributes.", "§8---------------", "§7ซ่อนสถานะเดิมของ Minecraft"));
 
+        // [NEW] Unbreakable Toggle Button
+        boolean isUnbreakable = currentAttr.isUnbreakable();
+        inv.setItem(26, createIcon(isUnbreakable ? Material.BEDROCK : Material.CRACKED_STONE_BRICKS,
+                "§bUnbreakable: " + isUnbreakable,
+                "§7Toggle Unbreakable status.", "§8---------------", "§7ตั้งค่าของไม่พัง"));
+
+
         inv.setItem(40, createIcon(Material.EMERALD_BLOCK, "§a§lSave to File / บันทึก",
                 "§7Save changes to disk.", "§8---------------", "§7บันทึกข้อมูล"));
     }

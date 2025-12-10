@@ -110,6 +110,9 @@ public class ItemAttribute {
     // Misc
     private boolean removeVanillaAttribute;
     private Integer customModelData;
+    // [NEW] Unbreakable Status
+    private boolean unbreakable;
+
     private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
     private List<ItemSkillBinding> skillBindings = new ArrayList<>();
 
@@ -120,6 +123,9 @@ public class ItemAttribute {
         if (root == null) return attr;
 
         attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
+        // [NEW] Read unbreakable
+        attr.unbreakable = root.getBoolean("unbreakable", false);
+
         if (root.contains("custom-model-data")) attr.customModelData = root.getInt("custom-model-data");
         else if (root.contains("CustomModelData")) attr.customModelData = root.getInt("CustomModelData");
 
@@ -236,6 +242,9 @@ public class ItemAttribute {
 
     public void saveToConfig(ConfigurationSection section) {
         section.set("remove-vanilla", removeVanillaAttribute);
+        // [NEW] Save unbreakable
+        section.set("unbreakable", unbreakable);
+
         if (customModelData != null) section.set("custom-model-data", customModelData);
 
         // Helper for cleanliness
@@ -479,4 +488,8 @@ public class ItemAttribute {
     public void setPotionEffects(Map<PotionEffectType, Integer> v) { this.potionEffects = v; }
     public List<ItemSkillBinding> getSkillBindings() { return skillBindings; }
     public void setSkillBindings(List<ItemSkillBinding> v) { this.skillBindings = v; }
+
+    // [NEW] Unbreakable Getter/Setter
+    public boolean isUnbreakable() { return unbreakable; }
+    public void setUnbreakable(boolean v) { this.unbreakable = v; }
 }

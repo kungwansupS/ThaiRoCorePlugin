@@ -60,6 +60,9 @@ public class ItemAttributeManager {
             meta.removeItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         }
 
+        // Apply Unbreakable
+        meta.setUnbreakable(attr.isUnbreakable());
+
         // 2. Store Stats into PDC
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
@@ -150,7 +153,22 @@ public class ItemAttributeManager {
         ItemAttribute attr = new ItemAttribute();
         if (item == null || !item.hasItemMeta()) return attr;
 
-        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+        ItemMeta meta = item.getItemMeta();
+
+        // [FIX] Read Unbreakable from Item
+        attr.setUnbreakable(meta.isUnbreakable());
+
+        // [FIX] Read CustomModelData from Item (แก้ปัญหา Icon หาย)
+        if (meta.hasCustomModelData()) {
+            attr.setCustomModelData(meta.getCustomModelData());
+        }
+
+        // [FIX] Read Vanilla Hide Flags
+        if (meta.hasItemFlag(ItemFlag.HIDE_ATTRIBUTES)) {
+            attr.setRemoveVanillaAttribute(true);
+        }
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
         // 1. Read Stats
         for (ItemAttributeType type : ItemAttributeType.values()) {
@@ -243,7 +261,6 @@ public class ItemAttributeManager {
             case SKILL_CD_PERCENT -> attr.getSkillCooldownPercent();
             case SKILL_CD_FLAT -> attr.getSkillCooldownFlat();
 
-            // [NEW] ACD & GCD Support
             case ACD_PERCENT -> attr.getAcdPercent();
             case ACD_FLAT -> attr.getAcdFlat();
             case GLOBAL_CD_PERCENT -> attr.getGlobalCooldownPercent();
@@ -327,7 +344,6 @@ public class ItemAttributeManager {
             case SKILL_CD_PERCENT -> attr.setSkillCooldownPercent(value);
             case SKILL_CD_FLAT -> attr.setSkillCooldownFlat(value);
 
-            // [NEW] ACD & GCD Support
             case ACD_PERCENT -> attr.setAcdPercent(value);
             case ACD_FLAT -> attr.setAcdFlat(value);
             case GLOBAL_CD_PERCENT -> attr.setGlobalCooldownPercent(value);
