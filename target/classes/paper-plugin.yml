@@ -2,6 +2,26 @@ name: ThaiRoCorePlugin
 version: '0.1.0-SNAPSHOT'
 main: org.rostats.ThaiRoCorePlugin
 api-version: '1.21'
+loader: PAPER
+author: YourName
+
+# Dependencies Configuration for Paper 1.21+
+dependencies:
+  server:
+    ProtocolLib:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    PlaceholderAPI:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    MythicMobs: # Changed from Mythic-Dist to match actual plugin name
+      load: BEFORE
+      required: true
+      join-classpath: true
+
+# Commands
 commands:
   status:
     description: Open player status menu
@@ -16,10 +36,12 @@ commands:
     usage: /roitemedit
     aliases: [riedit]
     permission: rostats.itemeditor.admin
-  roskilleditor: # เปลี่ยนชื่อคำสั่งตามที่ขอ
+  roskilleditor:
     description: Skill creation and management menu
     usage: /roskilleditor
     permission: rostats.admin
+
+# Permissions
 permissions:
   rostats.admin:
     description: Admin permission

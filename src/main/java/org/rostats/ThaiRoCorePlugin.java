@@ -1,17 +1,21 @@
 package org.rostats;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.rostats.command.AdminCommand;
@@ -19,26 +23,20 @@ import org.rostats.command.PlayerCommand;
 import org.rostats.command.SkillCommand;
 import org.rostats.data.DataManager;
 import org.rostats.data.StatManager;
+import org.rostats.engine.effect.EffectManager;
+import org.rostats.engine.skill.SkillManager;
 import org.rostats.gui.GUIListener;
-import org.rostats.handler.AttributeHandler;
-import org.rostats.handler.CombatHandler;
-import org.rostats.handler.ManaManager;
-import org.rostats.handler.ProjectileHandler;
-import org.rostats.handler.StatusHandler;
+import org.rostats.handler.*;
 import org.rostats.hook.PAPIHook;
 import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
 import org.rostats.itemeditor.ItemEditorCommand;
 import org.rostats.itemeditor.ItemManager;
-import org.rostats.engine.effect.EffectManager;
-import org.rostats.engine.skill.SkillManager;
+import org.rostats.utils.ComponentUtil;
 
-import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.bukkit.NamespacedKey;
-import org.bukkit.persistence.PersistentDataType;
 
 public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
@@ -67,8 +65,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
         this.floatingTextKey = new NamespacedKey(this, "RO_FLOATING_TEXT");
 
-        // [FIXED] Removed heavy entity iteration on main thread to prevent lag on startup
-
+        // Managers initialization
         this.statManager = new StatManager(this);
         this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
@@ -85,6 +82,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.itemManager = new ItemManager(this);
         this.chatInputHandler = new ChatInputHandler(this);
 
+        // Register Events
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
         getServer().getPluginManager().registerEvents(manaManager, this);
@@ -96,6 +94,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new org.rostats.itemeditor.GUIListener(this), this);
         getServer().getPluginManager().registerEvents(chatInputHandler, this);
 
+        // Register Commands
         PluginCommand statusCmd = getCommand("status");
         if (statusCmd != null) statusCmd.setExecutor(new PlayerCommand(this));
 
@@ -120,6 +119,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             new PAPIHook(this).register();
         }
 
+        // Auto-save task
         getServer().getScheduler().runTaskTimer(this, () -> {
             for (Player player : getServer().getOnlinePlayers()) {
                 dataManager.savePlayerData(player, true);
@@ -127,13 +127,14 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             getLogger().info("💾 Auto-Saved all player data.");
         }, 6000L, 6000L);
 
+        // Passive effects task
         getServer().getScheduler().runTaskTimer(this, () -> {
             if (attributeHandler != null) {
                 attributeHandler.runPassiveEffectsTask();
             }
         }, 20L, 20L);
 
-        getLogger().info("✅ ThaiRoCorePlugin Enabled!");
+        getLogger().info("✅ ThaiRoCorePlugin Enabled (Modern 1.21+)!");
     }
 
     @Override
@@ -170,7 +171,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         dataManager.savePlayerData(event.getPlayer(), true);
-
         statManager.removeData(event.getPlayer().getUniqueId());
         if (manaManager != null) {
             manaManager.removeBar(event.getPlayer());
@@ -179,67 +179,94 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         }
     }
 
-    public void showFloatingText(UUID playerUUID, String text, double verticalOffset) {
+    // --- Modern TextDisplay System ---
+
+    public void showFloatingText(UUID playerUUID, Component text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
         Location startLoc = player.getLocation().add(0, 2.0 + verticalOffset, 0);
         showAnimatedText(startLoc, text);
     }
-    public void showFloatingText(UUID playerUUID, String text) { showFloatingText(playerUUID, text, 0.25); }
-    public void showCombatFloatingText(Location loc, String text) { showAnimatedText(loc.add(0, 1.5, 0), text); }
 
-    private void showAnimatedText(Location startLoc, String text) {
+    public void showFloatingText(UUID playerUUID, String text) {
+        showFloatingText(playerUUID, ComponentUtil.text(text), 0.25);
+    }
+
+    public void showCombatFloatingText(Location loc, Component text) {
+        showAnimatedText(loc.add(0, 1.5, 0), text);
+    }
+
+    private void showAnimatedText(Location startLoc, Component text) {
         getServer().getScheduler().runTask(this, () -> {
-            final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
-            stand.setVisible(false);
-            stand.setGravity(false);
-            stand.setMarker(true);
-            stand.setCustomNameVisible(true);
-            stand.customName(Component.text(text));
-            stand.setSmall(true);
+            // Spawn TextDisplay (1.19.4+ Feature) - Much lighter than ArmorStand
+            TextDisplay display = startLoc.getWorld().spawn(startLoc, TextDisplay.class, entity -> {
+                entity.text(text);
+                entity.setBillboard(Display.Billboard.CENTER); // Face player
+                entity.setBackgroundColor(Color.fromARGB(0, 0, 0, 0)); // Transparent background
+                entity.setShadowed(true); // Make text pop
+                entity.setSeeThrough(false); // Don't see through blocks (optional)
 
-            if (floatingTextKey != null) {
-                stand.getPersistentDataContainer().set(floatingTextKey, PersistentDataType.STRING, "true");
-            }
+                // Tag for cleanup
+                if (floatingTextKey != null) {
+                    entity.getPersistentDataContainer().set(floatingTextKey, PersistentDataType.STRING, "true");
+                }
+            });
 
-            activeFloatingTexts.add(stand);
+            activeFloatingTexts.add(display);
 
+            // Animation Task
             BukkitTask[] task = new BukkitTask[1];
             task[0] = getServer().getScheduler().runTaskTimer(this, new Runnable() {
                 private int ticks = 0;
-                private final Location currentLocation = stand.getLocation();
-                private final double step = 0.5 / 20.0;
+                private final Location currentLocation = display.getLocation();
+                private final double step = 0.5 / 20.0; // Float up speed
+
                 @Override
                 public void run() {
-                    if (stand.isDead() || ticks >= 20) {
-                        stand.remove();
-                        activeFloatingTexts.remove(stand);
-
+                    if (!display.isValid() || ticks >= 20) {
+                        display.remove();
+                        activeFloatingTexts.remove(display);
                         if (task[0] != null) task[0].cancel();
                         return;
                     }
+                    // Smooth float up
                     currentLocation.add(0, step, 0);
-                    stand.teleport(currentLocation);
+                    display.teleport(currentLocation);
                     ticks++;
                 }
             }, 0L, 1L);
         });
     }
 
-    public void showDamageFCT(Location loc, double damage) { showCombatFloatingText(loc, "§f" + String.format("%.0f", damage)); }
-    public void showTrueDamageFCT(Location loc, double damage) { showCombatFloatingText(loc, "§6" + String.format("%.0f", damage)); }
-    public void showHealHPFCT(Location loc, double value) { showCombatFloatingText(loc, "§a+" + String.format("%.0f", value) + " HP"); }
-    public void showHealSPFCT(Location loc, double value) { showCombatFloatingText(loc, "§b+" + String.format("%.0f", value) + " SP"); }
-    public void showStatusDamageFCT(Location loc, String status, double value) {
-        String color = switch (status.toLowerCase()) {
-            case "poison" -> "§2";
-            case "burn" -> "§c";
-            case "bleed" -> "§4";
-            default -> "§7";
-        };
-        showCombatFloatingText(loc, color + "-" + String.format("%.0f", value));
+    // Updated Helper Methods using ComponentUtil
+
+    public void showDamageFCT(Location loc, double damage) {
+        showCombatFloatingText(loc, ComponentUtil.text(String.format("%.0f", damage), NamedTextColor.WHITE));
     }
 
+    public void showTrueDamageFCT(Location loc, double damage) {
+        showCombatFloatingText(loc, ComponentUtil.text(String.format("%.0f", damage), NamedTextColor.GOLD));
+    }
+
+    public void showHealHPFCT(Location loc, double value) {
+        showCombatFloatingText(loc, ComponentUtil.text("+" + String.format("%.0f", value) + " HP", NamedTextColor.GREEN));
+    }
+
+    public void showHealSPFCT(Location loc, double value) {
+        showCombatFloatingText(loc, ComponentUtil.text("+" + String.format("%.0f", value) + " SP", NamedTextColor.AQUA));
+    }
+
+    public void showStatusDamageFCT(Location loc, String status, double value) {
+        NamedTextColor color = switch (status.toLowerCase()) {
+            case "poison" -> NamedTextColor.DARK_GREEN;
+            case "burn" -> NamedTextColor.RED;
+            case "bleed" -> NamedTextColor.DARK_RED;
+            default -> NamedTextColor.GRAY;
+        };
+        showCombatFloatingText(loc, ComponentUtil.text("-" + String.format("%.0f", value), color));
+    }
+
+    // Getters
     public StatManager getStatManager() { return statManager; }
     public ManaManager getManaManager() { return manaManager; }
     public AttributeHandler getAttributeHandler() { return attributeHandler; }
