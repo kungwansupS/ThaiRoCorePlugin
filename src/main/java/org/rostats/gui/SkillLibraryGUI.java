@@ -22,14 +22,12 @@ import java.util.function.Consumer;
 public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final File currentEntry;
+    private final File currentEntry; // เป็นได้ทั้ง Folder จริง หรือ File (Pack)
 
-    // Constructor 1: รับค่าเดียว (สำคัญสำหรับแก้ Error นี้)
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
         this(plugin, plugin.getSkillManager().getRootDir());
     }
 
-    // Constructor 2: รับ 2 ค่า
     public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
         this.plugin = plugin;
         this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
@@ -43,7 +41,7 @@ public class SkillLibraryGUI {
         }
     }
 
-    // [FIX] รับ 3 ค่า: Player, SelectCallback, CancelCallback
+    // [FIXED] รับ 3 Argument: Player, SuccessCallback, CancelCallback
     public void openSelectMode(Player player, Consumer<String> onSelect, Runnable onCancel) {
         GUIListener.setSelectionMode(player, onSelect, onCancel);
         player.sendMessage("§ePlease select a skill from the library...");
@@ -54,13 +52,15 @@ public class SkillLibraryGUI {
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
 
         inv.setItem(3, createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE",
-                "§7Target: " + target.getName(), "§c§lWARNING: Cannot be undone!"));
+                "§7Target: " + target.getName(),
+                "§c§lWARNING: Cannot be undone!"));
 
         inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return."));
 
         player.openInventory(inv);
     }
 
+    // --- View 1: Folder จริง ---
     private void openDirectoryView(Player player, File dir) {
         String path = plugin.getSkillManager().getRelativePath(dir);
         String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
@@ -110,6 +110,7 @@ public class SkillLibraryGUI {
         player.openInventory(inv);
     }
 
+    // --- View 2: ภายในไฟล์ (Skill Pack) ---
     private void openPackView(Player player, File file) {
         String path = plugin.getSkillManager().getRelativePath(file);
         String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;

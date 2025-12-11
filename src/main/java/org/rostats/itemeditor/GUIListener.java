@@ -38,7 +38,6 @@ public class GUIListener implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (event.getView().title() == null) return;
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
@@ -214,8 +213,27 @@ public class GUIListener implements Listener {
             });
             return;
         }
+        if (dp.contains("Remove Vanilla")) {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            attr.setRemoveVanillaAttribute(!attr.isRemoveVanillaAttribute());
+            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            return;
+        }
+
+        if (dp.contains("Unbreakable")) {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            attr.setUnbreakable(!attr.isUnbreakable());
+            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+            plugin.getItemAttributeManager().applyAttributesToItem(stack, attr);
+            plugin.getItemManager().saveItem(itemFile, attr, stack);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
+
         if (dp.contains("Save to File")) {
-            player.sendMessage("§aSaved!");
+            player.sendMessage("§aItem Saved!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
             return;
         }
@@ -262,12 +280,10 @@ public class GUIListener implements Listener {
         });
     }
 
-    // [IMPORTANT] Trigger Selection Logic (Called after skill selection)
     private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null) return;
 
-        // Back Button in Trigger Selector
         if (clicked.getType() == Material.ARROW) {
             Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
             if (flowData != null && flowData.containsKey("itemFile")) {
@@ -281,7 +297,9 @@ public class GUIListener implements Listener {
         if (lore != null) {
             for (String l : lore) {
                 if (l.startsWith("§7Type: §f")) {
-                    try { trigger = TriggerType.valueOf(l.substring(10)); } catch (Exception ignored) {}
+                    try {
+                        trigger = TriggerType.valueOf(l.substring(10));
+                    } catch (Exception ignored) {}
                     break;
                 }
             }
@@ -292,16 +310,17 @@ public class GUIListener implements Listener {
             if (flowData == null) return;
             flowData.put("trigger", trigger);
 
-            // Input Level -> Chance
-            plugin.getChatInputHandler().awaitInput(player, "Skill Level:", (lvlStr) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Enter Skill Level (ตัวเลข):", (lvlStr) -> {
                 try {
                     int level = Integer.parseInt(lvlStr);
                     if (level < 1) level = 1;
-                    int finalLevel = level;
 
-                    plugin.getChatInputHandler().awaitInput(player, "Chance (0.0-1.0):", (chanceStr) -> {
+                    int finalLevel = level;
+                    plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0 - 1.0):", (chanceStr) -> {
                         try {
                             double chance = Double.parseDouble(chanceStr);
+                            if (chance < 0) chance = 0; if (chance > 1) chance = 1;
+
                             File itemFile = (File) flowData.get("itemFile");
                             String sId = (String) flowData.get("skillId");
                             TriggerType trig = (TriggerType) flowData.get("trigger");
@@ -312,8 +331,9 @@ public class GUIListener implements Listener {
                             attr.getSkillBindings().add(new ItemSkillBinding(sId, trig, finalLevel, chance));
                             plugin.getItemManager().saveItem(itemFile, attr, stack);
 
-                            player.sendMessage("§aSkill bound!");
+                            player.sendMessage("§aSkill bound successfully!");
                             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
+
                             skillBindingFlow.remove(player.getUniqueId());
                             new BukkitRunnableWrapper(plugin, () -> new SkillBindingGUI(plugin, itemFile).open(player));
 
@@ -324,7 +344,6 @@ public class GUIListener implements Listener {
         }
     }
 
-    // [FIXED] Skill Binding Handler
     private void handleSkillBindingClick(InventoryClickEvent event, Player player, String title) {
         String fileName = title.substring(8, title.lastIndexOf(" ["));
         File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
@@ -338,19 +357,19 @@ public class GUIListener implements Listener {
             flowData.put("itemFile", itemFile);
             skillBindingFlow.put(player.getUniqueId(), flowData);
 
-            // [FIXED] Call openSelectMode with explicit 2-arg constructor + 3 args method
-            // This fixes "Expected 2 arguments but found 1" error
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).openSelectMode(player,
+            // [FIXED] เรียก openSelectMode (3 args)
+            new SkillLibraryGUI(plugin).openSelectMode(player,
                     (selectedSkillId) -> {
-                        // Success: Open Trigger Selector
+                        // เมื่อเลือกเสร็จ -> ไปหน้า Trigger
                         Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
                         if (flow != null) {
                             flow.put("skillId", selectedSkillId);
                             new TriggerSelectorGUI(plugin, selectedSkillId).open(player);
+                            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
                         }
                     },
                     () -> {
-                        // Cancel: Return to Binding GUI
+                        // เมื่อยกเลิก -> กลับหน้าเดิม
                         skillBindingFlow.remove(player.getUniqueId());
                         new SkillBindingGUI(plugin, itemFile).open(player);
                     }
@@ -362,10 +381,11 @@ public class GUIListener implements Listener {
             if (event.isRightClick()) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
                 List<ItemSkillBinding> bindings = attr.getSkillBindings();
-                if (event.getSlot() < bindings.size()) {
-                    bindings.remove(event.getSlot());
+                int slot = event.getSlot();
+                if (slot < bindings.size()) {
+                    bindings.remove(slot);
                     plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-                    player.sendMessage("§cRemoved.");
+                    player.sendMessage("§cRemoved skill binding.");
                     new SkillBindingGUI(plugin, itemFile).open(player);
                 }
             }
@@ -373,43 +393,112 @@ public class GUIListener implements Listener {
     }
 
     private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
-        // ... (Logic for effects/enchants remains same) ...
-        // Placeholder for brevity, ensure previous logic is kept or ask if needed.
         int lastBracket = title.lastIndexOf(" [");
         if (lastBracket == -1) return;
         String fileName = title.substring(8, lastBracket);
         File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
         if (itemFile == null) return;
+
         Mode mode = title.contains("EFFECT") ? Mode.EFFECT : Mode.ENCHANT;
         String metaKey = "RO_EDITOR_SEL_" + mode.name();
         String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
+
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null) return;
         int slot = event.getSlot();
+
         if (slot < 45) {
             if (clicked.getType() == Material.AIR) return;
             String dp = clicked.getItemMeta().getDisplayName();
             String key = dp.length() > 2 ? dp.substring(2) : dp;
+
             player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             new EffectEnchantGUI(plugin, itemFile, mode).open(player);
-        } else if (slot == 53) {
+        }
+        else if (slot == 50 && selected != null) {
+            plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
+                try {
+                    int lvl = Integer.parseInt(str);
+                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
+                } catch (NumberFormatException e) {
+                    player.sendMessage("§cInvalid Number");
+                    new BukkitRunnableWrapper(plugin, () -> new EffectEnchantGUI(plugin, itemFile, mode).open(player));
+                }
+            });
+        }
+        else if (slot == 51 && selected != null) {
+            applyEffectEnchant(player, itemFile, mode, selected, 1, true);
+        }
+        else if (slot == 52 && selected != null) {
+            applyEffectEnchant(player, itemFile, mode, selected, 0, false);
+        }
+        else if (slot == 53) {
             player.removeMetadata(metaKey, plugin);
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
         }
-        // ... other slots (50, 51, 52) logic ...
+    }
+
+    private void applyEffectEnchant(Player player, File file, Mode mode, String key, int level, boolean add) {
+        new BukkitRunnableWrapper(plugin, () -> {
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
+            ItemStack stack = plugin.getItemManager().loadItemStack(file);
+            boolean changed = false;
+
+            if (mode == Mode.EFFECT) {
+                PotionEffectType type = PotionEffectType.getByName(key);
+                if (type != null) {
+                    if (add) attr.getPotionEffects().put(type, level);
+                    else attr.getPotionEffects().remove(type);
+                    plugin.getItemManager().saveItem(file, attr, stack);
+                    changed = true;
+                }
+            } else {
+                Enchantment ench = null;
+                for (Enchantment e : Enchantment.values()) {
+                    if (e.getKey().getKey().equalsIgnoreCase(key)) { ench = e; break; }
+                }
+                if (ench != null) {
+                    ItemMeta meta = stack.getItemMeta();
+                    if (add) meta.addEnchant(ench, level, true);
+                    else meta.removeEnchant(ench);
+                    stack.setItemMeta(meta);
+                    plugin.getItemManager().saveItem(file, attr, stack);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+                new EffectEnchantGUI(plugin, file, mode).open(player);
+            }
+        });
     }
 
     private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
         String fileName = title.substring("Confirm Delete: ".length());
         File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (event.getCurrentItem() != null && event.getCurrentItem().getItemMeta().getDisplayName().contains("CONFIRM")) {
-            if(target != null) {
+
+        if (event.getCurrentItem() == null) return;
+        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
+
+        if (dp.contains("CONFIRM DELETE")) {
+            if (target != null && target.exists()) {
+                File parent = target.getParentFile();
                 plugin.getItemManager().deleteFile(target);
-                player.sendMessage("§cDeleted.");
-                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
+                player.sendMessage("§cDeleted: " + fileName);
+                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
+                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, parent).open(player));
+            } else {
+                player.sendMessage("§cFile not found.");
+                player.closeInventory();
             }
-        } else if (event.getCurrentItem() != null && event.getCurrentItem().getItemMeta().getDisplayName().contains("CANCEL")) {
-            if(target != null) new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
+        } else if (dp.contains("CANCEL")) {
+            if (target != null && target.exists()) {
+                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, target.getParentFile()).open(player));
+            } else {
+                new BukkitRunnableWrapper(plugin, () -> new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player));
+            }
         }
     }
 
