@@ -2,13 +2,11 @@ org\rostats\engine\action\impl\CommandAction.class
 org\rostats\gui\GUIListener.class
 org\rostats\engine\action\SkillAction.class
 org\rostats\itemeditor\EffectEnchantGUI$Mode.class
-org\rostats\itemeditor\ItemEditorCommand.class
 org\rostats\gui\SkillLibraryGUI.class
 org\rostats\itemeditor\ItemManager.class
 org\rostats\engine\skill\SkillData.class
 org\rostats\handler\CombatHandler.class
 org\rostats\hook\PAPIHook.class
-org\rostats\itemeditor\SkillBindingGUI.class
 org\rostats\engine\action\impl\HealAction.class
 org\rostats\engine\action\impl\LoopAction$LoopIncrementAction.class
 org\rostats\data\PlayerData.class
@@ -19,16 +17,11 @@ org\rostats\itemeditor\ItemAttributeType.class
 org\rostats\gui\SkillEditorGUI.class
 org\rostats\engine\action\impl\ConditionAction.class
 org\rostats\engine\skill\SkillRunner$1.class
-org\rostats\itemeditor\TriggerSelectorGUI.class
 org\rostats\data\DataManager.class
 org\rostats\engine\action\impl\AreaAction.class
-org\rostats\itemeditor\ItemTypeSelectorGUI.class
-org\rostats\utils\FormulaParser$1.class
 org\rostats\engine\action\impl\DamageAction.class
 org\rostats\itemeditor\ItemAttributeManager$1.class
 org\rostats\command\PlayerCommand.class
-org\rostats\itemeditor\ItemLibraryGUI.class
-org\rostats\utils\FormulaParser.class
 org\rostats\engine\action\impl\DelayAction.class
 org\rostats\gui\CharacterGUI.class
 org\rostats\itemeditor\ItemAttributeManager.class
@@ -43,7 +36,6 @@ org\rostats\ThaiRoCorePlugin.class
 org\rostats\engine\action\impl\RaycastAction.class
 org\rostats\engine\effect\ActiveEffect.class
 org\rostats\engine\trigger\TriggerType.class
-org\rostats\itemeditor\GUIListener.class
 org\rostats\data\StatManager.class
 org\rostats\gui\GUIListener$2.class
 org\rostats\itemeditor\AttributeEditorGUI$Page.class
@@ -55,7 +47,6 @@ org\rostats\engine\action\impl\SetVariableAction.class
 org\rostats\input\ChatInputHandler$2.class
 org\rostats\engine\action\impl\TeleportAction.class
 org\rostats\engine\skill\SkillRunner.class
-org\rostats\gui\SkillEditorGUI$1.class
 org\rostats\gui\SkillActionPropertyGUI.class
 org\rostats\engine\action\impl\TargetSelectorAction$SelectorMode.class
 org\rostats\engine\action\impl\VelocityAction.class
@@ -72,7 +63,6 @@ org\rostats\input\ChatInputHandler.class
 org\rostats\itemeditor\ItemSkillBinding.class
 org\rostats\command\AdminCommand.class
 org\rostats\engine\effect\EffectManager$1.class
-org\rostats\itemeditor\GUIListener$BukkitRunnableWrapper.class
 org\rostats\handler\ProjectileHandler.class
 org\rostats\engine\action\impl\ProjectileAction.class
 org\rostats\engine\effect\EffectManager.class
