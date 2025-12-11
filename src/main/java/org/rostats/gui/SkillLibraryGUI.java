@@ -13,8 +13,8 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.skill.SkillData;
 
 import java.io.File;
-import java.util.ArrayList; // สำหรับ new ArrayList<>()
-import java.util.Arrays;    // [FIX] เพิ่มบรรทัดนี้เพื่อแก้ Error Arrays.asList()
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -22,14 +22,14 @@ import java.util.function.Consumer;
 public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final File currentEntry; // เป็นได้ทั้ง Folder จริง หรือ File (Pack)
+    private final File currentEntry;
 
-    // Constructor 1: สำหรับเรียกจากหน้า Root หรือ GUIListener (แก้ Error Expected 2 arguments but found 1)
+    // Constructor 1: รับค่าเดียว (สำคัญสำหรับแก้ Error นี้)
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
         this(plugin, plugin.getSkillManager().getRootDir());
     }
 
-    // Constructor 2: สำหรับเปิด Folder หรือ File เฉพาะเจาะจง
+    // Constructor 2: รับ 2 ค่า
     public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
         this.plugin = plugin;
         this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
@@ -43,24 +43,26 @@ public class SkillLibraryGUI {
         }
     }
 
-    public void openSelectMode(Player player, Consumer<String> onSelect) {
-        GUIListener.setSelectionCallback(player, onSelect);
-        player.sendMessage("§ePlease select a skill...");
+    // [FIX] รับ 3 ค่า: Player, SelectCallback, CancelCallback
+    public void openSelectMode(Player player, Consumer<String> onSelect, Runnable onCancel) {
+        GUIListener.setSelectionMode(player, onSelect, onCancel);
+        player.sendMessage("§ePlease select a skill from the library...");
         open(player);
     }
 
     public void openConfirmDelete(Player player, File target) {
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
+
         inv.setItem(3, createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE",
                 "§7Target: " + target.getName(), "§c§lWARNING: Cannot be undone!"));
+
         inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return."));
+
         player.openInventory(inv);
     }
 
-    // --- View 1: Folder จริง ---
     private void openDirectoryView(Player player, File dir) {
         String path = plugin.getSkillManager().getRelativePath(dir);
-        // แสดง Path ใน Title (ตัดให้สั้นถ้ายาวเกิน)
         String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("Lib: " + titlePath));
 
@@ -77,13 +79,11 @@ public class SkillLibraryGUI {
                 int count = keys.size();
 
                 if (count > 1) {
-                    // [Multi-Skill] แสดงเป็นหีบพิเศษ (Folder ปลอม)
                     inv.addItem(createGuiItem(Material.ENDER_CHEST, "§d📦 " + file.getName(),
                             "§7Type: Skill Pack",
                             "§7Contains: §f" + count + " skills",
                             "§eClick to open pack."));
                 } else if (count == 1) {
-                    // [Single Skill] แสดงเป็นไอคอนสกิล
                     if (!keys.isEmpty()) {
                         String skillId = keys.iterator().next();
                         SkillData skill = plugin.getSkillManager().getSkill(skillId);
@@ -103,7 +103,6 @@ public class SkillLibraryGUI {
             inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
         }
 
-        // ปุ่มสร้างต่างๆ
         inv.setItem(48, createGuiItem(Material.CHEST, "§6+ New Folder", "§7Create a sub-folder"));
         inv.setItem(49, createGuiItem(Material.PAPER, "§e+ New Skill", "§7Create a single skill file"));
         inv.setItem(50, createGuiItem(Material.ENDER_CHEST, "§d+ New Pack", "§7Create a multi-skill pack"));
@@ -111,7 +110,6 @@ public class SkillLibraryGUI {
         player.openInventory(inv);
     }
 
-    // --- View 2: ภายในไฟล์ .yml (Skill Pack) ---
     private void openPackView(Player player, File file) {
         String path = plugin.getSkillManager().getRelativePath(file);
         String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;
@@ -156,7 +154,7 @@ public class SkillLibraryGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore)); // ใช้ Arrays.asList ตรงนี้ได้แล้ว
+            meta.setLore(Arrays.asList(lore));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
             item.setItemMeta(meta);
         }
