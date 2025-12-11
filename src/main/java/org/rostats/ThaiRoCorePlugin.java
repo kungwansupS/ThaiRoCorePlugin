@@ -181,6 +181,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     // --- Modern TextDisplay System ---
 
+    /**
+     * Show floating text with custom offset (Main Method)
+     */
     public void showFloatingText(UUID playerUUID, Component text, double verticalOffset) {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null || !player.isOnline()) return;
@@ -188,12 +191,34 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         showAnimatedText(startLoc, text);
     }
 
+    /**
+     * [FIXED] Overload for Component only (Default Offset)
+     * Solves: cannot apply (UUID, Component)
+     */
+    public void showFloatingText(UUID playerUUID, Component text) {
+        showFloatingText(playerUUID, text, 0.25);
+    }
+
+    /**
+     * Overload for Legacy String (Converts to Component)
+     */
     public void showFloatingText(UUID playerUUID, String text) {
         showFloatingText(playerUUID, ComponentUtil.text(text), 0.25);
     }
 
+    /**
+     * Show combat text at specific location (Main Method)
+     */
     public void showCombatFloatingText(Location loc, Component text) {
         showAnimatedText(loc.add(0, 1.5, 0), text);
+    }
+
+    /**
+     * [FIXED] Overload for Combat Text using String
+     * Solves compatibility with older handlers
+     */
+    public void showCombatFloatingText(Location loc, String text) {
+        showCombatFloatingText(loc, ComponentUtil.text(text));
     }
 
     private void showAnimatedText(Location startLoc, Component text) {
@@ -238,7 +263,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         });
     }
 
-    // Updated Helper Methods using ComponentUtil
+    // Helper Methods
 
     public void showDamageFCT(Location loc, double damage) {
         showCombatFloatingText(loc, ComponentUtil.text(String.format("%.0f", damage), NamedTextColor.WHITE));

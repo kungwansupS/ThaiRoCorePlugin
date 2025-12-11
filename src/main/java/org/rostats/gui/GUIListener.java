@@ -20,8 +20,8 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-import org.rostats.input.ChatInputHandler; // Added Import
-import org.rostats.utils.ComponentUtil; // Added Import
+import org.rostats.input.ChatInputHandler;
+import org.rostats.utils.ComponentUtil;
 
 import java.io.File;
 import java.util.*;
@@ -124,16 +124,11 @@ public class GUIListener implements Listener {
         if (slot == 45) { if (page > 0) refreshGUI(player, skillId, page - 1); return; }
         if (slot == 53) { if ((page + 1) * 27 < activeList.size()) refreshGUI(player, skillId, page + 1); return; }
 
-        // [FIXED] Improved Logic for Back Button
         if (slot == 48) {
-            // Check if we are currently editing a nested list
             boolean isNested = currentEditingList.containsKey(player.getUniqueId());
-
             if (!isNested) {
-                // We are at Root -> Go Back to Library
                 new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
             } else {
-                // We are Nested -> Go Up to Root (Remove nesting context)
                 currentEditingList.remove(player.getUniqueId());
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
@@ -221,9 +216,8 @@ public class GUIListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
-        // [FIXED] Handle Back Button in Selector
         if (clicked.getType() == Material.ARROW || clicked.getType() == Material.BOOK) {
-            refreshGUI(player, skillId, 0); // Return to editor
+            refreshGUI(player, skillId, 0);
             return;
         }
 
@@ -290,7 +284,6 @@ public class GUIListener implements Listener {
             editingProperties.put(player.getUniqueId(), data);
         }
 
-        // [FIXED] Cancel Button Logic
         if (clicked.getType() == Material.RED_CONCRETE) {
             editingProperties.remove(player.getUniqueId());
             refreshGUI(player, skillId, index / 27);
@@ -334,12 +327,11 @@ public class GUIListener implements Listener {
                 fData.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType());
             } else {
-                // [FIX] Explicit String type in Lambda to solve "Cannot resolve method toUpperCase"
+                // [FIX] ใช้ awaitInput 3 Arguments และระบุ type String str
                 plugin.getChatInputHandler().awaitInput(player, "Enter " + key + ":", (String str) -> {
                     try {
                         if (isIntegerKey(fKey)) fData.put(fKey, Integer.parseInt(str));
                         else if (isDoubleKey(fKey)) fData.put(fKey, Double.parseDouble(str));
-                            // Explicitly handled as String now
                         else if (fKey.equals("mode")) fData.put(fKey, str.toUpperCase());
                         else fData.put(fKey, str);
 

@@ -1,6 +1,7 @@
 package org.rostats.input;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,9 +24,24 @@ public class ChatInputHandler implements Listener {
         this.plugin = plugin;
     }
 
-    public void awaitInput(Player player, Consumer<String> callback) {
+    /**
+     * Wait for single-line input
+     */
+    public void awaitInput(Player player, String prompt, Consumer<String> callback) {
         activeSessions.put(player.getUniqueId(), new InputSession(callback));
-        player.sendMessage(ComponentUtil.info("Type your input in chat (or type 'cancel' to abort):"));
+
+        // Show Prompt
+        player.sendMessage(ComponentUtil.text("➤ " + prompt, NamedTextColor.YELLOW));
+        player.sendMessage(ComponentUtil.text("(Type 'cancel' to abort)", NamedTextColor.GRAY));
+    }
+
+    /**
+     * [FIX] Added to resolve "Cannot resolve method 'awaitMultiLineInput'" error.
+     * Currently aliases to awaitInput (Single Line) to ensure code compiles.
+     * You can expand this logic later for true multi-line support if needed.
+     */
+    public void awaitMultiLineInput(Player player, String prompt, Consumer<String> callback) {
+        awaitInput(player, prompt, callback);
     }
 
     // MODERN EVENT for Paper 1.21+
@@ -45,7 +61,7 @@ public class ChatInputHandler implements Listener {
             return;
         }
 
-        // Run callback on main thread because most Bukkit APIs require it
+        // Run callback on main thread
         plugin.getServer().getScheduler().runTask(plugin, () -> session.callback.accept(input));
     }
 
