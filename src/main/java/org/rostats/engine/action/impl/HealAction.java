@@ -53,11 +53,8 @@ public class HealAction implements SkillAction {
                 double newSP = Math.min(data.getMaxSP(), data.getCurrentSP() + amount);
                 data.setCurrentSP(newSP);
                 plugin.getManaManager().updateBar(player);
-                // Correctly calls method that handles Component conversion internally or accepts double
                 plugin.showHealSPFCT(player.getLocation(), amount);
-
-                // Modern Particle
-                plugin.getEffectManager().spawn(target.getLocation().add(0, 1.5, 0), Particle.HEART, 5, 0.5, 0.5);
+                target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
             }
         } else {
             double maxHP;
@@ -70,11 +67,8 @@ public class HealAction implements SkillAction {
 
             double newHP = Math.min(maxHP, target.getHealth() + amount);
             target.setHealth(newHP);
-            // Correctly calls method that handles Component conversion internally or accepts double
             plugin.showHealHPFCT(target.getLocation(), amount);
-
-            // Modern Particle
-            plugin.getEffectManager().spawn(target.getLocation().add(0, 1.5, 0), Particle.HEART, 5, 0.5, 0.5);
+            target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.5, 0), 5, 0.5, 0.5, 0.5);
         }
     }
 

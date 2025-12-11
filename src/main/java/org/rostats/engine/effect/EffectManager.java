@@ -1,10 +1,6 @@
 package org.rostats.engine.effect;
 
-import com.destroystokyo.paper.ParticleBuilder;
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
@@ -19,15 +15,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * EffectManager - Handles both Visual Particles (Phase 3) and Active Effects (Buffs/Debuffs)
- */
 public class EffectManager {
 
     private final ThaiRoCorePlugin plugin;
     private final Map<UUID, List<ActiveEffect>> mobEffectsMap = new ConcurrentHashMap<>();
 
-    // 5 Ticks = 0.25 Seconds interval
+    // [FIX] กำหนดช่วงเวลาการทำงานของ Task (5 Ticks = 0.25 วินาที)
     private static final long TICK_INTERVAL = 5L;
 
     public EffectManager(ThaiRoCorePlugin plugin) {
@@ -35,73 +28,8 @@ public class EffectManager {
         startTickTask();
     }
 
-    // ==========================================
-    // PART 1: Visual Particle System (Phase 3)
-    // ==========================================
-
-    /**
-     * Spawn a simple particle
-     */
-    public void spawn(Location loc, Particle particle, int count, double speed, double offset) {
-        if (loc.getWorld() == null) return;
-
-        new ParticleBuilder(particle)
-                .location(loc)
-                .count(count)
-                .offset(offset, offset, offset)
-                .extra(speed)
-                .receivers(32) // Optimize render distance
-                .spawn();
-    }
-
-    /**
-     * Spawn colored dust particle (Redstone/Dust)
-     */
-    public void spawnDust(Location loc, Color color, float size, int count) {
-        if (loc.getWorld() == null) return;
-
-        new ParticleBuilder(Particle.DUST)
-                .location(loc)
-                .count(count)
-                .data(new Particle.DustOptions(color, size))
-                .receivers(32)
-                .spawn();
-    }
-
-    /**
-     * Spawn colored transition dust
-     */
-    public void spawnDustTransition(Location loc, Color from, Color to, float size) {
-        if (loc.getWorld() == null) return;
-
-        new ParticleBuilder(Particle.DUST_COLOR_TRANSITION)
-                .location(loc)
-                .count(1)
-                .data(new Particle.DustTransition(from, to, size))
-                .receivers(32)
-                .spawn();
-    }
-
-    /**
-     * Spawn directional particle
-     */
-    public void spawnDirectional(Location loc, Particle particle, double dx, double dy, double dz, double speed) {
-        if (loc.getWorld() == null) return;
-
-        new ParticleBuilder(particle)
-                .location(loc)
-                .count(0) // Count 0 allows directional velocity
-                .offset(dx, dy, dz)
-                .extra(speed)
-                .receivers(32)
-                .spawn();
-    }
-
-    // ==========================================
-    // PART 2: Active Effect System (Logic)
-    // ==========================================
-
     private void startTickTask() {
+        // [FIX] เปลี่ยนจาก 1L เป็น TICK_INTERVAL (ลดภาระ Server 5 เท่า)
         plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickAll, 1L, TICK_INTERVAL);
     }
 
@@ -109,9 +37,7 @@ public class EffectManager {
         // 1. Tick Players
         for (Player player : Bukkit.getOnlinePlayers()) {
             PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
-            if (data != null) {
-                processEffects(player, data.getActiveEffects(), true);
-            }
+            processEffects(player, data.getActiveEffects(), true);
         }
 
         // 2. Tick Mobs
@@ -142,8 +68,11 @@ public class EffectManager {
 
         // Tick & Trigger
         for (ActiveEffect effect : effects) {
+            // [FIX] ลดเวลาลงทีละ 5 Ticks ตามรอบการทำงาน
             effect.tick(TICK_INTERVAL);
 
+            // หมายเหตุ: isReadyToTrigger อาจจะลดความแม่นยำลงเล็กน้อยในระดับมิลลิวินาที
+            // แต่สำหรับ RPG Minecraft ถือว่ายอมรับได้แลกกับ Performance ที่ดีขึ้น
             if (effect.isReadyToTrigger(currentTick)) {
                 triggerEffect(entity, effect);
             }
@@ -245,8 +174,7 @@ public class EffectManager {
         switch (effect.getType()) {
             case PERIODIC_DAMAGE:
                 target.damage(effect.getPower());
-                // Use new spawn method
-                spawn(target.getLocation().add(0, 1, 0), Particle.DAMAGE_INDICATOR, 3, 0.1, 0.2);
+                target.getWorld().spawnParticle(org.bukkit.Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1, 0), 3);
                 break;
             case PERIODIC_HEAL:
                 double newHealth = Math.min(target.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue(), target.getHealth() + effect.getPower());
@@ -259,9 +187,7 @@ public class EffectManager {
     public boolean hasEffect(LivingEntity entity, EffectType type, String statKey) {
         List<ActiveEffect> effects;
         if (entity instanceof Player player) {
-            PlayerData data = plugin.getStatManager().getData(player.getUniqueId());
-            if (data == null) return false;
-            effects = data.getActiveEffects();
+            effects = plugin.getStatManager().getData(player.getUniqueId()).getActiveEffects();
         } else {
             effects = mobEffectsMap.get(entity.getUniqueId());
         }

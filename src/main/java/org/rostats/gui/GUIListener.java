@@ -1,6 +1,5 @@
 package org.rostats.gui;
 
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -20,8 +19,6 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-import org.rostats.input.ChatInputHandler;
-import org.rostats.utils.ComponentUtil;
 
 import java.io.File;
 import java.util.*;
@@ -58,7 +55,7 @@ public class GUIListener implements Listener {
             data.clearAllPendingStats();
             plugin.getAttributeHandler().updatePlayerStats(player);
             plugin.getManaManager().updateBar(player);
-            player.sendMessage(ComponentUtil.text("[System] Cancelled pending stats.", NamedTextColor.YELLOW));
+            player.sendMessage("§e[System] Cancelled pending stats.");
         }
     }
 
@@ -124,11 +121,16 @@ public class GUIListener implements Listener {
         if (slot == 45) { if (page > 0) refreshGUI(player, skillId, page - 1); return; }
         if (slot == 53) { if ((page + 1) * 27 < activeList.size()) refreshGUI(player, skillId, page + 1); return; }
 
+        // [FIXED] Improved Logic for Back Button
         if (slot == 48) {
+            // Check if we are currently editing a nested list
             boolean isNested = currentEditingList.containsKey(player.getUniqueId());
+
             if (!isNested) {
+                // We are at Root -> Go Back to Library
                 new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
             } else {
+                // We are Nested -> Go Up to Root (Remove nesting context)
                 currentEditingList.remove(player.getUniqueId());
                 new SkillEditorGUI(plugin, skillId).open(player);
             }
@@ -137,7 +139,7 @@ public class GUIListener implements Listener {
 
         if (slot == 49) {
             plugin.getSkillManager().saveSkill(rootSkill);
-            player.sendMessage(ComponentUtil.success("Skill Structure Saved!"));
+            player.sendMessage("§aSkill Structure Saved!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
             return;
         }
@@ -216,8 +218,9 @@ public class GUIListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
+        // [FIXED] Handle Back Button in Selector
         if (clicked.getType() == Material.ARROW || clicked.getType() == Material.BOOK) {
-            refreshGUI(player, skillId, 0);
+            refreshGUI(player, skillId, 0); // Return to editor
             return;
         }
 
@@ -238,7 +241,7 @@ public class GUIListener implements Listener {
                         refreshGUI(player, skillId, lastPage);
                     }
                 } catch (Exception e) {
-                    player.sendMessage(ComponentUtil.error("Error: " + e.getMessage()));
+                    player.sendMessage("§cError: " + e.getMessage());
                 }
             }
         }
@@ -284,6 +287,7 @@ public class GUIListener implements Listener {
             editingProperties.put(player.getUniqueId(), data);
         }
 
+        // [FIXED] Cancel Button Logic
         if (clicked.getType() == Material.RED_CONCRETE) {
             editingProperties.remove(player.getUniqueId());
             refreshGUI(player, skillId, index / 27);
@@ -298,11 +302,11 @@ public class GUIListener implements Listener {
 
                 if (newAction != null) {
                     activeList.set(index, newAction);
-                    player.sendMessage(ComponentUtil.success("Property Updated!"));
+                    player.sendMessage("§aProperty Updated!");
                     player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
                 }
             } catch (Exception e) {
-                player.sendMessage(ComponentUtil.error("Error: " + e.getMessage()));
+                player.sendMessage("§cError: " + e.getMessage());
                 e.printStackTrace();
             }
             editingProperties.remove(player.getUniqueId());
@@ -327,8 +331,7 @@ public class GUIListener implements Listener {
                 fData.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType());
             } else {
-                // [FIX] ใช้ awaitInput 3 Arguments และระบุ type String str
-                plugin.getChatInputHandler().awaitInput(player, "Enter " + key + ":", (String str) -> {
+                plugin.getChatInputHandler().awaitInput(player, "Enter " + key + ":", (str) -> {
                     try {
                         if (isIntegerKey(fKey)) fData.put(fKey, Integer.parseInt(str));
                         else if (isDoubleKey(fKey)) fData.put(fKey, Double.parseDouble(str));
@@ -337,7 +340,7 @@ public class GUIListener implements Listener {
 
                         runSync(() -> reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType()));
                     } catch (Exception e) {
-                        player.sendMessage(ComponentUtil.error("Invalid format!"));
+                        player.sendMessage("§cInvalid format!");
                         runSync(() -> reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType()));
                     }
                 });
@@ -400,7 +403,7 @@ public class GUIListener implements Listener {
     private void handleMetaDataEdit(InventoryClickEvent event, Player player, String skillId, int page, SkillData skill) {
         int slot = event.getSlot();
         if (slot == 0) {
-            plugin.getChatInputHandler().awaitInput(player, "Name:", (String str) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Name:", (str) -> {
                 skill.setDisplayName(str.replace("&", "§"));
                 runSync(() -> refreshGUI(player, skillId, page));
             });
@@ -426,7 +429,7 @@ public class GUIListener implements Listener {
             refreshGUI(player, skillId, page);
         }
         else if (slot == 4) {
-            plugin.getChatInputHandler().awaitInput(player, "Cast Range:", (String str) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Cast Range:", (str) -> {
                 try { skill.setCastRange(Double.parseDouble(str)); } catch(Exception e){}
                 runSync(() -> refreshGUI(player, skillId, page));
             });
@@ -437,30 +440,30 @@ public class GUIListener implements Listener {
             refreshGUI(player, skillId, page);
         }
         else if (slot == 6) {
-            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Base CD:", (String str)->{try{skill.setCooldownBase(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
-            else plugin.getChatInputHandler().awaitInput(player, "CD Per Lvl:", (String str)->{try{skill.setCooldownPerLevel(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Base CD:", (str)->{try{skill.setCooldownBase(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            else plugin.getChatInputHandler().awaitInput(player, "CD Per Lvl:", (str)->{try{skill.setCooldownPerLevel(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
         else if (slot == 7) {
-            plugin.getChatInputHandler().awaitInput(player, "Req Level:", (String str)->{try{skill.setRequiredLevel(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            plugin.getChatInputHandler().awaitInput(player, "Req Level:", (str)->{try{skill.setRequiredLevel(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
         else if (slot == 8) {
-            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Base SP:", (String str)->{try{skill.setSpCostBase(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
-            else plugin.getChatInputHandler().awaitInput(player, "SP Per Lvl:", (String str)->{try{skill.setSpCostPerLevel(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Base SP:", (str)->{try{skill.setSpCostBase(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            else plugin.getChatInputHandler().awaitInput(player, "SP Per Lvl:", (str)->{try{skill.setSpCostPerLevel(Integer.parseInt(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
         // Row 2
         else if (slot == 10) {
-            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Var Cast:", (String str)->{try{skill.setVariableCastTime(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
-            else plugin.getChatInputHandler().awaitInput(player, "Reduct %:", (String str)->{try{skill.setVariableCastTimeReduction(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Var Cast:", (str)->{try{skill.setVariableCastTime(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            else plugin.getChatInputHandler().awaitInput(player, "Reduct %:", (str)->{try{skill.setVariableCastTimeReduction(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
         else if (slot == 11) {
-            plugin.getChatInputHandler().awaitInput(player, "Fixed Cast:", (String str)->{try{skill.setFixedCastTime(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            plugin.getChatInputHandler().awaitInput(player, "Fixed Cast:", (str)->{try{skill.setFixedCastTime(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
         else if (slot == 12) {
-            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Pre Motion:", (String str)->{try{skill.setPreMotion(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
-            else plugin.getChatInputHandler().awaitInput(player, "Post Motion:", (String str)->{try{skill.setPostMotion(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            if(event.isLeftClick()) plugin.getChatInputHandler().awaitInput(player, "Pre Motion:", (str)->{try{skill.setPreMotion(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            else plugin.getChatInputHandler().awaitInput(player, "Post Motion:", (str)->{try{skill.setPostMotion(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
         else if (slot == 13) {
-            plugin.getChatInputHandler().awaitInput(player, "ACD:", (String str)->{try{skill.setAfterCastDelayBase(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
+            plugin.getChatInputHandler().awaitInput(player, "ACD:", (str)->{try{skill.setAfterCastDelayBase(Double.parseDouble(str));}catch(Exception e){} runSync(()->refreshGUI(player, skillId, page));});
         }
     }
 
@@ -470,17 +473,17 @@ public class GUIListener implements Listener {
         final File finalDir = currentDir;
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-        String name = PlainTextComponentSerializer.plainText().serialize(clicked.getItemMeta().displayName()).replace("§6§l", "").replace("§f", "");
+        String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
 
         if (clicked.getType() == Material.ARROW) { new SkillLibraryGUI(plugin, currentDir.getParentFile()).open(player); return; }
         if (clicked.getType() == Material.BOOKSHELF) { new SkillLibraryGUI(plugin, currentDir).open(player); return; }
-        if (clicked.getType() == Material.CHEST && PlainTextComponentSerializer.plainText().serialize(clicked.getItemMeta().displayName()).contains("New Folder")) {
-            plugin.getChatInputHandler().awaitInput(player, "Folder:", (String str) -> {
+        if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
+            plugin.getChatInputHandler().awaitInput(player, "Folder:", (str) -> {
                 plugin.getSkillManager().createFolder(finalDir, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
             }); return;
         }
         if (clicked.getType() == Material.WRITABLE_BOOK) {
-            plugin.getChatInputHandler().awaitInput(player, "Skill ID:", (String str) -> {
+            plugin.getChatInputHandler().awaitInput(player, "Skill ID:", (str) -> {
                 plugin.getSkillManager().createSkill(finalDir, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player));
             }); return;
         }
@@ -488,7 +491,7 @@ public class GUIListener implements Listener {
         if (target.isDirectory()) {
             if (event.isLeftClick() && !event.isShiftClick()) new SkillLibraryGUI(plugin, target).open(player);
             else if (event.isShiftClick() && event.isLeftClick()) new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, target);
-            else if (event.isRightClick()) { plugin.getChatInputHandler().awaitInput(player, "Rename:", (String str) -> { plugin.getSkillManager().renameFile(target, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player)); }); }
+            else if (event.isRightClick()) { plugin.getChatInputHandler().awaitInput(player, "Rename:", (str) -> { plugin.getSkillManager().renameFile(target, str); runSync(() -> new SkillLibraryGUI(plugin, finalDir).open(player)); }); }
         } else {
             if (event.isLeftClick() && !event.isShiftClick()) {
                 String skillId = name.toLowerCase().replace(" ", "_");
@@ -506,7 +509,7 @@ public class GUIListener implements Listener {
         if (clicked.getType() == Material.LIME_CONCRETE && target != null) {
             File parent = target.getParentFile();
             plugin.getSkillManager().deleteFile(target);
-            player.sendMessage(ComponentUtil.text("Deleted.", NamedTextColor.RED));
+            player.sendMessage("§cDeleted.");
             runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
         } else if (clicked.getType() == Material.RED_CONCRETE) {
             player.closeInventory();
@@ -545,15 +548,15 @@ public class GUIListener implements Listener {
 
         if (usedResets < freeResets) {
             data.resetStats(); data.incrementResetCount();
-            player.sendMessage(ComponentUtil.text("Free Reset used! (" + (usedResets + 1) + "/" + freeResets + ")", NamedTextColor.YELLOW));
+            player.sendMessage("§eFree Reset used! (" + (usedResets + 1) + "/" + freeResets + ")");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         } else if (resetItem != null && player.getInventory().contains(resetItem)) {
             player.getInventory().removeItem(new ItemStack(resetItem, 1));
             data.resetStats(); data.incrementResetCount();
-            player.sendMessage(ComponentUtil.text("Used 1x " + resetItem.name() + " to reset!", NamedTextColor.AQUA));
+            player.sendMessage("§bUsed 1x " + resetItem.name() + " to reset!");
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
         } else {
-            player.sendMessage(ComponentUtil.error("No free resets!"));
+            player.sendMessage("§cNo free resets!");
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             return;
         }

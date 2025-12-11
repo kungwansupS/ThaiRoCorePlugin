@@ -1,8 +1,5 @@
 package org.rostats.handler;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -24,7 +21,6 @@ import org.rostats.data.StatManager;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
 import org.rostats.itemeditor.ItemSkillBinding;
-import org.rostats.utils.ComponentUtil;
 
 import java.util.List;
 import java.util.Random;
@@ -156,8 +152,7 @@ public class CombatHandler implements Listener {
             // Allow Force Hit for specific skills if needed later
             if (random.nextDouble() > hitRate) {
                 event.setCancelled(true);
-                // [FIX] ใช้ Component แทน String
-                plugin.showCombatFloatingText(defenderEntity.getLocation(), ComponentUtil.text("MISS", NamedTextColor.GRAY));
+                plugin.showCombatFloatingText(defenderEntity.getLocation(), "§7MISS");
                 return;
             }
         }
@@ -380,11 +375,8 @@ public class CombatHandler implements Listener {
     }
 
     private void showCritEffects(Player attacker, LivingEntity victim, double finalDamage) {
-        // [FIX] ใช้ Component แทน String Concatenation และเพิ่ม Bold/Color
-        Component critText = ComponentUtil.text(String.format("%.0f", finalDamage) + "💥", NamedTextColor.RED)
-                .decorate(TextDecoration.BOLD);
-
-        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0), critText);
+        // ใช้สัญลักษณ์ระเบิด 💥 สีแดง ตัวหนา
+        plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0),  "§c§l" + String.format("%.0f", finalDamage) + "💥 ");
 
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 1f);
         attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20);

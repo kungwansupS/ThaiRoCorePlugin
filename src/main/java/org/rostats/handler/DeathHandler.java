@@ -1,13 +1,12 @@
 package org.rostats.handler;
 
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+// แก้ไข: เปลี่ยนจาก ROStatsPlugin เป็น ThaiRoCorePlugin
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
-import org.rostats.utils.ComponentUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -80,18 +79,15 @@ public class DeathHandler implements Listener {
 
         PlayerData playerData = plugin.getStatManager().getData(killer.getUniqueId());
 
-        // 3. Show FCT (Base EXP and Job EXP) using Modern Component API
-        // Base EXP (Blue)
-        plugin.showFloatingText(killer.getUniqueId(),
-                ComponentUtil.text("+" + calculatedBaseExp + " Base", NamedTextColor.AQUA));
-
-        // Job EXP (Yellow)
-        plugin.showFloatingText(killer.getUniqueId(),
-                ComponentUtil.text("+" + calculatedJobExp + " Job", NamedTextColor.YELLOW));
+        // 3. Show FCT (Base EXP and Job EXP)
+        // Base EXP (Blue): §b{value} Base
+        plugin.showFloatingText(killer.getUniqueId(), "§b" + calculatedBaseExp + " Base");
+        // Job EXP (Yellow): §e{value} Job
+        plugin.showFloatingText(killer.getUniqueId(), "§e" + calculatedJobExp + " Job");
 
         // 4. Add Base EXP to PlayerData (addBaseExp handles level up logic)
         playerData.addBaseExp(calculatedBaseExp, killer.getUniqueId());
-        // Add Job EXP
+        // แก้ไข: เพิ่ม Job EXP ที่ขาดหายไป
         playerData.addJobExp(calculatedJobExp, killer.getUniqueId());
     }
 }

@@ -1,13 +1,11 @@
 package org.rostats.engine.action.impl;
 
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.LivingEntity;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.effect.ActiveEffect;
 import org.rostats.engine.effect.EffectType;
-import org.rostats.utils.ComponentUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -46,7 +44,7 @@ public class EffectAction implements SkillAction {
 
         if (Math.random() > chance) return;
 
-        // Apply effect
+        // ใช้ this.level (เลเวลของเอฟเฟกต์) ไม่ใช่ skillLevel (เลเวลของสกิล)
         ActiveEffect effect = new ActiveEffect(
                 effectId, type, this.level, power, duration, 20L, caster.getUniqueId()
         );
@@ -54,13 +52,9 @@ public class EffectAction implements SkillAction {
 
         plugin.getEffectManager().applyEffect(target, effect);
 
-        // Show floating text using Modern Component API
         if (type == EffectType.STAT_MODIFIER) {
-            // [FIX] Use ComponentUtil for Green "Buff!" text
-            plugin.showCombatFloatingText(target.getLocation(),
-                    ComponentUtil.text("Buff!", NamedTextColor.GREEN));
+            plugin.showCombatFloatingText(target.getLocation(), "§aBuff!");
         } else {
-            // This method handles color logic internally based on status name
             plugin.showStatusDamageFCT(target.getLocation(), type.name(), 0);
         }
     }

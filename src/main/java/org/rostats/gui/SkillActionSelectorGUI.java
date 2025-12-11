@@ -9,7 +9,6 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.engine.action.ActionType;
 
 import java.util.Arrays;
 
@@ -120,16 +119,13 @@ public class SkillActionSelectorGUI {
         player.openInventory(inv);
     }
 
-    // [FIXED] Helper Method: รับ varargs String... แล้วแปลงเป็น List<String> ให้ setLore
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore)); // สำคัญ: ต้องแปลงเป็น List
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-            item.setItemMeta(meta);
-        }
+        meta.setDisplayName(name);
+        meta.setLore(Arrays.asList(lore));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        item.setItemMeta(meta);
         return item;
     }
 }

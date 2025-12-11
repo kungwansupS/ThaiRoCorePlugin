@@ -11,7 +11,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.effect.EffectType;
-import org.rostats.utils.ComponentUtil;
 
 public class StatusHandler implements Listener {
 
@@ -37,7 +36,9 @@ public class StatusHandler implements Listener {
 
         // Check ROOT
         if (plugin.getEffectManager().hasEffect(player, EffectType.CROWD_CONTROL, "ROOT")) {
-            // Cancel movement but allow rotation
+            // Cancel movement but allow rotation?
+            // Simple way: Cancel event
+            // Better way: Teleport back to from (can be jittery)
             Location from = event.getFrom();
             Location to = event.getTo();
             if (from.getX() != to.getX() || from.getY() != to.getY() || from.getZ() != to.getZ()) {
@@ -51,8 +52,7 @@ public class StatusHandler implements Listener {
     public void onInteract(PlayerInteractEvent event) {
         if (plugin.getEffectManager().hasEffect(event.getPlayer(), EffectType.CROWD_CONTROL, "STUN")) {
             event.setCancelled(true);
-            // Use ComponentUtil for message
-            event.getPlayer().sendMessage(ComponentUtil.error("You are stunned!"));
+            event.getPlayer().sendMessage("§cYou are stunned!");
         }
     }
 
@@ -62,9 +62,8 @@ public class StatusHandler implements Listener {
         if (event.getDamager() instanceof LivingEntity attacker) {
             if (plugin.getEffectManager().hasEffect(attacker, EffectType.CROWD_CONTROL, "STUN")) {
                 event.setCancelled(true);
-                if (attacker instanceof Player player) {
-                    // Use ComponentUtil for message
-                    player.sendMessage(ComponentUtil.error("You are stunned!"));
+                if (attacker instanceof Player) {
+                    attacker.sendMessage("§cYou are stunned!");
                 }
             }
         }
