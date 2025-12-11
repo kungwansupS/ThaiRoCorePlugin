@@ -10,154 +10,154 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.engine.skill.SkillData;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.function.Consumer;
 
 public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final File currentEntry;
+    private final File currentDir;
 
-    // Constructor 1: รับค่าเดียว (สำคัญสำหรับแก้ Error นี้)
-    public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
-        this(plugin, plugin.getSkillManager().getRootDir());
-    }
-
-    // Constructor 2: รับ 2 ค่า
-    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
+    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentDir) {
         this.plugin = plugin;
-        this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
+        this.currentDir = currentDir;
     }
 
     public void open(Player player) {
-        if (currentEntry.isDirectory()) {
-            openDirectoryView(player, currentEntry);
-        } else if (currentEntry.isFile()) {
-            openPackView(player, currentEntry);
+        open(player, false);
+    }
+
+    public void openSelectMode(Player player) {
+        open(player, true);
+    }
+
+    private void open(Player player, boolean selectMode) {
+        String pathDisplay = plugin.getSkillManager().getRelativePath(currentDir);
+        // ถ้าเป็น selectMode ให้ใช้ Title ต่างออกไป เพื่อให้ GUIListener ดักจับได้
+        String title = (selectMode ? "SkillSelect: " : "SkillLib: ") + pathDisplay;
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text(title));
+
+        // 1. Navigation
+        if (!currentDir.equals(plugin.getSkillManager().getRootDir())) {
+            inv.setItem(0, createGuiItem(Material.ARROW, "§eBack / ย้อนกลับ",
+                    "§7Go back to previous folder.",
+                    "§8---------------",
+                    "§7ย้อนกลับไปโฟลเดอร์ก่อนหน้า"
+            ));
+        } else {
+            inv.setItem(0, createGuiItem(Material.BOOKSHELF, "§eRoot / หน้าแรก",
+                    "§7You are at root folder.",
+                    "§8---------------",
+                    "§7คุณอยู่ที่หน้าหลักของคลังสกิล"
+            ));
         }
-    }
 
-    // [FIX] รับ 3 ค่า: Player, SelectCallback, CancelCallback
-    public void openSelectMode(Player player, Consumer<String> onSelect, Runnable onCancel) {
-        GUIListener.setSelectionMode(player, onSelect, onCancel);
-        player.sendMessage("§ePlease select a skill from the library...");
-        open(player);
-    }
+        if (!selectMode) {
+            inv.setItem(4, createGuiItem(Material.CHEST, "§aNew Folder / สร้างโฟลเดอร์",
+                    "§7Create a new folder.",
+                    "§8---------------",
+                    "§7สร้างโฟลเดอร์ใหม่เพื่อจัดหมวดหมู่"
+            ));
 
-    public void openConfirmDelete(Player player, File target) {
-        Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
+            inv.setItem(8, createGuiItem(Material.WRITABLE_BOOK, "§aNew Skill / สร้างสกิล",
+                    "§7Create a new skill file.",
+                    "§8---------------",
+                    "§7สร้างไฟล์สกิลใหม่ในโฟลเดอร์นี้"
+            ));
+        } else {
+            inv.setItem(4, createGuiItem(Material.COMPASS, "§bSelect Mode",
+                    "§7Click a skill to select it.",
+                    "§7คลิกที่สกิลเพื่อเลือก"
+            ));
+        }
 
-        inv.setItem(3, createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE",
-                "§7Target: " + target.getName(), "§c§lWARNING: Cannot be undone!"));
-
-        inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return."));
-
-        player.openInventory(inv);
-    }
-
-    private void openDirectoryView(Player player, File dir) {
-        String path = plugin.getSkillManager().getRelativePath(dir);
-        String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Lib: " + titlePath));
-
-        List<File> files = plugin.getSkillManager().listContents(dir);
+        // 2. Content Grid
+        List<File> files = plugin.getSkillManager().listContents(currentDir);
+        int slot = 9;
 
         for (File file : files) {
+            if (slot >= 54) break;
+
             if (file.isDirectory()) {
-                inv.addItem(createGuiItem(Material.CHEST, "§6📂 " + file.getName(),
-                        "§7Type: Folder", "§eClick to open."));
-            }
-            else if (file.getName().endsWith(".yml")) {
-                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-                Set<String> keys = config.getKeys(false);
-                int count = keys.size();
-
-                if (count > 1) {
-                    inv.addItem(createGuiItem(Material.ENDER_CHEST, "§d📦 " + file.getName(),
-                            "§7Type: Skill Pack",
-                            "§7Contains: §f" + count + " skills",
-                            "§eClick to open pack."));
-                } else if (count == 1) {
-                    if (!keys.isEmpty()) {
-                        String skillId = keys.iterator().next();
-                        SkillData skill = plugin.getSkillManager().getSkill(skillId);
-                        if (skill != null) {
-                            inv.addItem(createSkillItem(skill, "File: " + file.getName()));
-                        } else {
-                            inv.addItem(createGuiItem(Material.BARRIER, "§c" + file.getName(), "§7Error loading data"));
-                        }
-                    }
-                } else {
-                    inv.addItem(createGuiItem(Material.PAPER, "§7" + file.getName(), "§7(Empty File)"));
-                }
-            }
-        }
-
-        if (!path.equals("/")) {
-            inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
-        }
-
-        inv.setItem(48, createGuiItem(Material.CHEST, "§6+ New Folder", "§7Create a sub-folder"));
-        inv.setItem(49, createGuiItem(Material.PAPER, "§e+ New Skill", "§7Create a single skill file"));
-        inv.setItem(50, createGuiItem(Material.ENDER_CHEST, "§d+ New Pack", "§7Create a multi-skill pack"));
-
-        player.openInventory(inv);
-    }
-
-    private void openPackView(Player player, File file) {
-        String path = plugin.getSkillManager().getRelativePath(file);
-        String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Pack: " + titlePath));
-
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        for (String skillId : config.getKeys(false)) {
-            SkillData skill = plugin.getSkillManager().getSkill(skillId);
-            if (skill != null) {
-                inv.addItem(createSkillItem(skill, "ID: " + skillId));
+                inv.setItem(slot, createGuiItem(Material.CHEST, "§6§l" + file.getName(),
+                        "§eLEFT CLICK §7to Open",
+                        selectMode ? "" : "§bSHIFT+RIGHT §7to Rename",
+                        selectMode ? "" : "§cSHIFT+LEFT §7to Delete",
+                        "§8---------------",
+                        "§eคลิกซ้าย §7เพื่อเปิดโฟลเดอร์"
+                ));
             } else {
-                inv.addItem(createGuiItem(Material.BARRIER, "§c" + skillId, "§7Error loading skill."));
+                // Load Skill Data for preview
+                String skillId = file.getName().replace(".yml", "");
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+
+                // Try to find the root key which is usually the skillId
+                String displayName = config.getString(skillId + ".display-name", skillId);
+                String iconName = config.getString(skillId + ".icon", "BOOK");
+                Material iconMat = Material.getMaterial(iconName);
+                if (iconMat == null) iconMat = Material.BOOK;
+
+                double cooldown = config.getDouble(skillId + ".conditions.cooldown", 0);
+                int spCost = config.getInt(skillId + ".conditions.sp-cost", 0);
+                int reqLevel = config.getInt(skillId + ".conditions.required-level", 1);
+                String trigger = config.getString(skillId + ".trigger", "CAST");
+
+                List<String> lore = new ArrayList<>();
+                lore.add("§8ID: " + skillId);
+                lore.add("§7Type: §f" + trigger);
+                lore.add("§7Cooldown: §f" + cooldown + "s");
+                lore.add("§7SP Cost: §f" + spCost);
+                lore.add("§7Req Lv: §f" + reqLevel);
+                lore.add("§8---------------");
+
+                if (selectMode) {
+                    lore.add("§a§lCLICK TO SELECT / คลิกเพื่อเลือก");
+                } else {
+                    lore.add("§eLEFT CLICK §7to Edit");
+                    lore.add("§cSHIFT+LEFT §7to Delete");
+                }
+
+                inv.setItem(slot, createGuiItem(iconMat, "§f" + displayName, lore));
             }
+            slot++;
         }
 
-        inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Return to folder"));
-        inv.setItem(53, createGuiItem(Material.LIME_DYE, "§a+ Add Skill", "§7Add another skill to this pack"));
+        // Fill bg
+        ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) {
+            if (inv.getItem(i) == null) inv.setItem(i, bg);
+        }
 
         player.openInventory(inv);
     }
 
-    private ItemStack createSkillItem(SkillData skill, String subInfo) {
-        ItemStack item = new ItemStack(skill.getIcon());
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§e" + skill.getDisplayName());
-            List<String> lore = new ArrayList<>();
-            lore.add("§8ID: " + skill.getId());
-            lore.add("§7" + subInfo);
-            lore.add("");
-            lore.add("§eClick to Edit/Select");
-            lore.add("§cRight-Click to Delete");
-            meta.setLore(lore);
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-            item.setItemMeta(meta);
-        }
-        return item;
+    // ... (confirmDelete method same as before) ...
+    public void openConfirmDelete(Player player, File fileToDelete) {
+        Inventory inv = Bukkit.createInventory(null, 27, Component.text("Skill Delete: " + fileToDelete.getName()));
+        ItemStack yes = createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE", "§7File: " + fileToDelete.getName());
+        ItemStack no = createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL");
+        inv.setItem(11, yes);
+        inv.setItem(15, no);
+        ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i=0; i<27; i++) { if (inv.getItem(i) == null) inv.setItem(i, bg); }
+        player.openInventory(inv);
     }
 
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
+        return createGuiItem(mat, name, Arrays.asList(lore));
+    }
+
+    private ItemStack createGuiItem(Material mat, String name, List<String> lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore));
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-            item.setItemMeta(meta);
-        }
+        meta.setDisplayName(name);
+        meta.setLore(lore);
+        // [FIX] ใช้ HIDE_ADDITIONAL_TOOLTIP แทน HIDE_POTION_EFFECTS สำหรับ 1.21
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+        item.setItemMeta(meta);
         return item;
     }
 }
