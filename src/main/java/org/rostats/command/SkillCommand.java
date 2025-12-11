@@ -4,7 +4,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.gui.SkillLibraryGUI;
 
@@ -17,25 +16,19 @@ public class SkillCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cPlayers only.");
+            sender.sendMessage("§cOnly players can use this command.");
             return true;
         }
 
-        if (!player.hasPermission("rostats.admin")) {
-            sender.sendMessage("§cNo Permission.");
+        if (!player.hasPermission("thairo.admin")) {
+            player.sendMessage("§cYou don't have permission.");
             return true;
         }
 
-        // [FIXED] Allow empty args OR 'editor' arg to open GUI
-        if (args.length == 0 || (args.length == 1 && args[0].equalsIgnoreCase("editor"))) {
-            // Open Skill Library GUI at root
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
-            return true;
-        }
-
-        sender.sendMessage("§6Usage: /roskill editor");
+        // เปิด GUI ที่หน้า Root (ใช้ Constructor แบบ 1 ค่า ที่เพิ่มไปใน SkillLibraryGUI)
+        new SkillLibraryGUI(plugin).open(player);
         return true;
     }
 }

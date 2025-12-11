@@ -38,6 +38,7 @@ public class GUIListener implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
+        if (event.getView().title() == null) return;
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
@@ -72,7 +73,6 @@ public class GUIListener implements Listener {
             handleConfirmDeleteClick(event, player, title);
         }
         // 4. Selectors
-        // [REMOVED] SkillSelect handling is no longer needed here (Handled by callback)
         else if (title.startsWith("Select Trigger: ")) {
             event.setCancelled(true);
             handleTriggerSelectClick(event, player, title.substring(16));
@@ -294,8 +294,6 @@ public class GUIListener implements Listener {
         });
     }
 
-    // [REMOVED] handleSkillSelectClick is no longer used.
-
     private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null) return;
@@ -373,9 +371,8 @@ public class GUIListener implements Listener {
             flowData.put("itemFile", itemFile);
             skillBindingFlow.put(player.getUniqueId(), flowData);
 
-            // [UPDATED] ใช้ openSelectMode พร้อม Callback เพื่อรับค่า Skill ID
+            // [FIXED] ใช้ openSelectMode พร้อม Callback (Lambda) เพื่อรับค่า Skill ID
             new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).openSelectMode(player, (selectedSkillId) -> {
-                // เมื่อผู้เล่นเลือกสกิลเสร็จ โค้ดนี้จะทำงาน
                 Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
                 if (flow != null) {
                     flow.put("skillId", selectedSkillId);

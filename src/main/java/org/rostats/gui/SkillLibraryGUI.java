@@ -13,7 +13,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.skill.SkillData;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.ArrayList; // [FIX] เพิ่มบรรทัดนี้ เพื่อแก้ Error
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -24,11 +24,12 @@ public class SkillLibraryGUI {
     private final ThaiRoCorePlugin plugin;
     private final File currentFolder;
 
-    // [FIX] Constructor ที่ GUIListener ต้องการ
+    // Constructor รับค่าเดียว (สำหรับเรียกจาก GUIListener)
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
         this(plugin, null);
     }
 
+    // Constructor รับ 2 ค่า (สำหรับเปิด Folder)
     public SkillLibraryGUI(ThaiRoCorePlugin plugin, File folder) {
         this.plugin = plugin;
         this.currentFolder = folder;
@@ -79,12 +80,14 @@ public class SkillLibraryGUI {
                         "§eClick to open folder.");
                 inv.addItem(item);
             } else if (skillCount == 1) {
-                String skillId = keys.iterator().next();
-                SkillData skill = plugin.getSkillManager().getSkill(skillId);
-                if (skill != null) {
-                    inv.addItem(createSkillItem(skill, file.getName()));
-                } else {
-                    inv.addItem(createGuiItem(Material.PAPER, "§c" + skillId, "§7Error loading skill data"));
+                if (!keys.isEmpty()) {
+                    String skillId = keys.iterator().next();
+                    SkillData skill = plugin.getSkillManager().getSkill(skillId);
+                    if (skill != null) {
+                        inv.addItem(createSkillItem(skill, file.getName()));
+                    } else {
+                        inv.addItem(createGuiItem(Material.PAPER, "§c" + skillId, "§7Error loading skill data"));
+                    }
                 }
             } else {
                 inv.addItem(createGuiItem(Material.PAPER, "§7" + file.getName(), "§7(Empty File)"));
@@ -119,7 +122,7 @@ public class SkillLibraryGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§e" + skill.getDisplayName());
-            List<String> lore = new ArrayList<>();
+            List<String> lore = new ArrayList<>(); // [FIX] ใช้ ArrayList ตรงนี้
             lore.add("§8ID: " + skill.getId());
             lore.add("§7" + subInfo);
             lore.add("");
