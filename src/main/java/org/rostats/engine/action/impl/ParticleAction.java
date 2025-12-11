@@ -19,16 +19,16 @@ public class ParticleAction implements SkillAction {
     private final String particleName;
     private final String countExpr;
     private final String speedExpr;
-    private final String shape; // POINT, CIRCLE, SPHERE, CYLINDER, SQUARE
+    private final String shape; // POINT, CIRCLE, SPHERE, CYLINDER, SQUARE, STAR, SPIRAL
     private final String radiusExpr; // Radius or Height/Length
     private final String pointsExpr; // for shapes (density/slices/points)
 
-    // [NEW] Advanced FX Fields
+    // Advanced FX Fields
     private final String colorExpr; // Format: "R,G,B" e.g., "255,0,0"
     private final String rotationExpr; // Format: "X,Y,Z" (Degrees)
     private final String offsetExpr; // Format: "X,Y,Z" (Displacement)
 
-    // Full Constructor for Advanced FX
+    // Full Constructor
     public ParticleAction(ThaiRoCorePlugin plugin, String particleName, String count, String speed, String shape, String radius, String points, String color, String rotation, String offset) {
         this.plugin = plugin;
         this.particleName = particleName;
@@ -42,7 +42,7 @@ public class ParticleAction implements SkillAction {
         this.offsetExpr = offset != null ? offset : "0,0,0";
     }
 
-    // Legacy Constructor (Backward Compatibility)
+    // Legacy Constructor
     public ParticleAction(ThaiRoCorePlugin plugin, String particleName, String count, String speed, String shape, String radius, String points) {
         this(plugin, particleName, count, speed, shape, radius, points, "255,255,255", "0,0,0", "0,0,0");
     }
@@ -55,9 +55,7 @@ public class ParticleAction implements SkillAction {
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         try {
-            // [FIX] 1.21 Compatibility: Map old names to new Enums safely
             Particle particle = getSafeParticle(particleName);
-
             LivingEntity origin = (target != null) ? target : caster;
 
             // Base Values
@@ -65,12 +63,11 @@ public class ParticleAction implements SkillAction {
             double speed = FormulaParser.eval(speedExpr, caster, target, level, context, plugin);
             double radius = FormulaParser.eval(radiusExpr, caster, target, level, context, plugin);
 
-            // [NEW] Parse Advanced FX Vectors
+            // Advanced FX Vectors
             Vector rot = parseVector(rotationExpr, caster, target, level, context); // Rotation (Degrees)
             Vector off = parseVector(offsetExpr, caster, target, level, context);   // Offset (Blocks)
 
-            // Calculate Center Point (Origin + Offset)
-            // Default origin is body center (add 1.0 y)
+            // Center Point
             Location center = origin.getLocation().clone().add(0, 1.0, 0).add(off);
 
             if (shape.equalsIgnoreCase("CIRCLE")) {
@@ -80,9 +77,7 @@ public class ParticleAction implements SkillAction {
 
                 for (int i = 0; i < points; i++) {
                     double angle = i * increment;
-                    // Create vector relative to center
                     Vector v = new Vector(radius * Math.cos(angle), 0, radius * Math.sin(angle));
-                    // Spawn with rotation & color logic
                     spawnParticle(center, v, rot, particle, count, speed, caster, target, level, context);
                 }
             }
@@ -105,7 +100,6 @@ public class ParticleAction implements SkillAction {
                 if (slices <= 0) slices = 5;
                 double height = radius * 2;
                 double yStep = height / (slices > 1 ? slices - 1 : 1);
-
                 int particlesPerSlice = 10;
                 double angleStep = (2 * Math.PI) / particlesPerSlice;
 
@@ -113,19 +107,65 @@ public class ParticleAction implements SkillAction {
                     double y = -height / 2 + (i * yStep);
                     for (int j = 0; j < particlesPerSlice; j++) {
                         double angle = j * angleStep;
-
                         Vector v = new Vector(radius * Math.cos(angle), y, radius * Math.sin(angle));
                         spawnParticle(center, v, rot, particle, count, speed, caster, target, level, context);
                     }
+                }
+            }
+            // [NEW] STAR SHAPE
+            else if (shape.equalsIgnoreCase("STAR")) {
+                int spikes = (int) FormulaParser.eval(pointsExpr, caster, target, level, context, plugin);
+                if (spikes < 3) spikes = 5; // Default 5-pointed star
+
+                double innerRadius = radius * 0.4; // Inner vertex distance
+                double step = Math.PI / spikes; // Half-step angle
+                int particlesPerLine = 4; // Density of lines
+
+                for (int i = 0; i < 2 * spikes; i++) {
+                    // Current vertex
+                    double r1 = (i % 2 == 0) ? radius : innerRadius;
+                    double a1 = i * step;
+                    Vector p1 = new Vector(r1 * Math.sin(a1), 0, r1 * Math.cos(a1));
+
+                    // Next vertex
+                    double r2 = ((i + 1) % 2 == 0) ? radius : innerRadius;
+                    double a2 = (i + 1) * step;
+                    Vector p2 = new Vector(r2 * Math.sin(a2), 0, r2 * Math.cos(a2));
+
+                    // Interpolate Line between p1 and p2
+                    Vector direction = p2.clone().subtract(p1);
+                    double length = direction.length();
+                    direction.normalize();
+                    double distStep = length / particlesPerLine;
+
+                    for (int j = 0; j < particlesPerLine; j++) {
+                        Vector v = p1.clone().add(direction.clone().multiply(j * distStep));
+                        spawnParticle(center, v, rot, particle, count, speed, caster, target, level, context);
+                    }
+                }
+            }
+            // [NEW] SPIRAL SHAPE
+            else if (shape.equalsIgnoreCase("SPIRAL")) {
+                int points = (int) FormulaParser.eval(pointsExpr, caster, target, level, context, plugin);
+                if (points <= 0) points = 30;
+                double height = radius * 2;
+                double coils = 3.0; // 3 Full rotations
+                double yStep = height / points;
+                double angleStep = (2 * Math.PI * coils) / points;
+
+                for (int i = 0; i < points; i++) {
+                    double y = -height / 2 + (i * yStep);
+                    double angle = i * angleStep;
+
+                    Vector v = new Vector(radius * Math.cos(angle), y, radius * Math.sin(angle));
+                    spawnParticle(center, v, rot, particle, count, speed, caster, target, level, context);
                 }
             }
             else if (shape.equalsIgnoreCase("SQUARE")) { // Line/Beam
                 double length = radius * 2;
                 int points = (int) FormulaParser.eval(pointsExpr, caster, target, level, context, plugin);
                 if (points <= 0) points = 20;
-
                 Vector direction = caster.getEyeLocation().getDirection().normalize();
-
                 for (int i = 0; i < points; i++) {
                     double distance = (double) i / points * length;
                     Vector v = direction.clone().multiply(distance);
@@ -142,100 +182,63 @@ public class ParticleAction implements SkillAction {
         }
     }
 
-    /**
-     * Handles 1.21 Name Mapping (REDSTONE -> DUST, SPELL_MOB -> ENTITY_EFFECT)
-     */
     private Particle getSafeParticle(String name) {
         if (name == null) return Particle.FLAME;
         String upper = name.toUpperCase();
-        // 1.21 Mapping
         if (upper.equals("REDSTONE")) return Particle.DUST;
         if (upper.equals("SPELL_MOB") || upper.equals("SPELL_MOB_AMBIENT")) return Particle.ENTITY_EFFECT;
-
-        try {
-            return Particle.valueOf(upper);
-        } catch (IllegalArgumentException e) {
-            return Particle.FLAME; // Fallback
-        }
+        try { return Particle.valueOf(upper); } catch (IllegalArgumentException e) { return Particle.FLAME; }
     }
 
-    /**
-     * Handles 3D rotation, color application, and final spawning.
-     */
     private void spawnParticle(Location center, Vector v, Vector rot, Particle particle, int count, double speed, LivingEntity caster, LivingEntity target, int level, Map<String, Double> ctx) {
-        // 1. Rotate the vector
         rotateVector(v, rot.getX(), rot.getY(), rot.getZ());
-
-        // 2. Determine final location
         Location loc = center.clone().add(v);
 
-        // 3. Handle Color for 1.21 (DUST & ENTITY_EFFECT)
         if (particle == Particle.DUST || particle == Particle.ENTITY_EFFECT) {
             try {
-                // Parse Color
                 String[] rgb = colorExpr.split(",");
                 int r = 255, g = 0, b = 0;
-
                 if (rgb.length >= 3) {
                     r = (int) FormulaParser.eval(rgb[0], caster, target, level, ctx, plugin);
                     g = (int) FormulaParser.eval(rgb[1], caster, target, level, ctx, plugin);
                     b = (int) FormulaParser.eval(rgb[2], caster, target, level, ctx, plugin);
                 }
-                // Clamp 0-255
                 r = Math.max(0, Math.min(255, r));
                 g = Math.max(0, Math.min(255, g));
                 b = Math.max(0, Math.min(255, b));
                 Color color = Color.fromRGB(r, g, b);
 
                 if (particle == Particle.DUST) {
-                    // DUST requires DustOptions in 1.21
                     Particle.DustOptions dust = new Particle.DustOptions(color, 1.0f);
                     loc.getWorld().spawnParticle(particle, loc, 1, 0, 0, 0, 0, dust);
-                }
-                else {
-                    // ENTITY_EFFECT requires Color in 1.21 (Paper)
+                } else {
                     loc.getWorld().spawnParticle(particle, loc, 1, 0, 0, 0, 0, color);
                 }
             } catch (Exception e) {
-                // Fallback if color/data fails
                 loc.getWorld().spawnParticle(particle, loc, count, 0, 0, 0, speed);
             }
-        }
-        else {
-            // Standard spawn
+        } else {
             loc.getWorld().spawnParticle(particle, loc, count, 0, 0, 0, speed);
         }
     }
 
-    /**
-     * Rotates a vector around X, Y, Z axes (Euler angles in degrees).
-     */
     private void rotateVector(Vector v, double xDeg, double yDeg, double zDeg) {
-        // Rotate X (Pitch)
         if (xDeg != 0) {
             double rad = Math.toRadians(xDeg);
-            double cos = Math.cos(rad);
-            double sin = Math.sin(rad);
-            double y = v.getY() * cos - v.getZ() * sin;
-            double z = v.getY() * sin + v.getZ() * cos;
+            double y = v.getY() * Math.cos(rad) - v.getZ() * Math.sin(rad);
+            double z = v.getY() * Math.sin(rad) + v.getZ() * Math.cos(rad);
             v.setY(y).setZ(z);
         }
-        // Rotate Y (Yaw)
         if (yDeg != 0) {
             double rad = Math.toRadians(yDeg);
-            double cos = Math.cos(rad);
-            double sin = Math.sin(rad);
-            double x = v.getX() * cos + v.getZ() * sin;
-            double z = -v.getX() * sin + v.getZ() * cos;
+            double x = v.getX() * Math.cos(rad) + v.getZ() * Math.sin(rad);
+            double z = -v.getX() * Math.sin(rad) + v.getZ() * Math.cos(rad);
             v.setX(x).setZ(z);
         }
-        // Rotate Z (Roll)
         if (zDeg != 0) {
             double rad = Math.toRadians(zDeg);
-            double cos = Math.cos(rad);
-            double sin = Math.sin(rad);
-            double x = v.getX() * cos - v.getY() * sin;
-            double y = v.getX() * sin + v.getY() * cos;
+            double x = v.getX() * Math.cos(rad) - v.getY() * Math.sin(rad);
+            double y = v.getX() * Math.sin(rad) + v.getY() * Math.cos(rad);
             v.setX(x).setY(y);
         }
     }
@@ -263,7 +266,6 @@ public class ParticleAction implements SkillAction {
         map.put("shape", shape);
         map.put("radius", radiusExpr);
         map.put("points", pointsExpr);
-        // Serialize new fields
         map.put("color", colorExpr);
         map.put("rotation", rotationExpr);
         map.put("offset", offsetExpr);

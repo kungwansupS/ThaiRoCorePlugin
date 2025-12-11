@@ -42,7 +42,6 @@ public class SkillActionPropertyGUI {
         else if (type == ActionType.HEAL) {
             inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Heal Amount", (String)data.getOrDefault("formula","10"), "§eEdit Amount"));
             inv.setItem(slot++, createPropItem(Material.REDSTONE, "is-mana", "Is Mana?", data.getOrDefault("is-mana",false).toString(), "§eToggle (HP/SP)"));
-            // [UPDATED] Add Self Only
             inv.setItem(slot++, createPropItem(Material.PLAYER_HEAD, "self-only", "Self Only?", data.getOrDefault("self-only", true).toString(), "§eToggle Target Mode"));
         }
         else if (type == ActionType.APPLY_EFFECT) {
@@ -60,19 +59,25 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.COMPARATOR, "pitch", "Pitch", data.getOrDefault("pitch",1.0).toString(), "§eEdit Pitch"));
         }
         else if (type == ActionType.PARTICLE) {
-            // [UPDATED] Particle Properties
-            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "particle", "Particle Name", (String)data.getOrDefault("particle","VILLAGER_HAPPY"), "§eEdit Particle"));
+            // [UPDATED] Basic Properties
+            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "particle", "Particle Name", (String)data.getOrDefault("particle","VILLAGER_HAPPY"), "§eEdit Particle (e.g. DUST, FLAME)"));
             inv.setItem(slot++, createPropItem(Material.GLOWSTONE_DUST, "count", "Count", data.getOrDefault("count","5").toString(), "§eEdit Count (Expr)"));
             inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed", data.getOrDefault("speed","0.1").toString(), "§eEdit Speed (Expr)"));
-            inv.setItem(slot++, createPropItem(Material.COMPASS, "shape", "Shape", (String)data.getOrDefault("shape", "POINT"), "§eEdit (POINT/CIRCLE/SPHERE/CYLINDER/SQUARE)"));
+
+            // [UPDATED] Shape Properties with New Shapes
+            inv.setItem(slot++, createPropItem(Material.COMPASS, "shape", "Shape", (String)data.getOrDefault("shape", "POINT"), "§e(POINT/CIRCLE/SPHERE/CYLINDER/SQUARE/STAR/SPIRAL)"));
             inv.setItem(slot++, createPropItem(Material.ENDER_PEARL, "radius", "Radius/Length", data.getOrDefault("radius","0.5").toString(), "§eEdit Radius (Expr)"));
-            inv.setItem(slot++, createPropItem(Material.ANVIL, "points", "Points/Slices", data.getOrDefault("points","20").toString(), "§eEdit Points (for Shapes)"));
+            inv.setItem(slot++, createPropItem(Material.ANVIL, "points", "Points/Slices/Spikes", data.getOrDefault("points","20").toString(), "§eEdit Points (for Shapes)"));
+
+            // [NEW] Advanced FX Properties
+            inv.setItem(slot++, createPropItem(Material.RED_DYE, "color", "RGB Color", (String)data.getOrDefault("color", "255,0,0"), "§eFormat: R,G,B (Only for DUST/ENTITY_EFFECT)"));
+            inv.setItem(slot++, createPropItem(Material.ITEM_FRAME, "rotation", "Rotation (XYZ)", (String)data.getOrDefault("rotation", "0,0,0"), "§eFormat: X,Y,Z (Degrees)"));
+            inv.setItem(slot++, createPropItem(Material.PISTON, "offset", "Offset (XYZ)", (String)data.getOrDefault("offset", "0,1,0"), "§eFormat: X,Y,Z (From Center)"));
         }
         else if (type == ActionType.POTION) {
             inv.setItem(slot++, createPropItem(Material.POTION, "potion", "Potion Type", (String)data.getOrDefault("potion","SPEED"), "§eEdit Potion"));
             inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration",60).toString(), "§eEdit Duration (Ticks)"));
             inv.setItem(slot++, createPropItem(Material.GLOWSTONE, "amplifier", "Amplifier", data.getOrDefault("amplifier",0).toString(), "§eEdit Amp"));
-            // [UPDATED] Add Self Only
             inv.setItem(slot++, createPropItem(Material.PLAYER_HEAD, "self-only", "Self Only?", data.getOrDefault("self-only", true).toString(), "§eToggle Target Mode"));
         }
         else if (type == ActionType.TELEPORT) {
@@ -85,7 +90,6 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "on-hit", "On-Hit Skill ID", (String)data.getOrDefault("on-hit","none"), "§eEdit On-Hit ID"));
         }
         else if (type == ActionType.AREA_EFFECT) {
-            // [UPDATED] Area Effect Properties
             inv.setItem(slot++, createPropItem(Material.BEACON, "radius", "Radius", data.getOrDefault("radius", 5.0).toString(), "§eEdit Radius (Blocks)"));
             inv.setItem(slot++, createPropItem(Material.ZOMBIE_HEAD, "target-type", "Target Type", (String) data.getOrDefault("target-type", "ENEMY"), "§eEdit (ENEMY/ALLY/ALL)"));
             inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "sub-skill", "Sub Skill ID", (String) data.getOrDefault("sub-skill", "none"), "§eEdit Sub Skill"));
@@ -108,12 +112,12 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.NAME_TAG, "var", "Variable Name", (String)data.getOrDefault("var", "i"), "§eEdit Variable Name (e.g. i, angle)"));
             inv.setItem(slot++, createGuiItem(Material.LIME_DYE, "§a§l[MANAGE SUB-ACTIONS]", "§7Sub-actions are defined in the .yml.", "§7You need to edit them manually for now."));
         }
-        else if (type == ActionType.RAYCAST) { // [NEW]
+        else if (type == ActionType.RAYCAST) {
             inv.setItem(slot++, createPropItem(Material.ENDER_PEARL, "range", "Range", (String)data.getOrDefault("range","10.0"), "§eEdit Range (Expr)"));
             inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "sub-skill", "Sub Skill ID (On Hit)", (String)data.getOrDefault("sub-skill","none"), "§eEdit On-Hit Skill ID"));
             inv.setItem(slot++, createPropItem(Material.TARGET, "target-type", "Target Type", (String)data.getOrDefault("target-type","SINGLE"), "§eEdit (SINGLE/AOE)"));
         }
-        else if (type == ActionType.SPAWN_ENTITY) { // [NEW]
+        else if (type == ActionType.SPAWN_ENTITY) {
             inv.setItem(slot++, createPropItem(Material.EGG, "entity-type", "Entity Type", (String)data.getOrDefault("entity-type","LIGHTNING_BOLT"), "§eEdit Entity Type (e.g. LIGHTNING_BOLT, IRON_GOLEM)"));
             inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "skill-id", "On Spawn Skill ID", (String)data.getOrDefault("skill-id","none"), "§eEdit Skill ID (Optional)"));
         }

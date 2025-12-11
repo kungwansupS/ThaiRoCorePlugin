@@ -5,72 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09f0a534-4212-4bce-9492-099777d4c710" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ThaiRoCorePlugin.iml" beforeDir="false" afterPath="$PROJECT_DIR$/ThaiRoCorePlugin.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/ThaiRoCorePlugin.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/ThaiRoCorePlugin.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/data/PlayerData.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/data/PlayerData.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/ConditionAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/ConditionAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/EffectAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/EffectAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/HealAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/HealAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/ParticleAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/ParticleAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/RaycastAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/RaycastAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/SetVariableAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/SetVariableAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/SoundAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/SoundAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/TargetSelectorAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/action/impl/TargetSelectorAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/effect/EffectManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/effect/EffectManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillData.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillData.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillRunner.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillRunner.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionPropertyGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionPropertyGUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionSelectorGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionSelectorGUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillEditorGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillEditorGUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/handler/CombatHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/handler/CombatHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/handler/DeathHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/handler/DeathHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/handler/StatusHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/handler/StatusHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/input/ChatInputHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/input/ChatInputHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/AttributeEditorGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/AttributeEditorGUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/GUIListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttribute.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttribute.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttributeManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttributeManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/utils/ComponentUtil.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/paper-plugin.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/ThaiRoCorePlugin$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/ThaiRoCorePlugin$1.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/ThaiRoCorePlugin.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/ThaiRoCorePlugin.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/data/PlayerData.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/data/PlayerData.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/EffectAction.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/EffectAction.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/HealAction.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/HealAction.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/ParticleAction.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/ParticleAction.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/RaycastAction.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/action/impl/RaycastAction.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/effect/EffectManager$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/effect/EffectManager$1.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/effect/EffectManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/effect/EffectManager.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillActionSelectorGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillActionSelectorGUI.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI$1.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/handler/CombatHandler.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/handler/CombatHandler.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/handler/DeathHandler.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/handler/DeathHandler.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/handler/StatusHandler.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/handler/StatusHandler.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$InputSession.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/AttributeEditorGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/AttributeEditorGUI.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttribute.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttribute.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager$1.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemManager.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/paper-plugin.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" beforeDir="false" afterPath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -124,7 +60,7 @@
       <updated>1765450304157</updated>
       <workItem from="1765450305993" duration="762000" />
       <workItem from="1765452382729" duration="105000" />
-      <workItem from="1765452500398" duration="337000" />
+      <workItem from="1765452500398" duration="763000" />
     </task>
     <servers />
   </component>
