@@ -13,7 +13,7 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.skill.SkillData;
 
 import java.io.File;
-import java.util.ArrayList; // [FIX] เพิ่มบรรทัดนี้ เพื่อแก้ Error
+import java.util.ArrayList; // [FIX] เพิ่มบรรทัดนี้เพื่อแก้ Error
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -22,84 +22,96 @@ import java.util.function.Consumer;
 public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final File currentFolder;
+    private final File currentEntry; // เป็นได้ทั้ง Folder จริง หรือ File (Pack)
 
-    // Constructor รับค่าเดียว (สำหรับเรียกจาก GUIListener)
+    // Constructor หลัก
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
-        this(plugin, null);
+        this(plugin, plugin.getSkillManager().getRootDir());
     }
 
-    // Constructor รับ 2 ค่า (สำหรับเปิด Folder)
-    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File folder) {
+    // Constructor เปิดตาม Path
+    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
         this.plugin = plugin;
-        this.currentFolder = folder;
+        this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
     }
 
     public void open(Player player) {
-        if (currentFolder == null) {
-            openRoot(player);
-        } else {
-            openFolder(player, currentFolder);
+        if (currentEntry.isDirectory()) {
+            openDirectoryView(player, currentEntry);
+        } else if (currentEntry.isFile()) {
+            openPackView(player, currentEntry);
         }
     }
 
     public void openSelectMode(Player player, Consumer<String> onSelect) {
         GUIListener.setSelectionCallback(player, onSelect);
-        player.sendMessage("§ePlease select a skill from the library...");
+        player.sendMessage("§ePlease select a skill...");
         open(player);
     }
 
     public void openConfirmDelete(Player player, File target) {
-        Inventory inv = Bukkit.createInventory(null, 9, Component.text("Skill Delete: " + target.getName()));
-
+        Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
         inv.setItem(3, createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE",
-                "§7File: " + target.getName(),
-                "§c§lWARNING: §7Cannot be undone!"));
-
-        inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return to library."));
-
+                "§7Target: " + target.getName(), "§c§lWARNING: Cannot be undone!"));
+        inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return."));
         player.openInventory(inv);
     }
 
-    private void openRoot(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Skill Library"));
+    // --- View 1: Folder จริง ---
+    private void openDirectoryView(Player player, File dir) {
+        String path = plugin.getSkillManager().getRelativePath(dir);
+        // แสดง Path ใน Title (ตัดให้สั้นถ้ายาวเกิน)
+        String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Lib: " + titlePath));
 
-        List<File> files = plugin.getSkillManager().listContents(plugin.getSkillManager().getRootDir());
+        List<File> files = plugin.getSkillManager().listContents(dir);
 
         for (File file : files) {
-            if (file.isDirectory()) continue;
-            if (!file.getName().endsWith(".yml")) continue;
+            if (file.isDirectory()) {
+                inv.addItem(createGuiItem(Material.CHEST, "§6📂 " + file.getName(),
+                        "§7Type: Folder", "§eClick to open."));
+            }
+            else if (file.getName().endsWith(".yml")) {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                Set<String> keys = config.getKeys(false);
+                int count = keys.size();
 
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            Set<String> keys = config.getKeys(false);
-            int skillCount = keys.size();
-
-            if (skillCount > 1) {
-                ItemStack item = createGuiItem(Material.CHEST, "§6📂 " + file.getName(),
-                        "§7Contains " + skillCount + " skills.",
-                        "§eClick to open folder.");
-                inv.addItem(item);
-            } else if (skillCount == 1) {
-                if (!keys.isEmpty()) {
-                    String skillId = keys.iterator().next();
-                    SkillData skill = plugin.getSkillManager().getSkill(skillId);
-                    if (skill != null) {
-                        inv.addItem(createSkillItem(skill, file.getName()));
-                    } else {
-                        inv.addItem(createGuiItem(Material.PAPER, "§c" + skillId, "§7Error loading skill data"));
+                if (count > 1) {
+                    // [Multi-Skill] แสดงเป็นหีบพิเศษ (Folder ปลอม)
+                    inv.addItem(createGuiItem(Material.ENDER_CHEST, "§d📦 " + file.getName(),
+                            "§7Type: Skill Pack",
+                            "§7Contains: §f" + count + " skills",
+                            "§eClick to open pack."));
+                } else if (count == 1) {
+                    // [Single Skill] แสดงเป็นไอคอนสกิล
+                    if (!keys.isEmpty()) {
+                        String skillId = keys.iterator().next();
+                        SkillData skill = plugin.getSkillManager().getSkill(skillId);
+                        if (skill != null) {
+                            inv.addItem(createSkillItem(skill, "File: " + file.getName()));
+                        } else {
+                            inv.addItem(createGuiItem(Material.BARRIER, "§c" + file.getName(), "§7Error loading data"));
+                        }
                     }
+                } else {
+                    inv.addItem(createGuiItem(Material.PAPER, "§7" + file.getName(), "§7(Empty File)"));
                 }
-            } else {
-                inv.addItem(createGuiItem(Material.PAPER, "§7" + file.getName(), "§7(Empty File)"));
             }
         }
 
-        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§l+ CREATE NEW FILE", "§7Create a new skill file."));
+        if (!path.equals("/")) {
+            inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
+        }
+        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§l+ NEW FILE/FOLDER", "§7Create new content here"));
+
         player.openInventory(inv);
     }
 
-    private void openFolder(Player player, File file) {
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Folder: " + file.getName()));
+    // --- View 2: ภายในไฟล์ .yml (Skill Pack) ---
+    private void openPackView(Player player, File file) {
+        String path = plugin.getSkillManager().getRelativePath(file);
+        String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Pack: " + titlePath));
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
         for (String skillId : config.getKeys(false)) {
@@ -111,8 +123,8 @@ public class SkillLibraryGUI {
             }
         }
 
-        inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Return to file list."));
-        inv.setItem(53, createGuiItem(Material.LIME_DYE, "§a+ Add Skill Here", "§7Add another skill to this file."));
+        inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Return to folder"));
+        inv.setItem(53, createGuiItem(Material.LIME_DYE, "§a+ Add Skill", "§7Add another skill to this pack"));
 
         player.openInventory(inv);
     }
@@ -122,7 +134,7 @@ public class SkillLibraryGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§e" + skill.getDisplayName());
-            List<String> lore = new ArrayList<>(); // [FIX] ใช้ ArrayList ตรงนี้
+            List<String> lore = new ArrayList<>(); // [FIXED]
             lore.add("§8ID: " + skill.getId());
             lore.add("§7" + subInfo);
             lore.add("");

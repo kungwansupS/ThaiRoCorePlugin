@@ -1,6 +1,7 @@
 package org.rostats.gui;
 
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -84,13 +85,12 @@ public class GUIListener implements Listener {
             }
         }
 
-        // --- Library Logic (Real Folder & Pack) ---
+        // --- Library Logic ---
         if (title.startsWith("Lib:") || title.startsWith("Pack:")) {
             handleLibraryNavigation(event, player, title);
             return;
         }
 
-        // --- Other Handlers ---
         if (title.startsWith("Delete:")) {
             handleSkillDeleteClick(event, player, title);
             return;
@@ -120,41 +120,43 @@ public class GUIListener implements Listener {
         }
     }
 
-    // --- Navigation Logic ---
     private void handleLibraryNavigation(InventoryClickEvent event, Player player, String title) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        // คำนวณหาตำแหน่งปัจจุบันจาก Title
-        File currentDir;
-        if (title.startsWith("Lib: /")) {
-            currentDir = plugin.getSkillManager().getRootDir();
-        } else if (title.startsWith("Lib: ")) {
-            currentDir = new File(plugin.getSkillManager().getRootDir(), title.substring(5));
-        } else { // Pack: ...
-            currentDir = new File(plugin.getSkillManager().getRootDir(), title.substring(6));
+        // ดึง Path ปัจจุบันจาก Title โดยตรง (แม่นยำกว่าการเดาชื่อไฟล์)
+        String pathString;
+        if (title.startsWith("Lib: ")) pathString = title.substring(5);
+        else pathString = title.substring(6); // Pack: ...
+
+        // แก้ไขกรณี title ถูกตัด "..."
+        if (pathString.startsWith("...")) {
+            // กรณีนี้ยากหน่อย แต่ถ้าผู้เล่นไม่ได้เปลี่ยน Folder ลึกมากจะไม่เจอ
+            // fallback ไปที่ Root ก่อนถ้าหาไม่เจอ
+            pathString = "/";
         }
 
-        // 1. เข้า Real Folder (CHEST 📂)
-        if (clicked.getType() == Material.CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("📂")) {
-            String folderName = clicked.getItemMeta().getDisplayName().replace("§6📂 ", "");
-            File target = new File(currentDir, folderName);
-            new SkillLibraryGUI(plugin, target).open(player);
+        File currentDir = plugin.getSkillManager().getFileFromRelative(pathString.trim());
+        if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
+
+        // 1. เข้า Folder (CHEST)
+        if (clicked.getType() == Material.CHEST && clicked.hasItemMeta()) {
+            String name = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("📂 ", "");
+            new SkillLibraryGUI(plugin, new File(currentDir, name)).open(player);
             return;
         }
 
-        // 2. เข้า Skill Pack (ENDER_CHEST 📦)
-        if (clicked.getType() == Material.ENDER_CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("📦")) {
-            String fileName = clicked.getItemMeta().getDisplayName().replace("§d📦 ", "");
-            File target = new File(currentDir, fileName);
-            new SkillLibraryGUI(plugin, target).open(player); // เปิดด้วยไฟล์ (จะเป็น View 2)
+        // 2. เข้า Skill Pack (ENDER_CHEST)
+        if (clicked.getType() == Material.ENDER_CHEST && clicked.hasItemMeta()) {
+            String name = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("📦 ", "");
+            new SkillLibraryGUI(plugin, new File(currentDir, name)).open(player);
             return;
         }
 
         // 3. Back Button
         if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("BACK")) {
             File parent = currentDir.getParentFile();
-            // ตรวจสอบว่า Parent ยังอยู่ใน Root หรือไม่
+            // ตรวจสอบความปลอดภัย ไม่ให้ถอยเกิน Root
             if (parent != null && parent.getAbsolutePath().startsWith(plugin.getSkillManager().getRootDir().getAbsolutePath())) {
                 new SkillLibraryGUI(plugin, parent).open(player);
             } else {
@@ -163,23 +165,20 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // 4. Create New File/Folder
+        // 4. Create New
         if (clicked.getType() == Material.EMERALD_BLOCK) {
             player.sendMessage("§eType name (end with .yml for file, else folder):");
             player.closeInventory();
-            final File targetDir = currentDir; // Capture for lambda
+            final File targetDir = currentDir.isDirectory() ? currentDir : currentDir.getParentFile();
             plugin.getChatInputHandler().awaitInput(player, "Name:", (input) -> {
-                if (input.endsWith(".yml")) {
-                    plugin.getSkillManager().createSkill(targetDir, input);
-                } else {
-                    plugin.getSkillManager().createFolder(targetDir, input);
-                }
+                if (input.endsWith(".yml")) plugin.getSkillManager().createSkill(targetDir, input);
+                else plugin.getSkillManager().createFolder(targetDir, input);
                 runSync(() -> new SkillLibraryGUI(plugin, targetDir).open(player));
             });
             return;
         }
 
-        // 5. Click Skill Item (Edit/Select)
+        // 5. Skill Item
         if (clicked.hasItemMeta() && clicked.getItemMeta().hasLore()) {
             List<String> lore = clicked.getItemMeta().getLore();
             if (lore != null && !lore.isEmpty()) {
@@ -189,15 +188,14 @@ public class GUIListener implements Listener {
 
                     if (selectionCallbacks.containsKey(player.getUniqueId())) {
                         Consumer<String> callback = selectionCallbacks.remove(player.getUniqueId());
-                        player.sendMessage("§aSelected skill: " + skillId);
-                        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
                         player.closeInventory();
                         callback.accept(skillId);
                         return;
                     }
 
                     if (event.isRightClick()) {
-                        player.sendMessage("§cPlease delete manually from file.");
+                        new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, new File(currentDir, skillId + ".yml"));
+                        // Note: การลบรายสกิลใน Pack ยังไม่ได้ทำละเอียด ใช้ลบไฟล์ไปก่อน
                     } else {
                         new SkillEditorGUI(plugin, skillId).open(player);
                     }
@@ -207,8 +205,22 @@ public class GUIListener implements Listener {
     }
 
     private void handleSkillDeleteClick(InventoryClickEvent event, Player player, String title) {
-        // ... (Logic เดิม) ...
-        player.closeInventory(); // Placeholder
+        String fileName = title.substring("Delete: ".length());
+        // หาไฟล์จากชื่อ (แบบ Recursively เพราะหน้า Delete ไม่ส่ง Path มา)
+        File target = findFileRecursive(plugin.getSkillManager().getRootDir(), fileName);
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+
+        if (clicked.getType() == Material.LIME_CONCRETE && target != null) {
+            File parent = target.getParentFile();
+            plugin.getSkillManager().deleteFile(target);
+            player.sendMessage("§cDeleted.");
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_BREAK, 1f, 1f);
+            runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
+        } else if (clicked.getType() == Material.RED_CONCRETE) {
+            // กลับไป Root ถ้าไม่รู้จะกลับไปไหน
+            new SkillLibraryGUI(plugin).open(player);
+        }
     }
 
     // --- Phase 2 & 3: Advanced Skill Editor ---
@@ -226,7 +238,6 @@ public class GUIListener implements Listener {
         if (slot == 48) { // Back
             boolean isNested = currentEditingList.containsKey(player.getUniqueId());
             if (!isNested) {
-                // [FIX] กลับไปหน้า Library หลัก
                 new SkillLibraryGUI(plugin).open(player);
             } else {
                 currentEditingList.remove(player.getUniqueId());
@@ -310,8 +321,6 @@ public class GUIListener implements Listener {
         new SkillEditorGUI(plugin, skillId, list, page, name).open(player);
     }
 
-    // --- Action Creation ---
-
     private void handleActionSelectorClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
@@ -354,7 +363,6 @@ public class GUIListener implements Listener {
             case SELECT_TARGET: return new TargetSelectorAction(TargetSelectorAction.SelectorMode.SELF, 10.0);
             case SOUND: return new SoundAction("ENTITY_EXPERIENCE_ORB_PICKUP", 1.0f, 1.0f);
             case APPLY_EFFECT: return new EffectAction(plugin, "unknown", EffectType.STAT_MODIFIER, 1, 10, 100, 1.0, "STR");
-            // [FIX] Full Constructor for FX
             case PARTICLE: return new ParticleAction(plugin, "VILLAGER_HAPPY", "5", "0.1", "POINT", "0.5", "20", "0,0,0", "0,0,0", "0,0,0");
             case POTION: return new PotionAction("SPEED", 60, 0, true);
             case TELEPORT: return new TeleportAction(5.0, false);
@@ -367,8 +375,6 @@ public class GUIListener implements Listener {
             default: return null;
         }
     }
-
-    // --- Property Editing ---
 
     private void handleActionPropertyClick(InventoryClickEvent event, Player player, String skillId, int index) {
         SkillData root = plugin.getSkillManager().getSkill(skillId);
@@ -455,8 +461,6 @@ public class GUIListener implements Listener {
             case LOOP: return new LoopAction(plugin, String.valueOf(data.getOrDefault("start","0")), String.valueOf(data.getOrDefault("end","5")), String.valueOf(data.getOrDefault("step","1")), String.valueOf(data.getOrDefault("var","i")), ((LoopAction)oldAction).getSubActions());
             case SOUND: return new SoundAction(String.valueOf(data.get("sound")), Float.parseFloat(String.valueOf(data.get("volume"))), Float.parseFloat(String.valueOf(data.get("pitch"))));
             case APPLY_EFFECT: return new EffectAction(plugin, String.valueOf(data.get("effect-id")), EffectType.valueOf(String.valueOf(data.get("effect-type"))), Integer.parseInt(String.valueOf(data.get("level"))), Double.parseDouble(String.valueOf(data.get("power"))), Long.parseLong(String.valueOf(data.get("duration"))), Double.parseDouble(String.valueOf(data.get("chance"))), (String)data.get("stat-key"));
-
-            // [FIX] Updated Particle Construction
             case PARTICLE:
                 return new ParticleAction(plugin,
                         String.valueOf(data.getOrDefault("particle", "VILLAGER_HAPPY")),
@@ -469,7 +473,6 @@ public class GUIListener implements Listener {
                         String.valueOf(data.getOrDefault("rotation", "0,0,0")),
                         String.valueOf(data.getOrDefault("offset", "0,0,0"))
                 );
-
             case POTION: return new PotionAction(String.valueOf(data.get("potion")), Integer.parseInt(String.valueOf(data.get("duration"))), Integer.parseInt(String.valueOf(data.get("amplifier"))), Boolean.parseBoolean(String.valueOf(data.get("self-only"))));
             case TELEPORT: return new TeleportAction(Double.parseDouble(String.valueOf(data.get("range"))), Boolean.parseBoolean(String.valueOf(data.get("to-target"))));
             case PROJECTILE: return new ProjectileAction(plugin, String.valueOf(data.get("projectile")), Double.parseDouble(String.valueOf(data.get("speed"))), String.valueOf(data.get("on-hit")));
@@ -493,6 +496,8 @@ public class GUIListener implements Listener {
         };
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }
+
+    // --- Other Handlers ---
 
     private void handleMetaDataEdit(InventoryClickEvent event, Player player, String skillId, int page, SkillData skill) {
         int slot = event.getSlot();
