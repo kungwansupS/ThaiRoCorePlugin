@@ -44,35 +44,36 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.REDSTONE, "is-mana", "Is Mana?", data.getOrDefault("is-mana",false).toString(), "§eToggle (HP/SP)"));
             inv.setItem(slot++, createPropItem(Material.PLAYER_HEAD, "self-only", "Self Only?", data.getOrDefault("self-only", true).toString(), "§eToggle Target Mode"));
         }
+        else if (type == ActionType.PARTICLE) {
+            // [UPDATED] Basic Properties
+            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "particle", "Particle Name", (String)data.getOrDefault("particle","VILLAGER_HAPPY"), "§eEdit Particle"));
+            inv.setItem(slot++, createPropItem(Material.GLOWSTONE_DUST, "count", "Count", data.getOrDefault("count","5").toString(), "§eEdit Count (Expr)"));
+            inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed", data.getOrDefault("speed","0.1").toString(), "§eEdit Speed (Expr)"));
+
+            // [UPDATED] Shape Properties
+            inv.setItem(slot++, createPropItem(Material.COMPASS, "shape", "Shape", (String)data.getOrDefault("shape", "POINT"), "§e(POINT/CIRCLE/SPHERE/CYLINDER/SQUARE/STAR/SPIRAL)"));
+            inv.setItem(slot++, createPropItem(Material.ENDER_PEARL, "radius", "Radius/Length", data.getOrDefault("radius","0.5").toString(), "§eEdit Radius (Expr)"));
+            inv.setItem(slot++, createPropItem(Material.ANVIL, "points", "Points/Slices", data.getOrDefault("points","20").toString(), "§eEdit Points (for Shapes)"));
+
+            // [NEW] Advanced FX Properties
+            inv.setItem(slot++, createPropItem(Material.RED_DYE, "color", "RGB Color", (String)data.getOrDefault("color", "255,0,0"), "§eFormat: R,G,B (Only for DUST/ENTITY_EFFECT)"));
+            inv.setItem(slot++, createPropItem(Material.ITEM_FRAME, "rotation", "Rotation (XYZ)", (String)data.getOrDefault("rotation", "0,0,0"), "§eFormat: X,Y,Z (Degrees)"));
+            inv.setItem(slot++, createPropItem(Material.PISTON, "offset", "Offset (XYZ)", (String)data.getOrDefault("offset", "0,1,0"), "§eFormat: X,Y,Z (From Center)"));
+        }
+        // ... (Other types remain same)
+        else if (type == ActionType.SOUND) {
+            inv.setItem(slot++, createPropItem(Material.NOTE_BLOCK, "sound", "Sound Name", (String)data.getOrDefault("sound","ENTITY_EXPERIENCE_ORB_PICKUP"), "§eEdit Sound"));
+            inv.setItem(slot++, createPropItem(Material.REPEATER, "volume", "Volume", data.getOrDefault("volume",1.0).toString(), "§eEdit Vol"));
+            inv.setItem(slot++, createPropItem(Material.COMPARATOR, "pitch", "Pitch", data.getOrDefault("pitch",1.0).toString(), "§eEdit Pitch"));
+        }
         else if (type == ActionType.APPLY_EFFECT) {
             inv.setItem(slot++, createPropItem(Material.NAME_TAG, "effect-id", "ID", (String)data.getOrDefault("effect-id","unknown"), "§eEdit ID"));
             inv.setItem(slot++, createPropItem(Material.POTION, "effect-type", "Type", (String)data.getOrDefault("effect-type","STAT_MODIFIER"), "§eEdit Type"));
             inv.setItem(slot++, createPropItem(Material.EXPERIENCE_BOTTLE, "level", "Level", data.getOrDefault("level",1).toString(), "§eEdit Level"));
             inv.setItem(slot++, createPropItem(Material.IRON_SWORD, "power", "Power", data.getOrDefault("power",0.0).toString(), "§eEdit Power"));
             inv.setItem(slot++, createPropItem(Material.CLOCK, "duration", "Duration", data.getOrDefault("duration",100).toString(), "§eEdit Duration (Ticks)"));
-            inv.setItem(slot++, createPropItem(Material.FEATHER, "chance", "Chance", data.getOrDefault("chance",1.0).toString(), "§eEdit Chance (0.0-1.0)"));
-            inv.setItem(slot++, createPropItem(Material.ANVIL, "stat-key", "Stat Key", (String)data.getOrDefault("stat-key","None"), "§eEdit Key (e.g. STR)"));
-        }
-        else if (type == ActionType.SOUND) {
-            inv.setItem(slot++, createPropItem(Material.NOTE_BLOCK, "sound", "Sound Name", (String)data.getOrDefault("sound","ENTITY_EXPERIENCE_ORB_PICKUP"), "§eEdit Sound"));
-            inv.setItem(slot++, createPropItem(Material.REPEATER, "volume", "Volume", data.getOrDefault("volume",1.0).toString(), "§eEdit Vol"));
-            inv.setItem(slot++, createPropItem(Material.COMPARATOR, "pitch", "Pitch", data.getOrDefault("pitch",1.0).toString(), "§eEdit Pitch"));
-        }
-        else if (type == ActionType.PARTICLE) {
-            // [UPDATED] Basic Properties
-            inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "particle", "Particle Name", (String)data.getOrDefault("particle","VILLAGER_HAPPY"), "§eEdit Particle (e.g. DUST, FLAME)"));
-            inv.setItem(slot++, createPropItem(Material.GLOWSTONE_DUST, "count", "Count", data.getOrDefault("count","5").toString(), "§eEdit Count (Expr)"));
-            inv.setItem(slot++, createPropItem(Material.FEATHER, "speed", "Speed", data.getOrDefault("speed","0.1").toString(), "§eEdit Speed (Expr)"));
-
-            // [UPDATED] Shape Properties with New Shapes
-            inv.setItem(slot++, createPropItem(Material.COMPASS, "shape", "Shape", (String)data.getOrDefault("shape", "POINT"), "§e(POINT/CIRCLE/SPHERE/CYLINDER/SQUARE/STAR/SPIRAL)"));
-            inv.setItem(slot++, createPropItem(Material.ENDER_PEARL, "radius", "Radius/Length", data.getOrDefault("radius","0.5").toString(), "§eEdit Radius (Expr)"));
-            inv.setItem(slot++, createPropItem(Material.ANVIL, "points", "Points/Slices/Spikes", data.getOrDefault("points","20").toString(), "§eEdit Points (for Shapes)"));
-
-            // [NEW] Advanced FX Properties
-            inv.setItem(slot++, createPropItem(Material.RED_DYE, "color", "RGB Color", (String)data.getOrDefault("color", "255,0,0"), "§eFormat: R,G,B (Only for DUST/ENTITY_EFFECT)"));
-            inv.setItem(slot++, createPropItem(Material.ITEM_FRAME, "rotation", "Rotation (XYZ)", (String)data.getOrDefault("rotation", "0,0,0"), "§eFormat: X,Y,Z (Degrees)"));
-            inv.setItem(slot++, createPropItem(Material.PISTON, "offset", "Offset (XYZ)", (String)data.getOrDefault("offset", "0,1,0"), "§eFormat: X,Y,Z (From Center)"));
+            inv.setItem(slot++, createPropItem(Material.FEATHER, "chance", "Chance", data.getOrDefault("chance",1.0).toString(), "§eEdit Chance"));
+            inv.setItem(slot++, createPropItem(Material.ANVIL, "stat-key", "Stat Key", (String)data.getOrDefault("stat-key","None"), "§eEdit Key"));
         }
         else if (type == ActionType.POTION) {
             inv.setItem(slot++, createPropItem(Material.POTION, "potion", "Potion Type", (String)data.getOrDefault("potion","SPEED"), "§eEdit Potion"));
@@ -109,7 +110,7 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.CLOCK, "start", "Start (Expr)", (String)data.getOrDefault("start", "0"), "§eEdit Start Formula"));
             inv.setItem(slot++, createPropItem(Material.CLOCK, "end", "End (Expr)", (String)data.getOrDefault("end", "10"), "§eEdit End Formula"));
             inv.setItem(slot++, createPropItem(Material.CLOCK, "step", "Step (Expr)", (String)data.getOrDefault("step", "1"), "§eEdit Step Formula"));
-            inv.setItem(slot++, createPropItem(Material.NAME_TAG, "var", "Variable Name", (String)data.getOrDefault("var", "i"), "§eEdit Variable Name (e.g. i, angle)"));
+            inv.setItem(slot++, createPropItem(Material.NAME_TAG, "var", "Variable Name", (String)data.getOrDefault("var", "i"), "§eEdit Variable Name"));
             inv.setItem(slot++, createGuiItem(Material.LIME_DYE, "§a§l[MANAGE SUB-ACTIONS]", "§7Sub-actions are defined in the .yml.", "§7You need to edit them manually for now."));
         }
         else if (type == ActionType.RAYCAST) {
@@ -118,8 +119,21 @@ public class SkillActionPropertyGUI {
             inv.setItem(slot++, createPropItem(Material.TARGET, "target-type", "Target Type", (String)data.getOrDefault("target-type","SINGLE"), "§eEdit (SINGLE/AOE)"));
         }
         else if (type == ActionType.SPAWN_ENTITY) {
-            inv.setItem(slot++, createPropItem(Material.EGG, "entity-type", "Entity Type", (String)data.getOrDefault("entity-type","LIGHTNING_BOLT"), "§eEdit Entity Type (e.g. LIGHTNING_BOLT, IRON_GOLEM)"));
-            inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "skill-id", "On Spawn Skill ID", (String)data.getOrDefault("skill-id","none"), "§eEdit Skill ID (Optional)"));
+            inv.setItem(slot++, createPropItem(Material.EGG, "entity-type", "Entity Type", (String)data.getOrDefault("entity-type","LIGHTNING_BOLT"), "§eEdit Entity Type"));
+            inv.setItem(slot++, createPropItem(Material.WRITABLE_BOOK, "skill-id", "On Spawn Skill ID", (String)data.getOrDefault("skill-id","none"), "§eEdit Skill ID"));
+        }
+        else if (type == ActionType.SELECT_TARGET) {
+            inv.setItem(slot++, createPropItem(Material.COMPASS, "mode", "Selector Mode", (String)data.getOrDefault("mode","SELF"), "§eEdit Mode (SELF/NEARBY/CROSSHAIR)"));
+            inv.setItem(slot++, createPropItem(Material.ENDER_PEARL, "radius", "Radius", data.getOrDefault("radius",10.0).toString(), "§eEdit Radius"));
+        }
+        else if (type == ActionType.CONDITION) {
+            inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Formula", (String)data.getOrDefault("formula","true"), "§eEdit Condition Formula"));
+            inv.setItem(slot++, createGuiItem(Material.LIME_DYE, "§a[Edit Success Actions]", "§7Right-click action in list to edit."));
+            inv.setItem(slot++, createGuiItem(Material.RED_DYE, "§c[Edit Fail Actions]", "§7Shift+Right-click action in list to edit."));
+        }
+        else if (type == ActionType.SET_VARIABLE) {
+            inv.setItem(slot++, createPropItem(Material.NAME_TAG, "var", "Variable Name", (String)data.getOrDefault("var","temp"), "§eEdit Variable Name"));
+            inv.setItem(slot++, createPropItem(Material.PAPER, "val", "Value Formula", (String)data.getOrDefault("val","0"), "§eEdit Value Formula"));
         }
 
         inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE CHANGES", "§7Apply changes.", "§8---------------", "§7บันทึกการเปลี่ยนแปลง"));
