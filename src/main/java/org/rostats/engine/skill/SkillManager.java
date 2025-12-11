@@ -12,7 +12,6 @@ import org.rostats.engine.action.SkillAction;
 import org.rostats.engine.action.impl.*;
 import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.trigger.TriggerType;
-import org.rostats.engine.action.impl.DelayAction;
 
 import java.io.File;
 import java.io.IOException;
@@ -298,7 +297,7 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    // [UPDATED] แก้ไขตรงนี้ให้ส่งค่า color, rotation, offset ไปด้วย
+                    // [UPDATED] Full Constructor for Advanced FX (Color, Rotation, Offset)
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
@@ -306,9 +305,9 @@ public class SkillManager {
                             (String) map.getOrDefault("shape", "POINT"),
                             String.valueOf(map.getOrDefault("radius", "0.5")),
                             String.valueOf(map.getOrDefault("points", "20")),
-                            (String) map.getOrDefault("color", "0,0,0"),       // [NEW]
-                            (String) map.getOrDefault("rotation", "0,0,0"),    // [NEW]
-                            (String) map.getOrDefault("offset", "0,0,0")       // [NEW]
+                            (String) map.getOrDefault("color", "0,0,0"),       // New
+                            (String) map.getOrDefault("rotation", "0,0,0"),    // New
+                            (String) map.getOrDefault("offset", "0,0,0")       // New
                     );
 
                 case POTION:
@@ -379,7 +378,6 @@ public class SkillManager {
                     String onSpawnSkill = (String) map.getOrDefault("skill-id", "none");
                     return new SpawnEntityAction(plugin, entityType, onSpawnSkill);
 
-                // [Phase 3] Add Target Selector Parsing
                 case SELECT_TARGET:
                     String modeStr = String.valueOf(map.getOrDefault("mode", "SELF"));
                     double tRadius = map.containsKey("radius") ? ((Number) map.get("radius")).doubleValue() : 10.0;
@@ -387,7 +385,6 @@ public class SkillManager {
                     try { mode = TargetSelectorAction.SelectorMode.valueOf(modeStr); } catch(Exception e){}
                     return new TargetSelectorAction(mode, tRadius);
 
-                // [Phase 2] Add Logic Parsing
                 case CONDITION:
                     String formula = String.valueOf(map.getOrDefault("formula", "true"));
                     List<SkillAction> success = new ArrayList<>();
@@ -453,32 +450,51 @@ public class SkillManager {
         if (!newFolder.exists()) newFolder.mkdirs();
     }
 
-    public void createSkill(File parent, String skillName) {
-        String fileName = skillName.endsWith(".yml") ? skillName : skillName + ".yml";
-        File file = new File(parent, fileName);
+    // สร้างไฟล์ Skill ใหม่ (1 สกิลในไฟล์เดียว)
+    public void createSkill(File parent, String fileName) {
+        String name = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
+        File file = new File(parent, name);
         if (file.exists()) return;
 
         try {
             file.createNewFile();
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            String id = skillName.replace(".yml", "").toLowerCase().replace(" ", "_");
-
-            config.set(id + ".display-name", skillName);
-            config.set(id + ".icon", "BOOK");
-            config.set(id + ".max-level", 1);
-            config.set(id + ".trigger", "CAST");
-
-            config.set(id + ".conditions.cooldown", 1.0);
-            config.set(id + ".conditions.sp-cost", 0);
-            config.set(id + ".conditions.required-level", 1);
-
-            config.set(id + ".actions", new ArrayList<>());
-
+            String id = name.replace(".yml", "").toLowerCase().replace(" ", "_");
+            writeDefaultSkill(config, id, name.replace(".yml", ""));
             config.save(file);
             loadSkills();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // [NEW] เพิ่มสกิลลงในไฟล์ที่มีอยู่แล้ว (Skill Pack)
+    public void addSkillToFile(File file, String skillName) {
+        if (!file.exists()) return;
+        try {
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+            String id = skillName.toLowerCase().replace(" ", "_");
+
+            if (config.contains(id)) return; // กันซ้ำ
+
+            writeDefaultSkill(config, id, skillName);
+            config.save(file);
+            loadSkills();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Helper เขียนข้อมูลสกิลเริ่มต้น
+    private void writeDefaultSkill(YamlConfiguration config, String id, String displayName) {
+        config.set(id + ".display-name", displayName);
+        config.set(id + ".icon", "BOOK");
+        config.set(id + ".max-level", 1);
+        config.set(id + ".trigger", "CAST");
+        config.set(id + ".conditions.cooldown", 1.0);
+        config.set(id + ".conditions.sp-cost", 0);
+        config.set(id + ".conditions.required-level", 1);
+        config.set(id + ".actions", new ArrayList<>());
     }
 
     public void deleteFile(File file) {
@@ -574,46 +590,14 @@ public class SkillManager {
         try {
             example.createNewFile();
             YamlConfiguration config = YamlConfiguration.loadConfiguration(example);
+            writeDefaultSkill(config, "fireball", "Fireball");
 
-            String key = "fireball";
-            config.set(key + ".display-name", "Fireball");
-            config.set(key + ".icon", "BLAZE_POWDER");
-            config.set(key + ".max-level", 10);
-            config.set(key + ".trigger", "CAST");
-            config.set(key + ".type", "MAGIC");
-            config.set(key + ".attack-type", "RANGED");
-            config.set(key + ".range", 8.0);
-
-            config.set(key + ".conditions.cooldown", 5.0);
-            config.set(key + ".conditions.sp-cost", 20);
-            config.set(key + ".conditions.required-level", 1);
-
-            config.set(key + ".conditions.variable-cast-time", 1.5);
-            config.set(key + ".conditions.fixed-cast-time", 0.5);
-            config.set(key + ".conditions.pre-motion", 0.0);
-            config.set(key + ".conditions.post-motion", 0.5);
-            config.set(key + ".conditions.acd-base", 1.0);
-
+            // Add example actions manually for the template
             List<Map<String, Object>> actions = new ArrayList<>();
-
-            Map<String, Object> sound = new HashMap<>();
-            sound.put("type", "SOUND");
-            sound.put("sound", "ENTITY_GHAST_SHOOT");
-            actions.add(sound);
-
-            Map<String, Object> delay = new HashMap<>();
-            delay.put("type", "DELAY");
-            delay.put("ticks", 10);
-            actions.add(delay);
-
-            Map<String, Object> proj = new HashMap<>();
-            proj.put("type", "PROJECTILE");
-            proj.put("projectile", "SMALL_FIREBALL");
-            proj.put("speed", 1.5);
-            proj.put("on-hit", "fireball_explode");
-            actions.add(proj);
-
-            config.set(key + ".actions", actions);
+            Map<String, Object> sound = new HashMap<>(); sound.put("type", "SOUND"); sound.put("sound", "ENTITY_GHAST_SHOOT"); actions.add(sound);
+            Map<String, Object> delay = new HashMap<>(); delay.put("type", "DELAY"); delay.put("ticks", 10); actions.add(delay);
+            Map<String, Object> proj = new HashMap<>(); proj.put("type", "PROJECTILE"); proj.put("projectile", "SMALL_FIREBALL"); proj.put("speed", 1.5); proj.put("on-hit", "fireball_explode"); actions.add(proj);
+            config.set("fireball.actions", actions);
 
             config.save(example);
         } catch (Exception e) {

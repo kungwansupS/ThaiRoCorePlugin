@@ -13,8 +13,8 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.skill.SkillData;
 
 import java.io.File;
-import java.util.ArrayList; // [FIX] เพิ่มบรรทัดนี้เพื่อแก้ Error
-import java.util.Arrays;
+import java.util.ArrayList; // สำหรับ new ArrayList<>()
+import java.util.Arrays;    // [FIX] เพิ่มบรรทัดนี้เพื่อแก้ Error Arrays.asList()
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -24,12 +24,12 @@ public class SkillLibraryGUI {
     private final ThaiRoCorePlugin plugin;
     private final File currentEntry; // เป็นได้ทั้ง Folder จริง หรือ File (Pack)
 
-    // Constructor หลัก
+    // Constructor 1: สำหรับเรียกจากหน้า Root หรือ GUIListener (แก้ Error Expected 2 arguments but found 1)
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
         this(plugin, plugin.getSkillManager().getRootDir());
     }
 
-    // Constructor เปิดตาม Path
+    // Constructor 2: สำหรับเปิด Folder หรือ File เฉพาะเจาะจง
     public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
         this.plugin = plugin;
         this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
@@ -102,7 +102,11 @@ public class SkillLibraryGUI {
         if (!path.equals("/")) {
             inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
         }
-        inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§l+ NEW FILE/FOLDER", "§7Create new content here"));
+
+        // ปุ่มสร้างต่างๆ
+        inv.setItem(48, createGuiItem(Material.CHEST, "§6+ New Folder", "§7Create a sub-folder"));
+        inv.setItem(49, createGuiItem(Material.PAPER, "§e+ New Skill", "§7Create a single skill file"));
+        inv.setItem(50, createGuiItem(Material.ENDER_CHEST, "§d+ New Pack", "§7Create a multi-skill pack"));
 
         player.openInventory(inv);
     }
@@ -134,7 +138,7 @@ public class SkillLibraryGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§e" + skill.getDisplayName());
-            List<String> lore = new ArrayList<>(); // [FIXED]
+            List<String> lore = new ArrayList<>();
             lore.add("§8ID: " + skill.getId());
             lore.add("§7" + subInfo);
             lore.add("");
@@ -152,7 +156,7 @@ public class SkillLibraryGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore));
+            meta.setLore(Arrays.asList(lore)); // ใช้ Arrays.asList ตรงนี้ได้แล้ว
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
             item.setItemMeta(meta);
         }
