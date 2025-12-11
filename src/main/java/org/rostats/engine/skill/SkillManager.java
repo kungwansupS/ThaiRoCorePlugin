@@ -298,7 +298,7 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    // [UPDATED] Fixed Particle Parsing to include Color, Rotation, Offset
+                    // [UPDATED] แก้ไขตรงนี้ให้ส่งค่า color, rotation, offset ไปด้วย
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
@@ -306,9 +306,9 @@ public class SkillManager {
                             (String) map.getOrDefault("shape", "POINT"),
                             String.valueOf(map.getOrDefault("radius", "0.5")),
                             String.valueOf(map.getOrDefault("points", "20")),
-                            (String) map.getOrDefault("color", "0,0,0"),       // New
-                            (String) map.getOrDefault("rotation", "0,0,0"),    // New
-                            (String) map.getOrDefault("offset", "0,0,0")       // New
+                            (String) map.getOrDefault("color", "0,0,0"),       // [NEW]
+                            (String) map.getOrDefault("rotation", "0,0,0"),    // [NEW]
+                            (String) map.getOrDefault("offset", "0,0,0")       // [NEW]
                     );
 
                 case POTION:
@@ -379,7 +379,7 @@ public class SkillManager {
                     String onSpawnSkill = (String) map.getOrDefault("skill-id", "none");
                     return new SpawnEntityAction(plugin, entityType, onSpawnSkill);
 
-                // Target Selector
+                // [Phase 3] Add Target Selector Parsing
                 case SELECT_TARGET:
                     String modeStr = String.valueOf(map.getOrDefault("mode", "SELF"));
                     double tRadius = map.containsKey("radius") ? ((Number) map.get("radius")).doubleValue() : 10.0;
@@ -387,7 +387,7 @@ public class SkillManager {
                     try { mode = TargetSelectorAction.SelectorMode.valueOf(modeStr); } catch(Exception e){}
                     return new TargetSelectorAction(mode, tRadius);
 
-                // Conditions
+                // [Phase 2] Add Logic Parsing
                 case CONDITION:
                     String formula = String.valueOf(map.getOrDefault("formula", "true"));
                     List<SkillAction> success = new ArrayList<>();
