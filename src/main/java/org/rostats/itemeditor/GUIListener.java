@@ -72,10 +72,7 @@ public class GUIListener implements Listener {
             handleConfirmDeleteClick(event, player, title);
         }
         // 4. Selectors
-        else if (title.startsWith("SkillSelect: ")) {
-            event.setCancelled(true);
-            handleSkillSelectClick(event, player, title.substring(13));
-        }
+        // [REMOVED] SkillSelect handling is no longer needed here (Handled by callback)
         else if (title.startsWith("Select Trigger: ")) {
             event.setCancelled(true);
             handleTriggerSelectClick(event, player, title.substring(16));
@@ -232,20 +229,12 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // [FIXED] Unbreakable Toggle Logic
         if (dp.contains("Unbreakable")) {
             ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-            // 1. สลับค่า True/False ใน Object Attribute
             attr.setUnbreakable(!attr.isUnbreakable());
-
-            // 2. โหลดไอเทม และอัปเดตสถานะ Unbreakable ใส่ ItemStack โดยตรงด้วย
             ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
-            plugin.getItemAttributeManager().applyAttributesToItem(stack, attr); // สำคัญ: ต้อง Apply ค่าใหม่ใส่ไอเทมก่อนบันทึก
-
-            // 3. บันทึกทั้ง Attribute และ ItemStack ลงไฟล์
+            plugin.getItemAttributeManager().applyAttributesToItem(stack, attr);
             plugin.getItemManager().saveItem(itemFile, attr, stack);
-
-            // 4. รีเฟรชหน้าต่าง
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
@@ -305,37 +294,7 @@ public class GUIListener implements Listener {
         });
     }
 
-    private void handleSkillSelectClick(InventoryClickEvent event, Player player, String relativePath) {
-        File currentDir = plugin.getSkillManager().getFileFromRelative(relativePath);
-        if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
-
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-
-        if (clicked.getType() == Material.ARROW) {
-            new SkillLibraryGUI(plugin, currentDir.getParentFile()).openSelectMode(player);
-            return;
-        }
-        if (clicked.getType() == Material.BOOKSHELF) {
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).openSelectMode(player);
-            return;
-        }
-
-        String name = clicked.getItemMeta().getDisplayName().replace("§6§l", "").replace("§f", "");
-        File target = new File(currentDir, name + (clicked.getType() == Material.CHEST ? "" : ".yml"));
-
-        if (target.isDirectory()) {
-            new SkillLibraryGUI(plugin, target).openSelectMode(player);
-        } else {
-            String skillId = name.replace(".yml", "");
-            Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
-            if (flowData == null) return;
-
-            flowData.put("skillId", skillId);
-            new TriggerSelectorGUI(plugin, skillId).open(player);
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-        }
-    }
+    // [REMOVED] handleSkillSelectClick is no longer used.
 
     private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
@@ -413,7 +372,17 @@ public class GUIListener implements Listener {
             Map<String, Object> flowData = new HashMap<>();
             flowData.put("itemFile", itemFile);
             skillBindingFlow.put(player.getUniqueId(), flowData);
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).openSelectMode(player);
+
+            // [UPDATED] ใช้ openSelectMode พร้อม Callback เพื่อรับค่า Skill ID
+            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).openSelectMode(player, (selectedSkillId) -> {
+                // เมื่อผู้เล่นเลือกสกิลเสร็จ โค้ดนี้จะทำงาน
+                Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
+                if (flow != null) {
+                    flow.put("skillId", selectedSkillId);
+                    new TriggerSelectorGUI(plugin, selectedSkillId).open(player);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                }
+            });
 
         } else if (clicked.getType() == Material.ARROW) {
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);

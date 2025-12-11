@@ -19,7 +19,7 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
-import org.rostats.input.ChatInputHandler; // [FIX] Import นี้สำคัญ
+import org.rostats.input.ChatInputHandler;
 
 import java.io.File;
 import java.util.*;
@@ -30,8 +30,6 @@ public class GUIListener implements Listener {
     private final ThaiRoCorePlugin plugin;
     private final Map<UUID, List<SkillAction>> currentEditingList = new HashMap<>();
     private final Map<UUID, Map<String, Object>> editingProperties = new HashMap<>();
-
-    // [NEW] เก็บ Callback สำหรับโหมดเลือกสกิล
     private static final Map<UUID, Consumer<String>> selectionCallbacks = new HashMap<>();
 
     public GUIListener(ThaiRoCorePlugin plugin) {
@@ -86,7 +84,6 @@ public class GUIListener implements Listener {
             }
         }
 
-        // --- Library & Folder Logic ---
         if (title.equals("Skill Library") || title.startsWith("Folder:")) {
             event.setCancelled(true);
             handleNewLibraryClick(event, player, title);
@@ -140,8 +137,8 @@ public class GUIListener implements Listener {
 
         // 2. Back Button
         if (clicked.getType() == Material.ARROW && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("BACK")) {
-            // [FIXED] เรียก Constructor 1 ตัวแปร (ตอนนี้ SkillLibraryGUI มีแล้ว)
-            new SkillLibraryGUI(plugin).open(player);
+            // [FIX] ใช้ Constructor แบบเต็ม (2 ค่า) เสมอ เพื่อกัน Error
+            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
             return;
         }
 
@@ -151,7 +148,7 @@ public class GUIListener implements Listener {
             player.closeInventory();
             plugin.getChatInputHandler().awaitInput(player, "File Name:", (input) -> {
                 plugin.getSkillManager().createSkill(plugin.getSkillManager().getRootDir(), input);
-                runSync(() -> new SkillLibraryGUI(plugin).open(player));
+                runSync(() -> new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player));
             });
             return;
         }
@@ -164,7 +161,6 @@ public class GUIListener implements Listener {
                 if (idLine.startsWith("§8ID: ")) {
                     String skillId = idLine.replace("§8ID: ", "");
 
-                    // Selection Mode
                     if (selectionCallbacks.containsKey(player.getUniqueId())) {
                         Consumer<String> callback = selectionCallbacks.remove(player.getUniqueId());
                         player.sendMessage("§aSelected skill: " + skillId);
@@ -177,8 +173,8 @@ public class GUIListener implements Listener {
                     if (event.isRightClick()) {
                         player.sendMessage("§cTo delete, please delete the file manually for now.");
                     } else {
-                        // Open Editor
-                        new SkillEditorGUI(plugin, skillId).open(player);
+                        // [FIX] ใช้ Constructor แบบเต็ม (3 ค่า) เสมอ
+                        new SkillEditorGUI(plugin, skillId, 0).open(player);
                     }
                 }
             }
@@ -198,12 +194,9 @@ public class GUIListener implements Listener {
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_BREAK, 1f, 1f);
             runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
         } else if (clicked.getType() == Material.RED_CONCRETE) {
-            // Cancel -> Back to Root
-            new SkillLibraryGUI(plugin).open(player);
+            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
         }
     }
-
-    // --- Phase 2 & 3: Advanced Skill Editor ---
 
     private void handleSkillEditorClick(InventoryClickEvent event, Player player, String skillId, int page) {
         SkillData rootSkill = plugin.getSkillManager().getSkill(skillId);
@@ -215,15 +208,14 @@ public class GUIListener implements Listener {
         if (slot == 45) { if (page > 0) refreshGUI(player, skillId, page - 1); return; }
         if (slot == 53) { if ((page + 1) * 27 < activeList.size()) refreshGUI(player, skillId, page + 1); return; }
 
-        if (slot == 48) { // Back Button Logic
+        if (slot == 48) { // Back
             boolean isNested = currentEditingList.containsKey(player.getUniqueId());
             if (!isNested) {
-                // Back to Library (Root) [FIXED]
-                new SkillLibraryGUI(plugin).open(player);
+                // [FIX] ใช้ Constructor แบบเต็ม
+                new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
             } else {
-                // Up to Root (Nested)
                 currentEditingList.remove(player.getUniqueId());
-                new SkillEditorGUI(plugin, skillId).open(player);
+                new SkillEditorGUI(plugin, skillId, 0).open(player);
             }
             return;
         }
@@ -303,8 +295,6 @@ public class GUIListener implements Listener {
         new SkillEditorGUI(plugin, skillId, list, page, name).open(player);
     }
 
-    // --- Action Creation ---
-
     private void handleActionSelectorClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
@@ -359,8 +349,6 @@ public class GUIListener implements Listener {
             default: return null;
         }
     }
-
-    // --- Property Editing ---
 
     private void handleActionPropertyClick(InventoryClickEvent event, Player player, String skillId, int index) {
         SkillData root = plugin.getSkillManager().getSkill(skillId);
@@ -497,8 +485,6 @@ public class GUIListener implements Listener {
         };
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }
-
-    // --- Other Handlers ---
 
     private void handleMetaDataEdit(InventoryClickEvent event, Player player, String skillId, int page, SkillData skill) {
         int slot = event.getSlot();

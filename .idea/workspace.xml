@@ -7,24 +7,11 @@
     <list default="true" id="09f0a534-4212-4bce-9492-099777d4c710" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillEditorGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillEditorGUI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillLibraryGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillLibraryGUI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI$1.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillLibraryGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillLibraryGUI.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener$BukkitRunnableWrapper.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemEditorCommand.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemLibraryGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemTypeSelectorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/SkillBindingGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/TriggerSelectorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/utils/FormulaParser$1.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/utils/FormulaParser.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -78,7 +65,7 @@
       <updated>1765450304157</updated>
       <workItem from="1765450305993" duration="762000" />
       <workItem from="1765452382729" duration="105000" />
-      <workItem from="1765452500398" duration="6250000" />
+      <workItem from="1765452500398" duration="7030000" />
     </task>
     <servers />
   </component>

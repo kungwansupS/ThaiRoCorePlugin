@@ -24,7 +24,7 @@ public class SkillLibraryGUI {
     private final ThaiRoCorePlugin plugin;
     private final File currentFolder;
 
-    // [FIXED] เพิ่ม Constructor นี้ เพื่อแก้ Error "Expected 2 arguments but found 1"
+    // [FIX] Constructor ที่ GUIListener ต้องการ
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
         this(plugin, null);
     }
@@ -42,7 +42,6 @@ public class SkillLibraryGUI {
         }
     }
 
-    // [FIXED] เพิ่มเมธอดนี้สำหรับระบบเลือกสกิล
     public void openSelectMode(Player player, Consumer<String> onSelect) {
         GUIListener.setSelectionCallback(player, onSelect);
         player.sendMessage("§ePlease select a skill from the library...");
@@ -80,14 +79,12 @@ public class SkillLibraryGUI {
                         "§eClick to open folder.");
                 inv.addItem(item);
             } else if (skillCount == 1) {
-                if (!keys.isEmpty()) {
-                    String skillId = keys.iterator().next();
-                    SkillData skill = plugin.getSkillManager().getSkill(skillId);
-                    if (skill != null) {
-                        inv.addItem(createSkillItem(skill, file.getName()));
-                    } else {
-                        inv.addItem(createGuiItem(Material.PAPER, "§c" + skillId, "§7Error loading skill data"));
-                    }
+                String skillId = keys.iterator().next();
+                SkillData skill = plugin.getSkillManager().getSkill(skillId);
+                if (skill != null) {
+                    inv.addItem(createSkillItem(skill, file.getName()));
+                } else {
+                    inv.addItem(createGuiItem(Material.PAPER, "§c" + skillId, "§7Error loading skill data"));
                 }
             } else {
                 inv.addItem(createGuiItem(Material.PAPER, "§7" + file.getName(), "§7(Empty File)"));
