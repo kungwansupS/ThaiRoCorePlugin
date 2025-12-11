@@ -1,10 +1,13 @@
 package org.rostats.data;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.effect.ActiveEffect;
 import org.rostats.engine.effect.EffectType;
+import org.rostats.utils.ComponentUtil;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -204,19 +207,26 @@ public class PlayerData {
         this.currentSP = getMaxSP();
     }
 
-    // --- EXP Logic ---
+    // --- EXP Logic (Updated for Adventure API) ---
 
     public void addBaseExp(long amount, UUID uuid) {
         int maxBaseLevel = getMaxBaseLevel();
         double multiplier = getExpBonusMultiplier(this.baseLevel);
         amount = (long) (amount * multiplier);
-        plugin.showFloatingText(uuid, "§b+" + amount + " Base EXP", 0.5);
+
+        // Use ComponentUtil for +EXP message
+        plugin.showFloatingText(uuid, ComponentUtil.text("+" + amount + " Base EXP", NamedTextColor.AQUA), 0.5);
+
         this.baseExp += amount;
         while (this.baseLevel < maxBaseLevel && this.baseExp >= getBaseExpReq(this.baseLevel)) {
             this.baseExp -= getBaseExpReq(this.baseLevel);
             this.baseLevel++;
             this.statPoints += getStatPointsGain(this.baseLevel);
-            plugin.showFloatingText(uuid, "§6LEVEL UP! §fLv " + this.baseLevel, 0.5);
+
+            // Level Up Message
+            Component levelUpMsg = Component.text("LEVEL UP! ").color(NamedTextColor.GOLD)
+                    .append(Component.text("Lv " + this.baseLevel).color(NamedTextColor.WHITE));
+            plugin.showFloatingText(uuid, levelUpMsg, 0.5);
         }
         calculateMaxSP();
         if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateBaseExpBar(Bukkit.getPlayer(uuid));
@@ -226,13 +236,20 @@ public class PlayerData {
         int maxJobLevel = getMaxJobLevel();
         double multiplier = getExpBonusMultiplier(this.baseLevel);
         amount = (long) (amount * multiplier);
-        plugin.showFloatingText(uuid, "§e+" + amount + " Job EXP", 0.0);
+
+        // Use ComponentUtil for +Job EXP message
+        plugin.showFloatingText(uuid, ComponentUtil.text("+" + amount + " Job EXP", NamedTextColor.YELLOW), 0.0);
+
         this.jobExp += amount;
         while (this.jobLevel < maxJobLevel && this.jobExp >= getJobExpReq(this.jobLevel)) {
             this.jobExp -= getJobExpReq(this.jobLevel);
             this.jobLevel++;
             this.skillPoints += 1;
-            plugin.showFloatingText(uuid, "§eJOB LEVEL UP! §fJob Lv " + this.jobLevel, 0.0);
+
+            // Job Level Up Message
+            Component jobLevelUpMsg = Component.text("JOB LEVEL UP! ").color(NamedTextColor.YELLOW)
+                    .append(Component.text("Job Lv " + this.jobLevel).color(NamedTextColor.WHITE));
+            plugin.showFloatingText(uuid, jobLevelUpMsg, 0.0);
         }
         if (Bukkit.getPlayer(uuid) != null) plugin.getManaManager().updateJobExpBar(Bukkit.getPlayer(uuid));
     }
