@@ -5,8 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09f0a534-4212-4bce-9492-099777d4c710" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionPropertyGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionPropertyGUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" beforeDir="false" afterPath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager.class" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,7 +61,7 @@
       <updated>1765450304157</updated>
       <workItem from="1765450305993" duration="762000" />
       <workItem from="1765452382729" duration="105000" />
-      <workItem from="1765452500398" duration="763000" />
+      <workItem from="1765452500398" duration="2470000" />
     </task>
     <servers />
   </component>
