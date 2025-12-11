@@ -23,7 +23,8 @@ public class SkillEditorGUI {
     private final int page;
     private final String titleSuffix;
 
-    // Constructor หลัก
+    private static final int ACTIONS_PER_PAGE = 27;
+
     public SkillEditorGUI(ThaiRoCorePlugin plugin, String skillId) {
         this(plugin, skillId, 0);
     }
@@ -37,7 +38,6 @@ public class SkillEditorGUI {
         this.titleSuffix = "Main";
     }
 
-    // Constructor สำหรับ Nested List (Loop, Condition)
     public SkillEditorGUI(ThaiRoCorePlugin plugin, String skillId, List<SkillAction> actions, int page, String suffix) {
         this.plugin = plugin;
         this.skillId = skillId;
@@ -48,7 +48,7 @@ public class SkillEditorGUI {
 
     public void open(Player player) {
         if (actions == null) {
-            player.sendMessage("§cSkill data not found!");
+            player.sendMessage("§cError: Skill data not found!");
             return;
         }
 
@@ -59,7 +59,7 @@ public class SkillEditorGUI {
         if (root != null) {
             inv.setItem(0, createGuiItem(Material.NAME_TAG, "§eName: §f" + root.getDisplayName(), "§7Click to rename"));
             inv.setItem(1, createGuiItem(root.getIcon(), "§eIcon: §f" + root.getIcon(), "§7Drag item here to change"));
-            inv.setItem(2, createGuiItem(Material.DIAMOND_SWORD, "§eType: §f" + root.getSkillType(), "§7Click to toggle"));
+            inv.setItem(2, createGuiItem(Material.IRON_SWORD, "§eType: §f" + root.getSkillType(), "§7Click to toggle"));
             inv.setItem(3, createGuiItem(Material.BOW, "§eAttack: §f" + root.getAttackType(), "§7Click to toggle"));
             inv.setItem(4, createGuiItem(Material.COMPASS, "§eRange: §f" + root.getCastRange(), "§7Click to edit"));
             inv.setItem(5, createGuiItem(Material.LEVER, "§eTrigger: §f" + root.getTrigger(), "§7Click to toggle"));
@@ -72,21 +72,21 @@ public class SkillEditorGUI {
 
             inv.setItem(7, createGuiItem(Material.EXPERIENCE_BOTTLE, "§eReq Level: §f" + root.getRequiredLevel(), "§7Click to edit"));
 
-            inv.setItem(8, createGuiItem(Material.LAPIS_LAZULI, "§eSP Cost",
+            inv.setItem(8, createGuiItem(Material.BLUE_DYE, "§eSP Cost",
                     "§7Base: §f" + root.getSpCostBase(),
                     "§7Per Lvl: §f" + root.getSpCostPerLevel(),
                     "§eL-Click: Base | R-Click: Lvl"));
 
             // Row 2: Casting & Delay
             inv.setItem(10, createGuiItem(Material.CLOCK, "§eVar Cast", "§7Time: " + root.getVariableCastTime(), "§7Reduct: " + root.getVariableCastTimeReduction() + "%", "§eL: Time | R: Reduct"));
-            inv.setItem(11, createGuiItem(Material.OBSERVER, "§eFixed Cast", "§7Time: " + root.getFixedCastTime()));
+            inv.setItem(11, createGuiItem(Material.HONEY_BLOCK, "§eFixed Cast", "§7Time: " + root.getFixedCastTime()));
             inv.setItem(12, createGuiItem(Material.FEATHER, "§eMotion", "§7Pre: " + root.getPreMotion(), "§7Post: " + root.getPostMotion(), "§eL: Pre | R: Post"));
-            inv.setItem(13, createGuiItem(Material.REPEATER, "§eACD (Delay)", "§7Time: " + root.getAfterCastDelayBase()));
+            inv.setItem(13, createGuiItem(Material.BARRIER, "§eACD (Delay)", "§7Time: " + root.getAfterCastDelayBase()));
         }
 
         // --- Action List (Center) ---
-        int start = page * 27;
-        for (int i = 0; i < 27; i++) {
+        int start = page * ACTIONS_PER_PAGE;
+        for (int i = 0; i < ACTIONS_PER_PAGE; i++) {
             int index = start + i;
             if (index >= actions.size()) break;
 
@@ -94,27 +94,30 @@ public class SkillEditorGUI {
             String typeName = action.getType().name();
             Material icon = getActionIcon(action);
 
+            String extra = "";
+            if (action.getType().name().equals("CONDITION")) extra = "§bRight-Click: Edit Nested Actions";
+            else if (action.getType().name().equals("LOOP")) extra = "§bRight-Click: Edit Body";
+
             inv.setItem(18 + i, createGuiItem(icon, "§6[" + index + "] " + typeName,
                     "§7" + action.serialize().toString(),
-                    "§8------------------",
+                    "§8---------------",
                     "§eL-Click: Edit Properties",
-                    "§eR-Click: Move Down",
+                    "§eR-Click: Move Down / Edit Nested",
                     "§eShift+L: Move Up",
                     "§cShift+R: Delete",
-                    (action.getType().name().equals("CONDITION") || action.getType().name().equals("LOOP")) ? "§bRight-Click: Edit Nested Actions" : ""
+                    extra
             ));
         }
 
         // --- Controls (Bottom) ---
-        inv.setItem(45, createGuiItem(Material.ARROW, "§cPrevious Page"));
+        if (page > 0) inv.setItem(45, createGuiItem(Material.ARROW, "§cPrevious Page"));
 
-        // [FIXED] Back logic handled in GUIListener
-        inv.setItem(48, createGuiItem(Material.OAK_DOOR, "§eBack / Up", "§7Go to parent list or library"));
+        inv.setItem(48, createGuiItem(Material.BOOK, "§eBack / Up", "§7Go to parent list or library"));
 
         inv.setItem(49, createGuiItem(Material.EMERALD_BLOCK, "§a§lSAVE SKILL", "§7Save to file"));
-        inv.setItem(50, createGuiItem(Material.NETHER_STAR, "§b§lADD ACTION", "§7Add new action to end"));
+        inv.setItem(50, createGuiItem(Material.LIME_DYE, "§b§lADD ACTION", "§7Add new action to end"));
 
-        inv.setItem(53, createGuiItem(Material.ARROW, "§aNext Page"));
+        if ((page + 1) * ACTIONS_PER_PAGE < actions.size()) inv.setItem(53, createGuiItem(Material.ARROW, "§aNext Page"));
 
         // Fill background
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
@@ -138,13 +141,13 @@ public class SkillEditorGUI {
         };
     }
 
-    // [FIX] Helper Method ที่ถูกต้องสำหรับ List<String>
+    // [FIXED] Helper Method
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore)); // แปลง array เป็น list
+            meta.setLore(Arrays.asList(lore)); // Correctly converts varargs to List
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
             item.setItemMeta(meta);
         }

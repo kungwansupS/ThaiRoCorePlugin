@@ -45,7 +45,6 @@ org\rostats\engine\skill\SkillManager.class
 org\rostats\itemeditor\EffectEnchantGUI.class
 org\rostats\engine\effect\EffectType.class
 org\rostats\engine\action\impl\SetVariableAction.class
-org\rostats\gui\SkillActionSelectorGUI$1.class
 org\rostats\engine\action\impl\TeleportAction.class
 org\rostats\engine\skill\SkillRunner.class
 org\rostats\gui\SkillEditorGUI$1.class
