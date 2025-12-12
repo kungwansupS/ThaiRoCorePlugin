@@ -5,7 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="acb8312f-798b-40e3-978e-b3645c431b8b" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillData.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillData.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttributeManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttributeManager.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
