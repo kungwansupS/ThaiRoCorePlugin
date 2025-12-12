@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder; // [FIX] Import InventoryHolder
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -17,7 +18,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class TriggerSelectorGUI {
+// [FIX] Implement InventoryHolder เพื่อให้ส่ง 'this' เข้า Bukkit.createInventory ได้
+public class TriggerSelectorGUI implements InventoryHolder {
 
     private final ThaiRoCorePlugin plugin;
     private final String itemId;
@@ -36,11 +38,7 @@ public class TriggerSelectorGUI {
         this.bindingIndex = bindingIndex;
         this.skillIdToEdit = skillIdToEdit;
 
-        // Try to load existing values if editing
-        if (bindingIndex != -1 && plugin.getItemManager().getFileFromRelative(itemId + ".yml").exists()) {
-            // Ideally we load from file/item here to set temp defaults, but for now defaults are fine
-            // Real values are fetched in open() from the held item
-        }
+        // Try to load existing values if editing (Logic omitted for brevity as discussed)
     }
 
     // Full Constructor (Used when returning from other inputs)
@@ -51,9 +49,15 @@ public class TriggerSelectorGUI {
         this.tempChance = chance;
     }
 
+    // [FIX] Required method for InventoryHolder
+    @Override
+    public Inventory getInventory() {
+        return null; // ไม่จำเป็นต้องคืนค่า Inventory จริงๆ ก็ได้สำหรับการใช้งานนี้
+    }
+
     public void open(Player player) {
-        // [FIX] Ensure unique title for Listener detection
         String title = "ItemEditor: Trigger Selection: " + itemId;
+        // [FIX] ตอนนี้ 'this' เป็น InventoryHolder แล้ว
         Inventory inv = Bukkit.createInventory(this, 27, Component.text(title));
 
         // Display Data Calculation
@@ -62,16 +66,10 @@ public class TriggerSelectorGUI {
         int displayLevel = tempLevel;
         double displayChance = tempChance;
 
-        // If editing existing binding, override defaults with actual data (unless we have newer temp data?)
-        // For simplicity in this flow, we assume the Constructor params are the authority.
-        // However, if we just opened for EDIT, we should read from Item.
-
         if (bindingIndex != -1) {
             ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(player.getInventory().getItemInMainHand());
             if (bindingIndex < attr.getSkillBindings().size()) {
-                ItemSkillBinding existing = attr.getSkillBindings().get(bindingIndex);
-                // Only override if we haven't set specific temp values (logic omitted for brevity, using passed values)
-                // In a perfect world, we'd check if temp values were Modified.
+                // Logic to load existing binding values if needed (currently using passed values)
             }
         }
 
@@ -87,7 +85,7 @@ public class TriggerSelectorGUI {
                 "",
                 "§bClick to Change Skill",
                 "§0INDEX:" + bindingIndex,
-                "§0ID: " + displaySkillId // Hidden ID for Listener
+                "§0ID: " + displaySkillId // Hidden ID for Listener fallback
         ));
 
         // --- Trigger Buttons (Slots 10-16) ---

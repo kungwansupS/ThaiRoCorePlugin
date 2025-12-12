@@ -7,8 +7,11 @@ public enum TriggerType {
     SHIFT_RIGHT_CLICK,  // กด Shift + คลิกขวา
     SHIFT_LEFT_CLICK,   // กด Shift + คลิกซ้าย
 
-    // Legacy mapping (เผื่อของเก่า)
-    CAST,               // เทียบเท่า RIGHT_CLICK
+    // Legacy / General mapping
+    CAST,               // เทียบเท่า RIGHT_CLICK หรือใช้เรียกสกิลทั่วไป
+
+    // [FIX] เพิ่มกลับมาเพื่อให้ Code ส่วนอื่นทำงานได้ (General Passive)
+    PASSIVE,
 
     // Reactive Triggers (ทำงานเมื่อเกิดเหตุการณ์)
     ON_HIT,             // เมื่อโจมตีโดน (Physical)
@@ -16,7 +19,7 @@ public enum TriggerType {
     ON_DEFEND,          // เมื่อถูกโจมตี
     ON_KILL,            // เมื่อฆ่าศัตรูตาย
 
-    // Passive Triggers (ทำงานตลอด)
+    // Specific Passive Triggers (ทำงานตลอด)
     PASSIVE_TICK,       // ทำงานตลอดเวลา (ทุกวินาที)
     PASSIVE_APPLY       // ทำงานทันทีที่ถือ/ใส่ (Stat Boost)
 }
