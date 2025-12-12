@@ -126,7 +126,6 @@ public class YamlStorage implements PlayerDataStorage {
         config.set("stats.LUK", data.getStat("LUK"));
 
         int idx = 0;
-        // Copy list to avoid concurrent modification
         for (ActiveEffect effect : new ArrayList<>(data.getActiveEffects())) {
             String path = "active-effects." + idx;
             config.set(path + ".id", effect.getId());
