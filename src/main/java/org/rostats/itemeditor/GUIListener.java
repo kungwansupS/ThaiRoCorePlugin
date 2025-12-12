@@ -106,6 +106,72 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             handleItemSkillSelectClick(event, player);
         }
+        // [NEW] Handle Element Select GUI
+        else if (title.startsWith("Element Select: ")) {
+            event.setCancelled(true);
+            handleElementSelectClick(event, player, title);
+        }
+    }
+
+    // [NEW] Element Select Handler
+    private void handleElementSelectClick(InventoryClickEvent event, Player player, String title) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null) return;
+
+        NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
+        NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+        NamespacedKey keyAttr = new NamespacedKey(plugin, "target_attr");
+        PersistentDataType<String, String> strType = PersistentDataType.STRING;
+
+        if (!meta.getPersistentDataContainer().has(keyType, strType)) return;
+
+        String type = meta.getPersistentDataContainer().get(keyType, strType);
+        String value = meta.getPersistentDataContainer().get(keyValue, strType);
+
+        // Retrieve current itemFile from metadata or context is tricky here because ElementSelectorGUI doesn't pass file name in title cleanly
+        // But we can infer context or pass it via PDC if needed.
+        // Actually, we don't have the file name in title.
+        // Let's assume we store the file path/name in the GUI items' PDC as well, OR rely on a cached session.
+        // But for robust code, let's look at `GUIListener` structure. We usually parse title for filename.
+        // `ElementSelectorGUI` title is just "Element Select: Attack". It misses the filename.
+        // FIX: I will rely on `AttributeEditorGUI` reopening. But wait, `ElementSelectorGUI` needs to know which file to save to.
+        // I should have passed the filename in the title or stored it.
+        // Let's Update `ElementSelectorGUI` title to include filename? No, title length limit.
+        // Best approach: Store filename in PDC of every item in ElementSelectorGUI.
+        // Wait, `ElementSelectorGUI.java` I wrote above didn't store filename.
+        // Let's use `handleEditorClick` flow to store the `itemFile` in player metadata temporarily.
+
+        File itemFile = null;
+        if (player.hasMetadata("RO_EDIT_FILE")) {
+            String path = player.getMetadata("RO_EDIT_FILE").get(0).asString();
+            itemFile = new File(path);
+        }
+
+        if (itemFile == null || !itemFile.exists()) {
+            player.sendMessage("§cError: Context lost.");
+            player.closeInventory();
+            return;
+        }
+
+        if ("back".equals(type)) {
+            setSwitching(player);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.ELEMENTS);
+        } else if ("select_element".equals(type)) {
+            String attrName = meta.getPersistentDataContainer().get(keyAttr, strType);
+            ItemAttributeType attrType = ItemAttributeType.valueOf(attrName);
+            int elementIndex = Integer.parseInt(value);
+
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            plugin.getItemAttributeManager().setAttributeToObj(attr, attrType, elementIndex);
+            plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
+            setSwitching(player);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.ELEMENTS);
+        }
     }
 
     private void handleItemSkillSelectClick(InventoryClickEvent event, Player player) {
@@ -409,18 +475,12 @@ public class GUIListener implements Listener {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
                 double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
 
-                // [NEW] Special Logic for Elements (Cycle -1 to 9)
+                // [UPDATED] Special Logic for Elements -> Open Selector GUI
                 if (type == ItemAttributeType.ATTACK_ELEMENT || type == ItemAttributeType.DEFENSE_ELEMENT) {
-                    int val = (int) current;
-                    // Cycle Logic
-                    if (event.getClick().isLeftClick()) {
-                        val++;
-                        if (val > 9) val = -1; // Reset to None
-                    } else if (event.getClick().isRightClick()) {
-                        val--;
-                        if (val < -1) val = 9; // Loop to Undead
-                    }
-                    plugin.getItemAttributeManager().setAttributeToObj(attr, type, val);
+                    setSwitching(player);
+                    // Store context
+                    player.setMetadata("RO_EDIT_FILE", new FixedMetadataValue(plugin, itemFile.getAbsolutePath()));
+                    new ElementSelectorGUI(plugin, itemFile, type).open(player);
                 } else {
                     // Standard Logic
                     double change = 0;
@@ -429,11 +489,10 @@ public class GUIListener implements Listener {
                     else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
                     else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
                     plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
+                    plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
+                    setSwitching(player);
+                    new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
                 }
-
-                plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
-                setSwitching(player);
-                new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));
                 return;
             }
         }
