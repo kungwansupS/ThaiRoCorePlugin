@@ -21,10 +21,9 @@ import org.rostats.engine.skill.SkillManager;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
-// import org.rostats.gui.SkillLibraryGUI; // Removed - replaced by ItemSkillSelectGUI
 
 import java.io.File;
-import java.io.IOException; // [FIX] Added import for IOException
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,13 +46,11 @@ public class GUIListener implements Listener {
     public void onClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
-        // [FIX Phase 2] Check for Switch Flag to preserve state during navigation
         if (player.hasMetadata("RO_EDITOR_SWITCH")) {
             player.removeMetadata("RO_EDITOR_SWITCH", plugin);
             return;
         }
 
-        // [FIX Phase 2] Cleanup Metadata and Temporary Data on real close
         if (player.hasMetadata("RO_EDITOR_SEL_EFFECT")) player.removeMetadata("RO_EDITOR_SEL_EFFECT", plugin);
         if (player.hasMetadata("RO_EDITOR_SEL_ENCHANT")) player.removeMetadata("RO_EDITOR_SEL_ENCHANT", plugin);
         skillBindingFlow.remove(player.getUniqueId());
@@ -356,13 +353,17 @@ public class GUIListener implements Listener {
         File currentDir = skillManager.getFileFromRelative(path);
         if (!currentDir.exists()) currentDir = rootDir;
 
-        // Helper to extract hidden data from Lore (Context data is always present on functional items)
+        // Helper to extract hidden data from Lore (Context data is now guaranteed to be on navigation items)
         String skillId = getHiddenLore(clicked, "SKILL_ID:");
         String itemTemplateId = getHiddenLore(clicked, "ITEM_ID:");
         String bindingIndexStr = getHiddenLore(clicked, "INDEX:");
-        int bindingIndex = bindingIndexStr != null && !bindingIndexStr.equals("-1") ? Integer.parseInt(bindingIndexStr) : -1;
 
-        File itemFile = itemTemplateId != null ? findFileByName(plugin.getItemManager().getRootDir(), itemTemplateId) : null;
+        // ถ้าเป็น N/A ให้ itemFile เป็น null
+        File itemFile = (itemTemplateId != null && !itemTemplateId.equals("N/A")) ?
+                findFileByName(plugin.getItemManager().getRootDir(), itemTemplateId) : null;
+
+        int bindingIndex = (bindingIndexStr != null && !bindingIndexStr.equals("-1")) ?
+                Integer.parseInt(bindingIndexStr) : -1;
 
         // Navigation Logic
         if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().startsWith("§aFolder: ")) {
@@ -371,6 +372,7 @@ public class GUIListener implements Listener {
             File nextDir = new File(currentDir, folderName);
             if (nextDir.exists() && nextDir.isDirectory()) {
                 setSwitching(player);
+                // ส่งต่อ itemTemplateId และ bindingIndex ไปยังหน้าถัดไป
                 new ItemSkillSelectGUI(plugin, nextDir, 0, itemTemplateId, bindingIndex).open(player);
             }
             return;
@@ -379,8 +381,6 @@ public class GUIListener implements Listener {
         if (event.getSlot() == 45) { // Back button (Up one level)
             File parentDir = currentDir.getParentFile();
 
-            // [FIX] Replaced the erroneous rootDir.isAncestor(parentDir) call
-            // with a robust canonical path check.
             boolean isWithinRoot = false;
             if (parentDir != null) {
                 try {
@@ -392,7 +392,6 @@ public class GUIListener implements Listener {
                         isWithinRoot = true;
                     }
                 } catch (IOException ignored) {
-                    // Fallback to basic equals check if canonical path resolution fails.
                     isWithinRoot = parentDir.equals(rootDir);
                 }
             }

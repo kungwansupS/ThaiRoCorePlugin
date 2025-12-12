@@ -20,14 +20,14 @@ import java.util.List;
 
 /**
  * GUI สำหรับการเลือก Skill เพื่อผูกกับ Item Attribute ใน Item Editor
- * มีลักษณะคล้ายกับ SkillLibraryGUI ในโหมด isSelectMode แต่มีบริบทของ Item Editor
+ * [FIXED] เพิ่มการฝัง Context (Item ID, Index) ลงในปุ่ม Navigation ทุกปุ่มป้องกัน Context Lost
  */
 public class ItemSkillSelectGUI {
 
     private final ThaiRoCorePlugin plugin;
     private final File currentDir;
     private final int page;
-    private final String itemTemplateId; // ID ของ Item Template ที่กำลังแก้ไข (คือชื่อไฟล์ item.yml)
+    private final String itemTemplateId; // ID ของ Item Template ที่กำลังแก้ไข
     private final int bindingIndex;     // Index ของ Skill Binding ที่กำลังจะสร้าง
 
     public ItemSkillSelectGUI(ThaiRoCorePlugin plugin, File currentDir, int page, String itemTemplateId, int bindingIndex) {
@@ -39,7 +39,6 @@ public class ItemSkillSelectGUI {
     }
 
     public void open(Player player) {
-        // Title format: "ItemSkillSelect: [Relative Path] #P[Page]"
         String title = "ItemSkillSelect:";
         String rootPath = plugin.getSkillManager().getRootDir().getAbsolutePath();
         String path = currentDir.getAbsolutePath().substring(rootPath.length()).replace("\\", "/");
@@ -50,7 +49,6 @@ public class ItemSkillSelectGUI {
     }
 
     private void invOpen(Player player, String titlePrefix, int page) {
-        // สร้าง Inventory ขนาด 54 ช่อง
         Inventory inv = Bukkit.createInventory(null, 54, Component.text(titlePrefix + " #P" + page));
         SkillManager manager = plugin.getSkillManager();
         List<File> contents = manager.listContents(currentDir);
@@ -60,10 +58,11 @@ public class ItemSkillSelectGUI {
         // 1. วนลูปเพื่อเก็บ Folder และ Skill ทั้งหมด
         for (File file : contents) {
             if (file.isDirectory()) {
-                // แสดง Folder
-                displayItems.add(createGuiItem(Material.CHEST, "§aFolder: " + file.getName()));
+                // [FIX] สร้าง Folder และฝัง Context
+                ItemStack folder = createGuiItem(Material.CHEST, "§aFolder: " + file.getName());
+                folder = addHiddenContext(folder, null);
+                displayItems.add(folder);
             } else if (file.getName().endsWith(".yml")) {
-                // โหลดไฟล์ .yml และแสดง Skills ทั้งหมดในไฟล์นั้น
                 try {
                     YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                     for (String key : config.getKeys(false)) {
@@ -71,12 +70,12 @@ public class ItemSkillSelectGUI {
                         if (skill != null) displayItems.add(createSkillItem(skill));
                     }
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Error reading skill file for ItemSkillSelectGUI: " + file.getName());
+                    plugin.getLogger().warning("Error reading skill file: " + file.getName());
                 }
             }
         }
 
-        // 2. Pagination - แสดงรายการในหน้าปัจจุบัน (45 ช่อง)
+        // 2. Pagination
         int itemStart = page * 45;
         int itemMax = Math.min(displayItems.size(), itemStart + 45);
 
@@ -84,42 +83,36 @@ public class ItemSkillSelectGUI {
             inv.setItem(i - itemStart, displayItems.get(i));
         }
 
-        // 3. Footer (45-53)
+        // 3. Footer
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 45; i < 54; i++) inv.setItem(i, bg);
 
         // ปุ่มย้อนกลับ (ขึ้น Folder) - Slot 45
         if (!currentDir.equals(manager.getRootDir())) {
-            inv.setItem(45, createGuiItem(Material.ARROW, "§cBack", "§7Up one level"));
+            ItemStack backBtn = createGuiItem(Material.ARROW, "§cBack", "§7Up one level");
+            inv.setItem(45, addHiddenContext(backBtn, null)); // [FIX] ใส่ Context
         }
 
         // ปุ่มเปลี่ยนหน้า - Slot 48 & 50
-        if (page > 0) inv.setItem(48, createGuiItem(Material.ARROW, "§ePrevious Page"));
-        if (displayItems.size() > itemMax) inv.setItem(50, createGuiItem(Material.ARROW, "§eNext Page"));
-
+        if (page > 0) {
+            ItemStack prevBtn = createGuiItem(Material.ARROW, "§ePrevious Page");
+            inv.setItem(48, addHiddenContext(prevBtn, null)); // [FIX] ใส่ Context
+        }
+        if (displayItems.size() > itemMax) { // Check if there are more items for next page
+            ItemStack nextBtn = createGuiItem(Material.ARROW, "§eNext Page");
+            inv.setItem(50, addHiddenContext(nextBtn, null)); // [FIX] ใส่ Context
+        }
 
         // ปุ่มยกเลิก/กลับไปหน้า Skill Binding - Slot 53
         ItemStack backToBindingBtn = createGuiItem(Material.RED_BED, "§cBack to Skill Binding",
                 "§7Item: " + (itemTemplateId != null ? itemTemplateId : "Unknown"),
                 "§7Slot: " + (bindingIndex != -1 ? String.valueOf(bindingIndex + 1) : "Unknown")
         );
-
-        // ใส่ข้อมูล Context ที่ซ่อนไว้ใน Lore เพื่อให้ GUIListener ดึงไปใช้
-        ItemMeta backMeta = backToBindingBtn.getItemMeta();
-        List<String> backLore = backMeta.getLore();
-        backLore.add("§0ITEM_ID:" + (itemTemplateId != null ? itemTemplateId : "N/A"));
-        backLore.add("§0INDEX:" + bindingIndex); // ใช้ -1 เพื่อบอกว่าไม่ได้อยู่ใน flow การเพิ่มใหม่
-        backMeta.setLore(backLore);
-        backToBindingBtn.setItemMeta(backMeta);
-
-        inv.setItem(53, backToBindingBtn);
+        inv.setItem(53, addHiddenContext(backToBindingBtn, null));
 
         player.openInventory(inv);
     }
 
-    /**
-     * สร้าง ItemStack สำหรับการเลือก Skill โดยฝัง ID ของสกิล, ID ของไอเท็ม และ Index ของ Binding
-     */
     private ItemStack createSkillItem(SkillData skill) {
         Material icon = skill.getIcon() != null ? skill.getIcon() : Material.BOOK;
         ItemStack item = new ItemStack(icon);
@@ -131,20 +124,14 @@ public class ItemSkillSelectGUI {
         List<String> lore = new ArrayList<>();
         lore.add("§7ID: " + skill.getId());
 
-        // ข้อมูล Context ที่สำคัญสำหรับการเลือก Item
-        lore.add("§0ITEM_ID:" + (itemTemplateId != null ? itemTemplateId : "N/A"));
-        lore.add("§0INDEX:" + bindingIndex);
-        lore.add("§0SKILL_ID:" + skill.getId()); // ID ของสกิลที่ถูกเลือก
-
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         item.setItemMeta(meta);
-        return item;
+
+        // [FIX] ใช้ Helper เพื่อฝัง Context + Skill ID
+        return addHiddenContext(item, skill.getId());
     }
 
-    /**
-     * Helper method เพื่อสร้าง ItemStack ทั่วไป
-     */
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
@@ -152,6 +139,30 @@ public class ItemSkillSelectGUI {
         if (lore.length > 0) {
             meta.setLore(Arrays.asList(lore));
         }
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * [FIX] Helper method หลักสำหรับฝัง Context ข้อมูลลงใน Lore
+     * เพื่อให้ GUIListener สามารถดึงไปใช้ตอนเปลี่ยนหน้าหรือเลือก Folder ได้
+     */
+    private ItemStack addHiddenContext(ItemStack item, String skillId) {
+        if (item == null || !item.hasItemMeta()) return item;
+        ItemMeta meta = item.getItemMeta();
+        List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+
+        // ฝังข้อมูล Item Template ID
+        lore.add("§0ITEM_ID:" + (itemTemplateId != null ? itemTemplateId : "N/A"));
+        // ฝังข้อมูล Binding Index
+        lore.add("§0INDEX:" + bindingIndex);
+
+        // ฝังข้อมูล Skill ID (ถ้ามี)
+        if (skillId != null) {
+            lore.add("§0SKILL_ID:" + skillId);
+        }
+
+        meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
     }
