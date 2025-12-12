@@ -3,20 +3,23 @@ package org.rostats.itemeditor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.Sound;
+import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class EffectEnchantGUI {
 
@@ -27,16 +30,20 @@ public class EffectEnchantGUI {
     private final ThaiRoCorePlugin plugin;
     private final File itemFile;
     private final Mode mode;
+    private final int page;
 
     public EffectEnchantGUI(ThaiRoCorePlugin plugin, File itemFile, Mode mode) {
+        this(plugin, itemFile, mode, 0);
+    }
+
+    public EffectEnchantGUI(ThaiRoCorePlugin plugin, File itemFile, Mode mode, int page) {
         this.plugin = plugin;
         this.itemFile = itemFile;
         this.mode = mode;
+        this.page = page;
     }
 
     public void open(Player player) {
-        // FIX: ใส่ชื่อไฟล์ลงไปใน Title ให้ตรง Pattern ที่ GUIListener รอรับ
-        // Format: "Editor: <FileName> [<Mode> Select]"
         Inventory inv = Bukkit.createInventory(null, 54, Component.text("Editor: " + itemFile.getName() + " [" + mode.name() + " Select]"));
 
         // Load current data
@@ -50,71 +57,98 @@ public class EffectEnchantGUI {
             selectedKey = player.getMetadata(metaKey).get(0).asString();
         }
 
-        // Populate List (Slots 0-44)
-        int slot = 0;
+        // Prepare List
+        List<String> items = new ArrayList<>();
         if (mode == Mode.EFFECT) {
-            for (PotionEffectType type : PotionEffectType.values()) {
-                if (type == null) continue;
-                if (slot >= 45) break;
-
-                boolean has = attr.getPotionEffects().containsKey(type);
-                int lvl = has ? attr.getPotionEffects().get(type) : 0;
-                boolean isSelected = type.getName().equals(selectedKey);
-
-                inv.setItem(slot++, createOptionItem(
-                        has ? Material.LIME_STAINED_GLASS_PANE : (isSelected ? Material.YELLOW_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE),
-                        type.getName(),
-                        has,
-                        lvl,
-                        isSelected
-                ));
-            }
+            items = Arrays.stream(PotionEffectType.values())
+                    .filter(type -> type != null)
+                    .map(PotionEffectType::getName)
+                    .sorted()
+                    .collect(Collectors.toList());
         } else {
-            for (Enchantment ench : Enchantment.values()) {
-                if (ench == null) continue;
-                if (slot >= 45) break;
-
-                boolean has = stack.containsEnchantment(ench);
-                int lvl = has ? stack.getEnchantmentLevel(ench) : 0;
-                // Enchantment key is usually namespaced, get key name
-                String name = ench.getKey().getKey().toUpperCase();
-                boolean isSelected = name.equals(selectedKey);
-
-                inv.setItem(slot++, createOptionItem(
-                        has ? Material.ENCHANTED_BOOK : (isSelected ? Material.BOOK : Material.BOOK),
-                        name,
-                        has,
-                        lvl,
-                        isSelected
-                ));
-            }
+            items = Arrays.stream(Enchantment.values())
+                    .filter(e -> e != null)
+                    .map(e -> e.getKey().getKey().toUpperCase())
+                    .sorted()
+                    .collect(Collectors.toList());
         }
 
-        // Control Panel (Bottom Row)
-        updateControlPanel(inv, selectedKey);
+        // Pagination
+        int itemsPerPage = 45;
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, items.size());
+
+        int slot = 0;
+        for (int i = startIndex; i < endIndex; i++) {
+            String key = items.get(i);
+            boolean has = false;
+            int lvl = 0;
+
+            if (mode == Mode.EFFECT) {
+                PotionEffectType type = PotionEffectType.getByName(key);
+                if (type != null && attr.getPotionEffects().containsKey(type)) {
+                    has = true;
+                    lvl = attr.getPotionEffects().get(type);
+                }
+            } else {
+                Enchantment ench = getEnchantment(key);
+                if (ench != null && stack.containsEnchantment(ench)) {
+                    has = true;
+                    lvl = stack.getEnchantmentLevel(ench);
+                }
+            }
+
+            boolean isSelected = key.equals(selectedKey);
+            Material mat;
+            if (mode == Mode.EFFECT) {
+                mat = has ? Material.LIME_STAINED_GLASS_PANE : (isSelected ? Material.YELLOW_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE);
+            } else {
+                mat = has ? Material.ENCHANTED_BOOK : (isSelected ? Material.WRITABLE_BOOK : Material.BOOK);
+            }
+
+            inv.setItem(slot++, createOptionItem(mat, key, has, lvl, isSelected));
+        }
+
+        // Control Panel & Navigation
+        updateControlPanel(inv, selectedKey, items.size(), itemsPerPage);
 
         player.openInventory(inv);
     }
 
-    private void updateControlPanel(Inventory inv, String selectedKey) {
-        // Slot 49: Selected Info
-        if (selectedKey != null) {
-            inv.setItem(49, createGuiItem(Material.PAPER, "§eSelected: §f" + selectedKey, "§7Click options above to change"));
-            // Slot 50: Anvil (Input Level)
-            inv.setItem(50, createGuiItem(Material.ANVIL, "§eSet Level", "§7Click to input level via Chat"));
-            // Slot 51: Confirm Add/Update
-            inv.setItem(51, createGuiItem(Material.LIME_CONCRETE, "§a§lADD / UPDATE", "§7Apply level to item"));
-            // Slot 52: Remove
-            inv.setItem(52, createGuiItem(Material.RED_CONCRETE, "§c§lREMOVE", "§7Remove from item"));
+    private Enchantment getEnchantment(String key) {
+        for (Enchantment e : Enchantment.values()) {
+            if (e.getKey().getKey().equalsIgnoreCase(key)) return e;
+        }
+        return null;
+    }
+
+    private void updateControlPanel(Inventory inv, String selectedKey, int totalItems, int itemsPerPage) {
+        // Navigation Buttons
+        if (page > 0) {
+            inv.setItem(45, createGuiItem(Material.ARROW, "§ePrevious Page", "prev_page", String.valueOf(page - 1), "§7Go to page " + page));
         } else {
-            inv.setItem(49, createGuiItem(Material.BARRIER, "§cNo Selection", "§7Click an option above"));
-            inv.setItem(50, createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " "));
-            inv.setItem(51, createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " "));
-            inv.setItem(52, createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " "));
+            inv.setItem(45, createGuiItem(Material.ARROW, "§eBack", "back", "editor", "§7Return to Editor"));
         }
 
-        // Back Button
-        inv.setItem(53, createGuiItem(Material.ARROW, "§eBack", "§7Return to Editor"));
+        if (totalItems > (page + 1) * itemsPerPage) {
+            inv.setItem(53, createGuiItem(Material.ARROW, "§eNext Page", "next_page", String.valueOf(page + 1), "§7Go to page " + (page + 2)));
+        }
+
+        // Controls (Shifted to center)
+        if (selectedKey != null) {
+            inv.setItem(48, createGuiItem(Material.PAPER, "§eSelected: §f" + selectedKey, "info", selectedKey, "§7Click options above to change"));
+            inv.setItem(49, createGuiItem(Material.ANVIL, "§eSet Level", "set_level", selectedKey, "§7Click to input level via Chat"));
+            inv.setItem(50, createGuiItem(Material.LIME_CONCRETE, "§a§lADD / UPDATE", "add", selectedKey, "§7Apply level to item"));
+            inv.setItem(51, createGuiItem(Material.RED_CONCRETE, "§c§lREMOVE", "remove", selectedKey, "§7Remove from item"));
+        } else {
+            inv.setItem(49, createGuiItem(Material.BARRIER, "§cNo Selection", "info", "none", "§7Click an option above"));
+        }
+
+        // Fill BG
+        ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ", "bg", "");
+        for (int i = 45; i < 54; i++) {
+            if (inv.getItem(i) == null) inv.setItem(i, bg);
+        }
     }
 
     private ItemStack createOptionItem(Material mat, String name, boolean active, int level, boolean selected) {
@@ -122,19 +156,24 @@ public class EffectEnchantGUI {
         String status = active ? "§a[ADDED] Lv." + level : "§7[NOT ADDED]";
         String selectStatus = selected ? "§e▶ SELECTED ◀" : "§eClick to Select";
 
-        // ถ้าเป็น Enchantment แล้วยังไม่ Active ให้ใช้ Book ปกติ แต่ถ้า Selected ให้ Enchanted Book เรืองแสงหลอกๆ (ในที่นี้ใช้ Material แยกแทนง่ายกว่า)
-        if (selected && mat == Material.BOOK) mat = Material.WRITABLE_BOOK;
-
-        return createGuiItem(mat, displayName, status, selectStatus);
+        return createGuiItem(mat, displayName, "select_item", name, status, selectStatus);
     }
 
-    private ItemStack createGuiItem(Material mat, String name, String... lore) {
+    private ItemStack createGuiItem(Material mat, String name, String type, String value, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        meta.setLore(Arrays.asList(lore));
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-        item.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(name);
+            meta.setLore(Arrays.asList(lore));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+
+            NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
+            NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+            meta.getPersistentDataContainer().set(keyType, PersistentDataType.STRING, type);
+            meta.getPersistentDataContainer().set(keyValue, PersistentDataType.STRING, value);
+
+            item.setItemMeta(meta);
+        }
         return item;
     }
 }

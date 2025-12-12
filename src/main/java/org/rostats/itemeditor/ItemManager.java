@@ -11,12 +11,15 @@ import org.rostats.ThaiRoCorePlugin;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ItemManager {
 
     private final ThaiRoCorePlugin plugin;
     private final File rootDir;
+    // [NEW] Regex for safe filename
+    private final Pattern fileNamePattern = Pattern.compile("^[a-zA-Z0-9._ -]+$");
 
     public ItemManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -26,6 +29,11 @@ public class ItemManager {
 
     public File getRootDir() {
         return rootDir;
+    }
+
+    // [NEW] Validation Method
+    public boolean isValidFileName(String name) {
+        return name != null && !name.isEmpty() && fileNamePattern.matcher(name).matches() && !name.contains("..");
     }
 
     public String getRelativePath(File file) {
@@ -59,11 +67,14 @@ public class ItemManager {
     }
 
     public void createFolder(File parent, String name) {
+        if (!isValidFileName(name)) return; // Validate
         File newFolder = new File(parent, name);
         if (!newFolder.exists()) newFolder.mkdirs();
     }
 
     public void createItem(File parent, String fileName, Material material) {
+        if (!isValidFileName(fileName.replace(".yml", ""))) return; // Validate
+
         File file = new File(parent, fileName.endsWith(".yml") ? fileName : fileName + ".yml");
         if (file.exists()) return;
 
@@ -85,7 +96,7 @@ public class ItemManager {
         if (itemStack.hasItemMeta()) {
             ItemMeta meta = itemStack.getItemMeta();
             if (meta.hasDisplayName()) {
-                config.set("name", meta.getDisplayName());
+                config.set("name", meta.getDisplayName().replace("§", "&"));
             }
             if (meta.hasLore()) {
                 List<String> fullLore = meta.getLore();
@@ -94,7 +105,7 @@ public class ItemManager {
 
                 for (String line : fullLore) {
                     if (line.equals(header)) break;
-                    manualLore.add(line);
+                    manualLore.add(line.replace("§", "&"));
                 }
 
                 if (!manualLore.isEmpty()) {
@@ -110,7 +121,7 @@ public class ItemManager {
             if (meta.hasEnchants()) {
                 ConfigurationSection enchSec = config.createSection("enchantments");
                 for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
-                    enchSec.set(entry.getKey().getName(), entry.getValue());
+                    enchSec.set(entry.getKey().getKey().getKey(), entry.getValue());
                 }
             }
         }
@@ -119,11 +130,11 @@ public class ItemManager {
             config.set("custom-model-data", attr.getCustomModelData());
         }
 
-        // [FIX] บันทึกค่า Unbreakable ลง Config
         config.set("unbreakable", attr.isUnbreakable());
-
         config.set("remove-vanilla", attr.isRemoveVanillaAttribute());
-        attr.saveToConfig(config.createSection("attributes"));
+
+        ConfigurationSection attrSection = config.createSection("attributes");
+        attr.saveToConfig(attrSection);
 
         try {
             config.save(file);
@@ -152,18 +163,17 @@ public class ItemManager {
             ItemMeta meta = item.getItemMeta();
             ConfigurationSection enchSec = config.getConfigurationSection("enchantments");
             for (String key : enchSec.getKeys(false)) {
-                Enchantment ench = Enchantment.getByName(key);
-                if (ench != null) {
-                    meta.addEnchant(ench, enchSec.getInt(key), true);
+                for (Enchantment e : Enchantment.values()) {
+                    if (e.getKey().getKey().equalsIgnoreCase(key)) {
+                        meta.addEnchant(e, enchSec.getInt(key), true);
+                        break;
+                    }
                 }
             }
             item.setItemMeta(meta);
         }
 
-        // Apply visual AND STORE STATS to NBT/PDC
         plugin.getItemAttributeManager().applyAttributesToItem(item, attr);
-
-        // Apply Lore visualization
         plugin.getItemAttributeManager().applyLoreStats(item, attr);
 
         return item;
@@ -180,6 +190,8 @@ public class ItemManager {
     }
 
     public void renameFile(File file, String newName) {
+        if (!isValidFileName(newName.replace(".yml", ""))) return; // Validate
+
         String finalName = file.isDirectory() ? newName : (newName.endsWith(".yml") ? newName : newName + ".yml");
         File dest = new File(file.getParentFile(), finalName);
         file.renameTo(dest);

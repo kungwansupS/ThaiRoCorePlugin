@@ -10,6 +10,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.rostats.ThaiRoCorePlugin;
 
@@ -25,24 +26,34 @@ public class ChatInputHandler implements Listener {
     private final Map<UUID, List<String>> multiLineBuffers = new HashMap<>();
     private final Map<UUID, Consumer<List<String>>> multiLineCallbacks = new HashMap<>();
 
-    // Pattern สำหรับ Hex Color &#RRGGBB
+    // [NEW] Cancel Callbacks
+    private final Map<UUID, Runnable> cancelCallbacks = new HashMap<>();
+
     private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})");
 
     public ChatInputHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 
-    public void awaitInput(Player player, String prompt, Consumer<String> callback) {
+    // [UPDATED] Add onCancel
+    public void awaitInput(Player player, String prompt, Consumer<String> callback, Runnable onCancel) {
         player.closeInventory();
         player.sendMessage("§e[Input] " + prompt);
+        player.sendMessage("§7(Type /cancel to cancel)");
         singleInputs.put(player.getUniqueId(), callback);
+        if (onCancel != null) cancelCallbacks.put(player.getUniqueId(), onCancel);
     }
 
-    public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback) {
+    // Default overload for compatibility (if any)
+    public void awaitInput(Player player, String prompt, Consumer<String> callback) {
+        awaitInput(player, prompt, callback, null);
+    }
+
+    // [UPDATED] Add onCancel
+    public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback, Runnable onCancel) {
         player.closeInventory();
         player.sendMessage("§e[Multi-Line] " + prompt);
 
-        // สร้างข้อความแบบ Clickable Component
         Component message = Component.text("พิมพ์ข้อความทีละบรรทัด กดที่ ", NamedTextColor.GRAY)
                 .append(Component.text("[DONE]", NamedTextColor.GREEN)
                         .clickEvent(ClickEvent.runCommand("/done"))
@@ -56,6 +67,12 @@ public class ChatInputHandler implements Listener {
 
         multiLineBuffers.put(player.getUniqueId(), new ArrayList<>());
         multiLineCallbacks.put(player.getUniqueId(), callback);
+        if (onCancel != null) cancelCallbacks.put(player.getUniqueId(), onCancel);
+    }
+
+    // Default overload
+    public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback) {
+        awaitMultiLineInput(player, prompt, callback, null);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -64,24 +81,27 @@ public class ChatInputHandler implements Listener {
         UUID uuid = player.getUniqueId();
         String message = event.getMessage();
 
-        if (multiLineBuffers.containsKey(uuid)) {
-            if (message.equalsIgnoreCase("/cancel")) {
+        // Handle /cancel
+        if (message.equalsIgnoreCase("/cancel")) {
+            if (singleInputs.containsKey(uuid) || multiLineBuffers.containsKey(uuid)) {
                 event.setCancelled(true);
-                multiLineBuffers.remove(uuid);
-                multiLineCallbacks.remove(uuid);
-                player.sendMessage("§cยกเลิกการแก้ไข Lore");
-                return;
+                cleanup(uuid);
+                player.sendMessage("§cยกเลิกการป้อนข้อมูล");
             }
+            return;
+        }
 
+        if (multiLineBuffers.containsKey(uuid)) {
             if (message.equalsIgnoreCase("/done")) {
                 event.setCancelled(true);
                 List<String> result = multiLineBuffers.remove(uuid);
                 Consumer<List<String>> callback = multiLineCallbacks.remove(uuid);
+                cancelCallbacks.remove(uuid); // Clear cancel callback as success
 
                 new BukkitRunnable() {
                     @Override
                     public void run() {
-                        callback.accept(result);
+                        if (callback != null) callback.accept(result);
                     }
                 }.runTask(plugin);
             }
@@ -94,33 +114,56 @@ public class ChatInputHandler implements Listener {
         UUID uuid = player.getUniqueId();
         String message = event.getMessage();
 
-        // 1. Handle Single Line Input
         if (singleInputs.containsKey(uuid)) {
             event.setCancelled(true);
             Consumer<String> callback = singleInputs.remove(uuid);
+            cancelCallbacks.remove(uuid); // Clear cancel callback as success
 
-            // Sync execution to main thread
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    callback.accept(translateColorCodes(message));
+                    if (callback != null) callback.accept(translateColorCodes(message));
                 }
             }.runTask(plugin);
             return;
         }
 
-        // 2. Handle Multi Line Input
         if (multiLineBuffers.containsKey(uuid)) {
             event.setCancelled(true);
-
             List<String> buffer = multiLineBuffers.get(uuid);
             buffer.add(translateColorCodes(message));
             player.sendMessage("§a+ บันทึกบรรทัดที่ " + buffer.size());
         }
     }
 
+    // [NEW] Handle Quit to prevent leaks
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        cleanup(event.getPlayer().getUniqueId());
+    }
+
+    private void cleanup(UUID uuid) {
+        singleInputs.remove(uuid);
+        multiLineBuffers.remove(uuid);
+        multiLineCallbacks.remove(uuid);
+
+        // Trigger cancel callback if exists
+        Runnable onCancel = cancelCallbacks.remove(uuid);
+        if (onCancel != null) {
+            // Run sync if possible, but safely
+            try {
+                // If player quit, this might not show GUI, but cleans up logic
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        onCancel.run();
+                    }
+                }.runTask(plugin);
+            } catch (Exception ignored) {}
+        }
+    }
+
     private String translateColorCodes(String text) {
-        // 1. แปลง Hex Color &#RRGGBB -> §x§R§R§G§G§B§B (Format ของ Bukkit)
         Matcher matcher = hexPattern.matcher(text);
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
@@ -132,8 +175,6 @@ public class ChatInputHandler implements Listener {
             matcher.appendReplacement(buffer, sb.toString());
         }
         matcher.appendTail(buffer);
-
-        // 2. แปลง Legacy Color Code (&c, &l ฯลฯ)
         return buffer.toString().replace("&", "§");
     }
 }

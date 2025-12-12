@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final File currentEntry; // เป็นได้ทั้ง Folder จริง หรือ File (Pack)
+    private final File currentEntry;
 
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
         this(plugin, plugin.getSkillManager().getRootDir());
@@ -41,12 +41,8 @@ public class SkillLibraryGUI {
         }
     }
 
-    // [FIXED] รับ 3 Argument: Player, SuccessCallback, CancelCallback
-    public void openSelectMode(Player player, Consumer<String> onSelect, Runnable onCancel) {
-        GUIListener.setSelectionMode(player, onSelect, onCancel);
-        player.sendMessage("§ePlease select a skill from the library...");
-        open(player);
-    }
+    // [UPDATED] openSelectMode signature is managed by GUIListener externally now, this is just for internal GUI logic.
+    // GUIListener calls open(player) after setting up callbacks.
 
     public void openConfirmDelete(Player player, File target) {
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
@@ -60,7 +56,6 @@ public class SkillLibraryGUI {
         player.openInventory(inv);
     }
 
-    // --- View 1: Folder จริง ---
     private void openDirectoryView(Player player, File dir) {
         String path = plugin.getSkillManager().getRelativePath(dir);
         String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
@@ -110,7 +105,6 @@ public class SkillLibraryGUI {
         player.openInventory(inv);
     }
 
-    // --- View 2: ภายในไฟล์ (Skill Pack) ---
     private void openPackView(Player player, File file) {
         String path = plugin.getSkillManager().getRelativePath(file);
         String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;
