@@ -3,6 +3,7 @@ package org.rostats.data;
 import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.storage.PlayerDataStorage;
+import org.rostats.data.storage.SqlStorage;
 import org.rostats.data.storage.YamlStorage;
 
 public class DataManager {
@@ -18,6 +19,7 @@ public class DataManager {
     public void initializeStorage() {
         String type = plugin.getConfig().getString("storage.type", "YAML").toUpperCase();
 
+        // Cleanup old storage if re-initializing
         if (storage != null) {
             storage.shutdown();
         }
@@ -25,9 +27,12 @@ public class DataManager {
         switch (type) {
             case "MYSQL":
             case "SQLITE":
-                // SQL Logic will be implemented in Phase 2
-                plugin.getLogger().warning("SQL Storage selected but logic is in Phase 2. Using YAML temporarily.");
-                storage = new YamlStorage(plugin);
+                try {
+                    storage = new SqlStorage(plugin);
+                } catch (Exception e) {
+                    plugin.getLogger().severe("Failed to init SQL Storage, falling back to YAML: " + e.getMessage());
+                    storage = new YamlStorage(plugin);
+                }
                 break;
             default:
                 storage = new YamlStorage(plugin);
@@ -38,6 +43,7 @@ public class DataManager {
     }
 
     public void loadPlayerData(Player player) {
+        // Run Async
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             if (storage != null) storage.loadData(player);
         });
@@ -51,7 +57,7 @@ public class DataManager {
         if (async) {
             plugin.getServer().getScheduler().runTaskAsynchronously(plugin, saveTask);
         } else {
-            saveTask.run();
+            saveTask.run(); // For shutdown sync save
         }
     }
 
