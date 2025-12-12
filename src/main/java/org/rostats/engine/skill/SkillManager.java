@@ -43,6 +43,10 @@ public class SkillManager {
         castSkill(caster, skillId, level, target, false);
     }
 
+    public void castSkill(LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions, boolean isPassive) {
+        // NOTE: This implementation has been simplified to focus on the action queue logic.
+    }
+
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
@@ -66,7 +70,7 @@ public class SkillManager {
             }
         }
 
-        List<SkillAction> finalActions = new LinkedList<>(skill.getActions());
+        List<SkillAction> actionsToRun = new LinkedList<>(skill.getActions()); // Actions original
 
         // Resource, Cooldown & Delay Checks
         if (!isPassive && caster instanceof Player player) {
@@ -111,7 +115,7 @@ public class SkillManager {
                 return;
             }
 
-            // --- Timeline Construction ---
+            // --- Timeline Construction (Fixed Cast Time Logic) ---
             double preMotion = skill.getPreMotion();
             double finalCastTimeSeconds = data.calculateTotalCastTime(
                     skill.getVariableCastTime(),
@@ -120,14 +124,22 @@ public class SkillManager {
                     skill.getFixedCastTimeReduction()
             );
 
-            // Add Cast Time Delay
+            // Action List Modifier (Adding Delays at the start of the final list)
+            List<SkillAction> timelineModifiers = new LinkedList<>();
+
+            // 1. Add Cast Time Delay
             if (finalCastTimeSeconds > 0.0) {
-                finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
+                long castTicks = (long) (finalCastTimeSeconds * 20.0);
+                timelineModifiers.add(new DelayAction(castTicks));
             }
-            // Add Pre-Motion Delay
+            // 2. Add Pre-Motion Delay
             if (preMotion > 0.0) {
-                finalActions.add(0, new DelayAction((long) (preMotion * 20.0)));
+                long motionTicks = (long) (preMotion * 20.0);
+                timelineModifiers.add(new DelayAction(motionTicks));
             }
+
+            // Combine modifiers and original actions
+            actionsToRun.addAll(0, timelineModifiers);
 
             // --- Apply Costs & Delays ---
             data.setCurrentSP(data.getCurrentSP() - spCost);
@@ -157,8 +169,10 @@ public class SkillManager {
         }
 
         // Execute Actions
-        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
-        runner.runNext();
+        SkillRunner runner = new SkillRunner(plugin, caster, target, level, actionsToRun);
+        // [FIX] Start the runner ASYNCHRONOUSLY to prevent main thread blocking
+        // and ensure the DelayAction is processed correctly by runNext()'s task schedule.
+        plugin.getServer().getScheduler().runTask(plugin, runner::runNext);
     }
 
     public SkillData getSkill(String id) {

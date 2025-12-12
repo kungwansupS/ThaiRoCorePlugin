@@ -71,6 +71,15 @@ public class SkillRunner {
         // 2. Handle Logic Actions
         if (action.getType() == ActionType.DELAY) {
             long delayTicks = ((DelayAction) action).getDelay();
+
+            // [FIX] Ensure positive delay
+            if (delayTicks <= 0) {
+                runNext(); // Skip delay if invalid
+                return;
+            }
+
+            // [FIX] Use BukkitRunnable to ensure the continuation of the queue runs on the main thread
+            // after the delay, and check validity.
             new BukkitRunnable() {
                 @Override
                 public void run() {
@@ -79,6 +88,8 @@ public class SkillRunner {
                     }
                 }
             }.runTaskLater(plugin, delayTicks);
+
+            // Do NOT call runNext() immediately here, as we are waiting for the delay.
         }
         else if (action.getType() == ActionType.LOOP) {
             ((LoopAction) action).executeWithRunner(this, caster, currentTarget, level, globalContext);

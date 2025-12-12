@@ -2,7 +2,6 @@ package org.rostats.engine.action.impl;
 
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.util.RayTraceResult;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
@@ -34,7 +33,6 @@ public class DamageAction implements SkillAction {
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         // [FIXED] ถ้า target เป็น null (เช่น Select Target ไม่เจอใคร) ให้ข้าม Action นี้ไปเลย
-        // เพราะ Damage Action นี้ควรถูกควบคุมโดย SELECT_TARGET และ CONDITION นำหน้า
         if (target == null) return;
 
         double damage = 0.0;
