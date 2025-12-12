@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * GUI สำหรับการเลือก Skill เพื่อผูกกับ Item Attribute ใน Item Editor
- * [FIXED] เพิ่มการฝัง Context (Item ID, Index) ลงในปุ่ม Navigation ทุกปุ่มป้องกัน Context Lost
+ * [FIXED] ฝังข้อมูล Context (Item ID, Index) ลงในปุ่ม Navigation ทุกปุ่มเพื่อไม่ให้ข้อมูลสูญหายระหว่างเปลี่ยนหน้า
  */
 public class ItemSkillSelectGUI {
 
@@ -58,7 +58,7 @@ public class ItemSkillSelectGUI {
         // 1. วนลูปเพื่อเก็บ Folder และ Skill ทั้งหมด
         for (File file : contents) {
             if (file.isDirectory()) {
-                // [FIX] สร้าง Folder และฝัง Context
+                // [FIX] สร้าง Folder และต้องฝัง Context ทันที ไม่งั้นคลิกแล้ว ItemID หาย
                 ItemStack folder = createGuiItem(Material.CHEST, "§aFolder: " + file.getName());
                 folder = addHiddenContext(folder, null);
                 displayItems.add(folder);
@@ -87,20 +87,20 @@ public class ItemSkillSelectGUI {
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 45; i < 54; i++) inv.setItem(i, bg);
 
-        // ปุ่มย้อนกลับ (ขึ้น Folder) - Slot 45
+        // ปุ่มย้อนกลับ (ขึ้น Folder) - Slot 45 [FIX: ใส่ Context]
         if (!currentDir.equals(manager.getRootDir())) {
             ItemStack backBtn = createGuiItem(Material.ARROW, "§cBack", "§7Up one level");
-            inv.setItem(45, addHiddenContext(backBtn, null)); // [FIX] ใส่ Context
+            inv.setItem(45, addHiddenContext(backBtn, null));
         }
 
-        // ปุ่มเปลี่ยนหน้า - Slot 48 & 50
+        // ปุ่มเปลี่ยนหน้า - Slot 48 & 50 [FIX: ใส่ Context]
         if (page > 0) {
             ItemStack prevBtn = createGuiItem(Material.ARROW, "§ePrevious Page");
-            inv.setItem(48, addHiddenContext(prevBtn, null)); // [FIX] ใส่ Context
+            inv.setItem(48, addHiddenContext(prevBtn, null));
         }
-        if (displayItems.size() > itemMax) { // Check if there are more items for next page
+        if (displayItems.size() > itemMax) {
             ItemStack nextBtn = createGuiItem(Material.ARROW, "§eNext Page");
-            inv.setItem(50, addHiddenContext(nextBtn, null)); // [FIX] ใส่ Context
+            inv.setItem(50, addHiddenContext(nextBtn, null));
         }
 
         // ปุ่มยกเลิก/กลับไปหน้า Skill Binding - Slot 53
@@ -144,8 +144,8 @@ public class ItemSkillSelectGUI {
     }
 
     /**
-     * [FIX] Helper method หลักสำหรับฝัง Context ข้อมูลลงใน Lore
-     * เพื่อให้ GUIListener สามารถดึงไปใช้ตอนเปลี่ยนหน้าหรือเลือก Folder ได้
+     * Helper สำคัญ: ฝังข้อมูล ItemID และ Index ลงใน Lore ของไอเท็มทุกชิ้นในหน้านี้
+     * เพื่อให้ GUIListener สามารถดึงไปใช้ต่อได้เมื่อมีการคลิก
      */
     private ItemStack addHiddenContext(ItemStack item, String skillId) {
         if (item == null || !item.hasItemMeta()) return item;
