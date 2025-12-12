@@ -25,7 +25,7 @@ public class SkillRunner {
     private final LinkedList<SkillAction> actionQueue = new LinkedList<>();
     private final Map<String, Double> globalContext = new HashMap<>();
 
-    public SkillRunner(ThaiRoCorePlugin plugin, LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions) {
+    public SkillRunner(ThaiRoCorePlugin plugin, LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions, Map<String, Double> parentContext) {
         this.plugin = plugin;
         this.caster = caster;
         this.originalTarget = target;
@@ -34,6 +34,11 @@ public class SkillRunner {
 
         if (actions != null) {
             this.actionQueue.addAll(actions);
+        }
+
+        // [MODIFIED] Context Inheritance: Merge parent context if provided (for sub-skills)
+        if (parentContext != null) {
+            this.globalContext.putAll(parentContext);
         }
     }
 
@@ -90,9 +95,6 @@ public class SkillRunner {
         // 3. Execute Standard Actions
         else {
             try {
-                // [FIXED] Removed strictly blocking null targets.
-                // Actions like Raycast, Sound, Particle do not need a target to run.
-                // Individual Actions (like Damage) should handle null checks internally if required.
                 action.execute(caster, currentTarget, level, globalContext);
             } catch (Exception e) {
                 e.printStackTrace();

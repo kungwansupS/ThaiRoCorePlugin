@@ -52,7 +52,8 @@ public class SpawnEntityAction implements SkillAction {
                 Entity entity = world.spawnEntity(spawnLoc, type);
                 if (entity instanceof LivingEntity && !skillId.equalsIgnoreCase("none")) {
                     // ร่ายสกิลย่อยเมื่อสร้าง Mob ขึ้นมา (เช่น บัฟ Mob ทันที)
-                    plugin.getSkillManager().castSkill(caster, skillId, level, (LivingEntity) entity, true);
+                    // [MODIFIED] ส่ง context เข้าไปด้วย
+                    plugin.getSkillManager().castSkill(caster, skillId, level, (LivingEntity) entity, true, context);
                 }
             }
         } catch (Exception e) {

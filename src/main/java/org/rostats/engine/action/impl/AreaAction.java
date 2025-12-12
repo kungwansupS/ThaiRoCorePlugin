@@ -47,8 +47,8 @@ public class AreaAction implements SkillAction {
 
             if (isValidTarget(caster, victim)) {
                 // ร่ายสกิลย่อยใส่เป้าหมาย
-                // หมายเหตุ: ปัจจุบัน castSkill ยังไม่รองรับการส่งต่อ context (ถ้าต้องการต้องแก้ SkillManager เพิ่ม)
-                plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
+                // [MODIFIED] ส่ง context เข้าไปด้วย
+                plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true, context);
                 count++;
             }
         }

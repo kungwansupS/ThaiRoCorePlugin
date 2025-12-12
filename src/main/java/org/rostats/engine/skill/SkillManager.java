@@ -40,10 +40,23 @@ public class SkillManager {
     // --- Core Methods ---
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target) {
-        castSkill(caster, skillId, level, target, false);
+        castSkill(caster, skillId, level, target, false, null);
     }
 
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
+        castSkill(caster, skillId, level, target, isPassive, null);
+    }
+
+    /**
+     * Master castSkill method
+     * @param caster ผู้ร่าย
+     * @param skillId ID สกิล
+     * @param level เลเวลสกิล
+     * @param target เป้าหมายหลัก
+     * @param isPassive เป็นสกิล Passive/Sub-Skill หรือไม่
+     * @param parentContext Context จาก Skill แม่/Action ที่เรียก (ส่งต่อตัวแปร)
+     */
+    public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive, Map<String, Double> parentContext) {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
 
@@ -157,11 +170,12 @@ public class SkillManager {
         }
 
         // Execute Actions
-        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
+        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions, parentContext);
         runner.runNext();
     }
 
     public SkillData getSkill(String id) {
+// ... (rest of the file remains the same)
         return skillMap.get(id);
     }
 
@@ -273,7 +287,7 @@ public class SkillManager {
 
             switch (type) {
                 case DAMAGE:
-                    // [FIX] Added 'bypass-def' argument (default false)
+                    // [MODIFIED] Added 'bypass-def' argument (default false)
                     return new DamageAction(plugin,
                             String.valueOf(map.getOrDefault("formula", "ATK")),
                             String.valueOf(map.getOrDefault("element", "NEUTRAL")),

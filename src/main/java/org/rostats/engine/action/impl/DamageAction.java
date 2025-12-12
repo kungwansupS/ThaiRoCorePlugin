@@ -33,10 +33,7 @@ public class DamageAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
-        if (target == null) {
-            target = findTarget(caster, 10);
-        }
-
+        // [MODIFIED] Removed the old `findTarget` fallback. If target is null here, the skill logic is wrong.
         if (target == null) return;
 
         double damage = 0.0;
@@ -78,21 +75,6 @@ public class DamageAction implements SkillAction {
 
             plugin.showCombatFloatingText(target.getLocation(), color + String.format("%.0f", damage));
         }
-    }
-
-    private LivingEntity findTarget(LivingEntity caster, int range) {
-        RayTraceResult result = caster.getWorld().rayTraceEntities(
-                caster.getEyeLocation(),
-                caster.getEyeLocation().getDirection(),
-                range,
-                0.5,
-                e -> e instanceof LivingEntity && !e.equals(caster)
-        );
-
-        if (result != null && result.getHitEntity() instanceof LivingEntity) {
-            return (LivingEntity) result.getHitEntity();
-        }
-        return null;
     }
 
     @Override

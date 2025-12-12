@@ -468,7 +468,7 @@ public class GUIListener implements Listener {
 
     private SkillAction createDefaultAction(ActionType type) {
         switch(type) {
-            case DAMAGE: return new DamageAction(plugin, "ATK", "NEUTRAL", false); // [FIX] Added 4th arg
+            case DAMAGE: return new DamageAction(plugin, "ATK", "NEUTRAL", false);
             case HEAL: return new HealAction(plugin, "10", false, true);
             case CONDITION: return new ConditionAction(plugin, "true", new ArrayList<>(), new ArrayList<>());
             case LOOP: return new LoopAction(plugin, "0", "5", "1", "i", new ArrayList<>());
@@ -591,7 +591,6 @@ public class GUIListener implements Listener {
                         getDouble(data, "radius", 10.0)
                 );
             case DAMAGE:
-                // [FIX] Added 'bypass-def' reconstruction
                 return new DamageAction(plugin,
                         getString(data, "formula", "ATK"),
                         getString(data, "element", "NEUTRAL"),

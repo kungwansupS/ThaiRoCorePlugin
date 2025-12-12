@@ -78,7 +78,8 @@ public class RaycastAction implements SkillAction {
                 marker.setSmall(true);
 
                 // ร่ายสกิลใส่ Marker
-                plugin.getSkillManager().castSkill(caster, subSkillId, level, marker, true);
+                // [MODIFIED] ส่ง context เข้าไปด้วย
+                plugin.getSkillManager().castSkill(caster, subSkillId, level, marker, true, context);
 
                 // ลบ Marker ทิ้ง
                 plugin.getServer().getScheduler().runTaskLater(plugin, marker::remove, 20L); // ลบหลัง 1 วินาที
@@ -96,7 +97,8 @@ public class RaycastAction implements SkillAction {
             );
 
             if (result != null && result.getHitEntity() instanceof LivingEntity victim) {
-                plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
+                // [MODIFIED] ส่ง context เข้าไปด้วย
+                plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true, context);
             }
         } else if (targetType.equals("AOE")) {
             // Logic เดิม
@@ -104,7 +106,8 @@ public class RaycastAction implements SkillAction {
             Collection<Entity> nearby = center.getNearbyEntities(range, range, range);
             for (Entity e : nearby) {
                 if (e instanceof LivingEntity victim && !e.equals(caster)) {
-                    plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
+                    // [MODIFIED] ส่ง context เข้าไปด้วย
+                    plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true, context);
                 }
             }
         }
