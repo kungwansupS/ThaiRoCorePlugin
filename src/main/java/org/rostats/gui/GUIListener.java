@@ -213,13 +213,11 @@ public class GUIListener implements Listener {
         }
     }
 
-    // [FIXED] Updated signature to match the 4 arguments call
     private void promptCreate(Player player, File dir, boolean isFile, boolean isPack) {
         player.sendMessage("§eType name:");
         player.closeInventory();
         plugin.getChatInputHandler().awaitInput(player, "Name:", (input) -> {
             if (isFile) {
-                // isPack logic can be used here if needed, but createSkill creates a file which can be a pack
                 String name = input.endsWith(".yml") ? input : input + ".yml";
                 plugin.getSkillManager().createSkill(dir, name);
             } else {
@@ -255,9 +253,13 @@ public class GUIListener implements Listener {
         if (slot == 48) {
             boolean isNested = currentEditingList.containsKey(player.getUniqueId());
             if (!isNested) {
+                // Return to Library
+                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                 new SkillLibraryGUI(plugin).open(player);
             } else {
+                // Return to Root Skill List
                 currentEditingList.remove(player.getUniqueId());
+                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true)); // [FIX] Added switch
                 new SkillEditorGUI(plugin, skillId, 0).open(player);
             }
             return;
@@ -269,7 +271,12 @@ public class GUIListener implements Listener {
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
             return;
         }
-        if (slot == 50) { new SkillActionSelectorGUI(plugin, skillId).open(player); return; }
+        if (slot == 50) {
+            // [FIX] Context Loss: Prevent currentEditingList from being cleared when opening Selector
+            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+            new SkillActionSelectorGUI(plugin, skillId).open(player);
+            return;
+        }
 
         if (slot >= 18 && slot <= 44) {
             int index = (page * 27) + (slot - 18);
@@ -278,11 +285,15 @@ public class GUIListener implements Listener {
                 if (action instanceof ConditionAction && event.isRightClick()) {
                     ConditionAction cond = (ConditionAction) action;
                     currentEditingList.put(player.getUniqueId(), event.isShiftClick() ? cond.getFailActions() : cond.getSuccessActions());
+                    // [FIX] Context Loss: Entering Nested List
+                    player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillEditorGUI(plugin, skillId, event.isShiftClick() ? cond.getFailActions() : cond.getSuccessActions(), 0, "Condition").open(player);
                     return;
                 }
                 if (action instanceof LoopAction && event.isRightClick() && !event.isShiftClick()) {
                     currentEditingList.put(player.getUniqueId(), ((LoopAction)action).getSubActions());
+                    // [FIX] Context Loss: Entering Nested List
+                    player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillEditorGUI(plugin, skillId, ((LoopAction)action).getSubActions(), 0, "Loop").open(player);
                     return;
                 }
@@ -294,6 +305,8 @@ public class GUIListener implements Listener {
                     activeList.remove(index); refreshGUI(player, skillId, page);
                 } else if (event.isLeftClick()) {
                     editingProperties.put(player.getUniqueId(), new HashMap<>(action.serialize()));
+                    // [FIX] State Loss: Entering Property Editor
+                    player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillActionPropertyGUI(plugin, skillId, index, action).open(player);
                 }
             }
@@ -308,6 +321,8 @@ public class GUIListener implements Listener {
         SkillData root = plugin.getSkillManager().getSkill(skillId);
         List<SkillAction> list = currentEditingList.getOrDefault(player.getUniqueId(), root.getActions());
         String name = currentEditingList.containsKey(player.getUniqueId()) ? "Nested List" : "Main";
+        // [FIX] General Stability: Ensure switch flag is set on refresh
+        player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
         new SkillEditorGUI(plugin, skillId, list, page, name).open(player);
     }
 
@@ -397,6 +412,9 @@ public class GUIListener implements Listener {
                 fData.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType());
             } else {
+                // [FIX] State Loss: Prevent editingProperties from being cleared during chat input
+                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+                player.closeInventory();
                 plugin.getChatInputHandler().awaitInput(player, "Enter " + key + ":", (str) -> {
                     try {
                         if (isIntegerKey(fKey)) fData.put(fKey, Integer.parseInt(str));
@@ -444,6 +462,8 @@ public class GUIListener implements Listener {
             public void execute(org.bukkit.entity.LivingEntity c, org.bukkit.entity.LivingEntity t, int l, Map<String, Double> ctx) {}
             public Map<String, Object> serialize() { return data; }
         };
+        // [FIX] Ensure switch flag is set when reopening property GUI
+        player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }
 
