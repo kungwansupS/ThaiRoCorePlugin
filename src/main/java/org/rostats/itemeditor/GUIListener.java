@@ -33,6 +33,7 @@ public class GUIListener implements Listener {
     private final ThaiRoCorePlugin plugin;
     private final Map<UUID, Map<String, Object>> skillBindingFlow = new HashMap<>();
 
+    // Callbacks for Skill Selection (ItemEditor)
     private final Map<UUID, Consumer<String>> skillSelectCallbacks = new HashMap<>();
     private final Map<UUID, Runnable> skillCancelCallbacks = new HashMap<>();
 
@@ -108,6 +109,42 @@ public class GUIListener implements Listener {
         }
     }
 
+    private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
+        ItemStack item = event.getCurrentItem();
+        if (item == null || item.getType() == Material.AIR) return;
+
+        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
+        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
+        final File finalCurrentDir = currentDir;
+
+        setSwitching(player);
+        player.closeInventory();
+        plugin.getChatInputHandler().awaitInput(player, "Item Name (No .yml):", (name) -> {
+            if (!plugin.getItemManager().isValidFileName(name)) {
+                player.sendMessage("§cInvalid name!");
+                return;
+            }
+            String fileName = name.endsWith(".yml") ? name : name + ".yml";
+            File newFile = new File(finalCurrentDir, fileName);
+            if (newFile.exists()) {
+                player.sendMessage("§cFile exists!");
+                return;
+            }
+            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
+            plugin.getItemManager().saveItem(newFile, attr, item);
+            player.sendMessage("§aImported!");
+            new BukkitRunnableWrapper(plugin, () -> {
+                setSwitching(player);
+                new ItemLibraryGUI(plugin, finalCurrentDir).open(player);
+            });
+        }, () -> {
+            new BukkitRunnableWrapper(plugin, () -> {
+                setSwitching(player);
+                new ItemLibraryGUI(plugin, finalCurrentDir).open(player);
+            });
+        });
+    }
+
     private void handleItemSkillSelectClick(InventoryClickEvent event, Player player) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
@@ -176,6 +213,128 @@ public class GUIListener implements Listener {
                 setSwitching(player);
                 cancel.run();
             }
+        }
+    }
+
+    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
+        int lastBracket = title.lastIndexOf(" [");
+        if (lastBracket == -1) return;
+        String fileName = title.substring(8, lastBracket);
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if (itemFile == null) return;
+
+        Mode mode = title.contains("EFFECT") ? Mode.EFFECT : Mode.ENCHANT;
+        String metaKey = "RO_EDITOR_SEL_" + mode.name();
+        String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+        int slot = event.getSlot();
+
+        if (slot < 45) {
+            if (clicked.getType() == Material.AIR) return;
+            ItemMeta meta = clicked.getItemMeta();
+
+            NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
+            NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+            PersistentDataType<String, String> strType = PersistentDataType.STRING;
+
+            if (meta != null && meta.getPersistentDataContainer().has(keyType, strType)) {
+                String iconType = meta.getPersistentDataContainer().get(keyType, strType);
+                String iconValue = meta.getPersistentDataContainer().get(keyValue, strType);
+                if ("select_item".equals(iconType)) {
+                    player.setMetadata(metaKey, new FixedMetadataValue(plugin, iconValue));
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                    setSwitching(player);
+                    new EffectEnchantGUI(plugin, itemFile, mode).open(player);
+                }
+            }
+        }
+        else {
+            ItemMeta meta = clicked.getItemMeta();
+            if (meta == null) return;
+
+            NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
+            NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+            PersistentDataType<String, String> strType = PersistentDataType.STRING;
+
+            if (!meta.getPersistentDataContainer().has(keyType, strType)) return;
+
+            String iconType = meta.getPersistentDataContainer().get(keyType, strType);
+            String iconValue = meta.getPersistentDataContainer().get(keyValue, strType);
+
+            if ("set_level".equals(iconType) && selected != null) {
+                setSwitching(player);
+                plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
+                    try {
+                        int lvl = Integer.parseInt(str);
+                        applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
+                    } catch (NumberFormatException e) {
+                        player.sendMessage("§cInvalid Number");
+                        reopenEffectEnchant(player, itemFile, mode);
+                    }
+                }, () -> reopenEffectEnchant(player, itemFile, mode));
+            }
+            else if ("add".equals(iconType) && selected != null) {
+                applyEffectEnchant(player, itemFile, mode, selected, 1, true);
+            }
+            else if ("remove".equals(iconType) && selected != null) {
+                applyEffectEnchant(player, itemFile, mode, selected, 0, false);
+            }
+            else if ("next_page".equals(iconType)) {
+                setSwitching(player);
+                int page = Integer.parseInt(iconValue);
+                new EffectEnchantGUI(plugin, itemFile, mode, page).open(player);
+            }
+            else if ("prev_page".equals(iconType)) {
+                setSwitching(player);
+                int page = Integer.parseInt(iconValue);
+                new EffectEnchantGUI(plugin, itemFile, mode, page).open(player);
+            }
+            else if ("back".equals(iconType)) {
+                player.removeMetadata(metaKey, plugin);
+                setSwitching(player);
+                new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
+            }
+        }
+    }
+
+    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
+        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
+        if(itemFile == null) return;
+        ItemStack clicked = event.getCurrentItem();
+        if(clicked == null) return;
+
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null) return;
+
+        NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
+        NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+        PersistentDataType<String, String> strType = PersistentDataType.STRING;
+
+        if (!meta.getPersistentDataContainer().has(keyType, strType)) return;
+
+        String iconType = meta.getPersistentDataContainer().get(keyType, strType);
+        String iconValue = meta.getPersistentDataContainer().get(keyValue, strType);
+
+        if ("select_mat".equals(iconType)) {
+            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+            stack.setType(Material.valueOf(iconValue));
+            saveAndRefresh(player, itemFile, stack);
+        }
+        else if ("next_page".equals(iconType)) {
+            setSwitching(player);
+            int page = Integer.parseInt(iconValue);
+            new ItemTypeSelectorGUI(plugin, itemFile, page).open(player);
+        }
+        else if ("prev_page".equals(iconType)) {
+            setSwitching(player);
+            int page = Integer.parseInt(iconValue);
+            new ItemTypeSelectorGUI(plugin, itemFile, page).open(player);
+        }
+        else if ("cancel".equals(iconType)) {
+            setSwitching(player);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
         }
     }
 
@@ -411,42 +570,6 @@ public class GUIListener implements Listener {
         }
     }
 
-    private void handleImportItem(InventoryClickEvent event, Player player, String relativePath) {
-        ItemStack item = event.getCurrentItem();
-        if (item == null || item.getType() == Material.AIR) return;
-
-        File currentDir = plugin.getItemManager().getFileFromRelative(relativePath);
-        if (!currentDir.exists()) currentDir = plugin.getItemManager().getRootDir();
-        final File finalCurrentDir = currentDir;
-
-        setSwitching(player);
-        player.closeInventory();
-        plugin.getChatInputHandler().awaitInput(player, "Item Name (No .yml):", (name) -> {
-            if (!plugin.getItemManager().isValidFileName(name)) {
-                player.sendMessage("§cInvalid name!");
-                return;
-            }
-            String fileName = name.endsWith(".yml") ? name : name + ".yml";
-            File newFile = new File(finalCurrentDir, fileName);
-            if (newFile.exists()) {
-                player.sendMessage("§cFile exists!");
-                return;
-            }
-            ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(item);
-            plugin.getItemManager().saveItem(newFile, attr, item);
-            player.sendMessage("§aImported!");
-            new BukkitRunnableWrapper(plugin, () -> {
-                setSwitching(player);
-                new ItemLibraryGUI(plugin, finalCurrentDir).open(player);
-            });
-        }, () -> {
-            new BukkitRunnableWrapper(plugin, () -> {
-                setSwitching(player);
-                new ItemLibraryGUI(plugin, finalCurrentDir).open(player);
-            });
-        });
-    }
-
     private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null) return;
@@ -581,57 +704,71 @@ public class GUIListener implements Listener {
         }
     }
 
-    private void handleEffectEnchantClick(InventoryClickEvent event, Player player, String title) {
-        int lastBracket = title.lastIndexOf(" [");
-        if (lastBracket == -1) return;
-        String fileName = title.substring(8, lastBracket);
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if (itemFile == null) return;
+    private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
+        String fileName = title.substring("Confirm Delete: ".length());
+        File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
 
-        Mode mode = title.contains("EFFECT") ? Mode.EFFECT : Mode.ENCHANT;
-        String metaKey = "RO_EDITOR_SEL_" + mode.name();
-        String selected = player.hasMetadata(metaKey) ? player.getMetadata(metaKey).get(0).asString() : null;
+        if (event.getCurrentItem() == null) return;
+        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
 
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-        int slot = event.getSlot();
-
-        if (slot < 45) {
-            if (clicked.getType() == Material.AIR) return;
-            String dp = clicked.getItemMeta().getDisplayName();
-            String key = dp.length() > 2 ? dp.substring(2) : dp;
-
-            player.setMetadata(metaKey, new FixedMetadataValue(plugin, key));
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-            setSwitching(player);
-            new EffectEnchantGUI(plugin, itemFile, mode).open(player);
+        if (dp.contains("CONFIRM DELETE")) {
+            if (target != null && target.exists()) {
+                File parent = target.getParentFile();
+                plugin.getItemManager().deleteFile(target);
+                player.sendMessage("§cDeleted: " + fileName);
+                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
+                new BukkitRunnableWrapper(plugin, () -> {
+                    setSwitching(player);
+                    new ItemLibraryGUI(plugin, parent).open(player);
+                });
+            } else {
+                player.sendMessage("§cFile not found.");
+                player.closeInventory();
+            }
+        } else if (dp.contains("CANCEL")) {
+            if (target != null && target.exists()) {
+                new BukkitRunnableWrapper(plugin, () -> {
+                    setSwitching(player);
+                    new ItemLibraryGUI(plugin, target.getParentFile()).open(player);
+                });
+            } else {
+                new BukkitRunnableWrapper(plugin, () -> {
+                    setSwitching(player);
+                    new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player);
+                });
+            }
         }
-        else if (slot == 50 && selected != null) {
-            setSwitching(player); // Protect metadata from being cleared on close
-            plugin.getChatInputHandler().awaitInput(player, "Enter Level:", (str) -> {
-                try {
-                    int lvl = Integer.parseInt(str);
-                    applyEffectEnchant(player, itemFile, mode, selected, lvl, true);
-                } catch (NumberFormatException e) {
-                    player.sendMessage("§cInvalid Number");
-                    new BukkitRunnableWrapper(plugin, () -> {
-                        setSwitching(player);
-                        new EffectEnchantGUI(plugin, itemFile, mode).open(player);
-                    });
+    }
+
+    private void saveAndRefresh(Player player, File file, ItemStack stack) {
+        ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
+        plugin.getItemManager().saveItem(file, attr, stack);
+        new BukkitRunnableWrapper(plugin, () -> {
+            setSwitching(player);
+            new AttributeEditorGUI(plugin, file).open(player, Page.GENERAL);
+        });
+    }
+
+    private File findFileByName(File dir, String name) {
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    File found = findFileByName(f, name);
+                    if (found != null) return found;
+                } else if (f.getName().equals(name) || f.getName().equals(name + ".yml")) {
+                    return f;
                 }
-            }, () -> reopenEffectEnchant(player, itemFile, mode));
+            }
         }
-        else if (slot == 51 && selected != null) {
-            applyEffectEnchant(player, itemFile, mode, selected, 1, true);
+        return null;
+    }
+
+    private Page getPageFromTitle(String title) {
+        for (Page p : Page.values()) {
+            if (title.contains(p.name())) return p;
         }
-        else if (slot == 52 && selected != null) {
-            applyEffectEnchant(player, itemFile, mode, selected, 0, false);
-        }
-        else if (slot == 53) {
-            player.removeMetadata(metaKey, plugin); // Clean up explicitly
-            setSwitching(player);
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-        }
+        return Page.GENERAL;
     }
 
     private void applyEffectEnchant(Player player, File file, Mode mode, String key, int level, boolean add) {
@@ -669,90 +806,6 @@ public class GUIListener implements Listener {
                 new EffectEnchantGUI(plugin, file, mode).open(player);
             }
         });
-    }
-
-    private void handleConfirmDeleteClick(InventoryClickEvent event, Player player, String title) {
-        String fileName = title.substring("Confirm Delete: ".length());
-        File target = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-
-        if (event.getCurrentItem() == null) return;
-        String dp = event.getCurrentItem().getItemMeta().getDisplayName();
-
-        if (dp.contains("CONFIRM DELETE")) {
-            if (target != null && target.exists()) {
-                File parent = target.getParentFile();
-                plugin.getItemManager().deleteFile(target);
-                player.sendMessage("§cDeleted: " + fileName);
-                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
-                new BukkitRunnableWrapper(plugin, () -> {
-                    setSwitching(player);
-                    new ItemLibraryGUI(plugin, parent).open(player);
-                });
-            } else {
-                player.sendMessage("§cFile not found.");
-                player.closeInventory();
-            }
-        } else if (dp.contains("CANCEL")) {
-            if (target != null && target.exists()) {
-                new BukkitRunnableWrapper(plugin, () -> {
-                    setSwitching(player);
-                    new ItemLibraryGUI(plugin, target.getParentFile()).open(player);
-                });
-            } else {
-                new BukkitRunnableWrapper(plugin, () -> {
-                    setSwitching(player);
-                    new ItemLibraryGUI(plugin, plugin.getItemManager().getRootDir()).open(player);
-                });
-            }
-        }
-    }
-
-    private void handleMaterialSelectClick(InventoryClickEvent event, Player player, String fileName) {
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
-        if(itemFile == null) return;
-        ItemStack clicked = event.getCurrentItem();
-        if(clicked == null) return;
-        if(clicked.getType() == Material.ARROW) {
-            setSwitching(player);
-            new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-            return;
-        }
-        if(clicked.getType() != Material.AIR) {
-            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
-            stack.setType(clicked.getType());
-            saveAndRefresh(player, itemFile, stack);
-        }
-    }
-
-    private void saveAndRefresh(Player player, File file, ItemStack stack) {
-        ItemAttribute attr = plugin.getItemManager().loadAttribute(file);
-        plugin.getItemManager().saveItem(file, attr, stack);
-        new BukkitRunnableWrapper(plugin, () -> {
-            setSwitching(player);
-            new AttributeEditorGUI(plugin, file).open(player, Page.GENERAL);
-        });
-    }
-
-    private File findFileByName(File dir, String name) {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                if (f.isDirectory()) {
-                    File found = findFileByName(f, name);
-                    if (found != null) return found;
-                } else if (f.getName().equals(name) || f.getName().equals(name + ".yml")) {
-                    return f;
-                }
-            }
-        }
-        return null;
-    }
-
-    private Page getPageFromTitle(String title) {
-        for (Page p : Page.values()) {
-            if (title.contains(p.name())) return p;
-        }
-        return Page.GENERAL;
     }
 
     private void reopenEditor(Player player, File file, Page page) {

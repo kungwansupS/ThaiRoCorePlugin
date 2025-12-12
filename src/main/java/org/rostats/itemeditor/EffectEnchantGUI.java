@@ -17,7 +17,6 @@ import org.rostats.ThaiRoCorePlugin;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,7 +49,7 @@ public class EffectEnchantGUI {
         ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
         ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
 
-        // ดึงค่า Selection ที่เลือกค้างไว้จาก Metadata
+        // Selection State
         String metaKey = "RO_EDITOR_SEL_" + mode.name();
         String selectedKey = null;
         if (player.hasMetadata(metaKey)) {
@@ -109,7 +108,7 @@ public class EffectEnchantGUI {
             inv.setItem(slot++, createOptionItem(mat, key, has, lvl, isSelected));
         }
 
-        // Control Panel & Navigation
+        // Controls
         updateControlPanel(inv, selectedKey, items.size(), itemsPerPage);
 
         player.openInventory(inv);
@@ -123,7 +122,6 @@ public class EffectEnchantGUI {
     }
 
     private void updateControlPanel(Inventory inv, String selectedKey, int totalItems, int itemsPerPage) {
-        // Navigation Buttons
         if (page > 0) {
             inv.setItem(45, createGuiItem(Material.ARROW, "§ePrevious Page", "prev_page", String.valueOf(page - 1), "§7Go to page " + page));
         } else {
@@ -134,7 +132,6 @@ public class EffectEnchantGUI {
             inv.setItem(53, createGuiItem(Material.ARROW, "§eNext Page", "next_page", String.valueOf(page + 1), "§7Go to page " + (page + 2)));
         }
 
-        // Controls (Shifted to center)
         if (selectedKey != null) {
             inv.setItem(48, createGuiItem(Material.PAPER, "§eSelected: §f" + selectedKey, "info", selectedKey, "§7Click options above to change"));
             inv.setItem(49, createGuiItem(Material.ANVIL, "§eSet Level", "set_level", selectedKey, "§7Click to input level via Chat"));
@@ -144,7 +141,6 @@ public class EffectEnchantGUI {
             inv.setItem(49, createGuiItem(Material.BARRIER, "§cNo Selection", "info", "none", "§7Click an option above"));
         }
 
-        // Fill BG
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ", "bg", "");
         for (int i = 45; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
@@ -155,7 +151,6 @@ public class EffectEnchantGUI {
         String displayName = (active ? "§a" : "§7") + name;
         String status = active ? "§a[ADDED] Lv." + level : "§7[NOT ADDED]";
         String selectStatus = selected ? "§e▶ SELECTED ◀" : "§eClick to Select";
-
         return createGuiItem(mat, displayName, "select_item", name, status, selectStatus);
     }
 

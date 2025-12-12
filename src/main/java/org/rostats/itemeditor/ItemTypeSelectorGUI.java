@@ -23,25 +23,17 @@ public class ItemTypeSelectorGUI {
     private final int page;
 
     private static final List<Material> COMMON_MATERIALS = Arrays.asList(
-            // Weapons
             Material.WOODEN_SWORD, Material.STONE_SWORD, Material.IRON_SWORD, Material.GOLDEN_SWORD, Material.DIAMOND_SWORD, Material.NETHERITE_SWORD,
             Material.BOW, Material.CROSSBOW, Material.TRIDENT,
-            // Armor (Helmets)
             Material.LEATHER_HELMET, Material.CHAINMAIL_HELMET, Material.IRON_HELMET, Material.GOLDEN_HELMET, Material.DIAMOND_HELMET, Material.NETHERITE_HELMET,
-            // Armor (Chestplates)
             Material.LEATHER_CHESTPLATE, Material.CHAINMAIL_CHESTPLATE, Material.IRON_CHESTPLATE, Material.GOLDEN_CHESTPLATE, Material.DIAMOND_CHESTPLATE, Material.NETHERITE_CHESTPLATE,
-            // Armor (Leggings)
             Material.LEATHER_LEGGINGS, Material.CHAINMAIL_LEGGINGS, Material.IRON_LEGGINGS, Material.GOLDEN_LEGGINGS, Material.DIAMOND_LEGGINGS, Material.NETHERITE_LEGGINGS,
-            // Armor (Boots)
             Material.LEATHER_BOOTS, Material.CHAINMAIL_BOOTS, Material.IRON_BOOTS, Material.GOLDEN_BOOTS, Material.DIAMOND_BOOTS, Material.NETHERITE_BOOTS,
-            // Misc / Offhand
             Material.SHIELD, Material.TOTEM_OF_UNDYING, Material.ELYTRA,
-            // Resources / Misc Items
             Material.STICK, Material.PAPER, Material.BOOK, Material.WRITABLE_BOOK, Material.ENCHANTED_BOOK,
             Material.ARROW, Material.SPECTRAL_ARROW, Material.FEATHER, Material.FLINT,
             Material.IRON_INGOT, Material.GOLD_INGOT, Material.DIAMOND, Material.EMERALD, Material.NETHER_STAR,
             Material.BLAZE_ROD, Material.BONE, Material.STRING, Material.LEATHER
-            // Note: If you add more items here, pagination will handle it automatically.
     );
 
     public ItemTypeSelectorGUI(ThaiRoCorePlugin plugin, File itemFile) {
@@ -66,7 +58,6 @@ public class ItemTypeSelectorGUI {
             inv.setItem(slot++, createGuiItem(COMMON_MATERIALS.get(i)));
         }
 
-        // Navigation
         if (page > 0) {
             inv.setItem(45, createNavButton(Material.ARROW, "§ePrevious Page", "prev_page", String.valueOf(page - 1)));
         } else {
@@ -77,7 +68,6 @@ public class ItemTypeSelectorGUI {
             inv.setItem(53, createNavButton(Material.ARROW, "§eNext Page", "next_page", String.valueOf(page + 1)));
         }
 
-        // Fill BG
         ItemStack bg = createNavButton(Material.GRAY_STAINED_GLASS_PANE, " ", "bg", "");
         for (int i = 45; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, bg);
@@ -92,12 +82,10 @@ public class ItemTypeSelectorGUI {
         if (meta != null) {
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
             meta.setLore(Arrays.asList("§eClick to select this type.", "§7คลิกเพื่อเลือกประเภทนี้"));
-
             NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
             NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
             meta.getPersistentDataContainer().set(keyType, PersistentDataType.STRING, "select_mat");
             meta.getPersistentDataContainer().set(keyValue, PersistentDataType.STRING, mat.name());
-
             item.setItemMeta(meta);
         }
         return item;
@@ -109,12 +97,10 @@ public class ItemTypeSelectorGUI {
         if (meta != null) {
             meta.setDisplayName(name);
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-
             NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
             NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
             meta.getPersistentDataContainer().set(keyType, PersistentDataType.STRING, type);
             meta.getPersistentDataContainer().set(keyValue, PersistentDataType.STRING, value);
-
             item.setItemMeta(meta);
         }
         return item;
