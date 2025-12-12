@@ -357,6 +357,9 @@ public class GUIListener implements Listener {
             flowData.put("itemFile", itemFile);
             skillBindingFlow.put(player.getUniqueId(), flowData);
 
+            // FIX: เพิ่ม metadata ROSTATS_SWITCH เพื่อป้องกัน GUIListener ของระบบ Skill ล้าง callbacks เมื่อปิด GUI เก่า
+            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+
             // [FIXED] เรียก openSelectMode (3 args)
             new SkillLibraryGUI(plugin).openSelectMode(player,
                     (selectedSkillId) -> {
