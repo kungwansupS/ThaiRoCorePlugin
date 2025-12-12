@@ -31,6 +31,7 @@ import org.rostats.itemeditor.ItemEditorCommand;
 import org.rostats.itemeditor.ItemManager;
 import org.rostats.engine.effect.EffectManager;
 import org.rostats.engine.skill.SkillManager;
+import org.rostats.engine.element.ElementManager; // [NEW] Import
 
 import java.util.Set;
 import java.util.UUID;
@@ -55,6 +56,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     private EffectManager effectManager;
     private SkillManager skillManager;
+    private ElementManager elementManager; // [NEW] Variable
 
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
     private NamespacedKey floatingTextKey;
@@ -66,7 +68,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.floatingTextKey = new NamespacedKey(this, "RO_FLOATING_TEXT");
 
         this.statManager = new StatManager(this);
-        this.dataManager = new DataManager(this); // Initialize DataManager (loads storage)
+        this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
@@ -76,6 +78,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
         this.effectManager = new EffectManager(this);
         this.skillManager = new SkillManager(this);
+        this.elementManager = new ElementManager(this); // [NEW] Initialize
 
         this.itemAttributeManager = new ItemAttributeManager(this);
         this.itemManager = new ItemManager(this);
@@ -116,7 +119,6 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             new PAPIHook(this).register();
         }
 
-        // Auto-save task
         long autoSaveTicks = getConfig().getLong("storage.auto-save", 300) * 20L;
         if (autoSaveTicks > 0) {
             getServer().getScheduler().runTaskTimer(this, () -> {
@@ -138,14 +140,11 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        // Save all online players first
         if (dataManager != null) {
             for (Player player : getServer().getOnlinePlayers()) {
-                dataManager.savePlayerData(player, false); // Sync save
+                dataManager.savePlayerData(player, false);
                 if (manaManager != null) manaManager.removeBar(player);
             }
-
-            // [PHASE 3 FIX] Shutdown DataManager (Closes Database Connection)
             dataManager.shutdown();
         }
 
@@ -161,7 +160,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     public void reload() {
         reloadConfig();
-        if (dataManager != null) dataManager.reload(); // Reload DB settings
+        if (dataManager != null) dataManager.reload();
         if (combatHandler != null) combatHandler.loadValues();
         skillManager.loadSkills();
         getLogger().info("Configuration Reloaded.");
@@ -174,7 +173,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        dataManager.savePlayerData(event.getPlayer(), true); // Async save on quit
+        dataManager.savePlayerData(event.getPlayer(), true);
 
         statManager.removeData(event.getPlayer().getUniqueId());
         if (manaManager != null) {
@@ -256,4 +255,5 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public EffectManager getEffectManager() { return effectManager; }
     public SkillManager getSkillManager() { return skillManager; }
     public ProjectileHandler getProjectileHandler() { return projectileHandler; }
+    public ElementManager getElementManager() { return elementManager; } // [NEW] Getter
 }
