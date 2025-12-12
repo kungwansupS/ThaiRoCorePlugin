@@ -33,10 +33,8 @@ public class DamageAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
-        if (target == null) {
-            target = findTarget(caster, 10);
-        }
-
+        // [FIXED] ถ้า target เป็น null (เช่น Select Target ไม่เจอใคร) ให้ข้าม Action นี้ไปเลย
+        // เพราะ Damage Action นี้ควรถูกควบคุมโดย SELECT_TARGET และ CONDITION นำหน้า
         if (target == null) return;
 
         double damage = 0.0;
@@ -74,25 +72,11 @@ public class DamageAction implements SkillAction {
             // FCT Color based on Element
             String color = "§f";
             if (elementMod > 1.0) color = "§c";
-            else if (elementMod < 1.0) color = "§7";
+            else if (elementMod < 1.0 && elementMod > 0) color = "§7";
+            else if (elementMod == 0) color = "§8";
 
             plugin.showCombatFloatingText(target.getLocation(), color + String.format("%.0f", damage));
         }
-    }
-
-    private LivingEntity findTarget(LivingEntity caster, int range) {
-        RayTraceResult result = caster.getWorld().rayTraceEntities(
-                caster.getEyeLocation(),
-                caster.getEyeLocation().getDirection(),
-                range,
-                0.5,
-                e -> e instanceof LivingEntity && !e.equals(caster)
-        );
-
-        if (result != null && result.getHitEntity() instanceof LivingEntity) {
-            return (LivingEntity) result.getHitEntity();
-        }
-        return null;
     }
 
     @Override

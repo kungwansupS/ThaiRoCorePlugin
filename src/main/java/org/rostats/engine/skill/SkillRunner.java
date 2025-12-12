@@ -52,12 +52,18 @@ public class SkillRunner {
         // 1. Check for Target Switching
         if (action.getType() == ActionType.SELECT_TARGET) {
             TargetSelectorAction selector = (TargetSelectorAction) action;
+            // selector.resolveTarget จะ handle logic ภายในเอง
             LivingEntity newTarget = selector.resolveTarget(caster, originalTarget);
 
             // If found, update current target
             if (newTarget != null) {
                 this.currentTarget = newTarget;
+            } else if (selector.getMode() == TargetSelectorAction.SelectorMode.CURSOR) {
+                // [FIXED] ถ้าหา CURSOR ไม่เจอ (เล็งอากาศ) ให้ currentTarget เป็น null
+                this.currentTarget = null;
             }
+            // ถ้า Mode ไม่ใช่ CURSOR และหาไม่เจอ ให้อิงตาม Target เดิม
+
             runNext();
             return;
         }
@@ -90,7 +96,6 @@ public class SkillRunner {
         // 3. Execute Standard Actions
         else {
             try {
-                // [FIXED] Removed strictly blocking null targets.
                 // Actions like Raycast, Sound, Particle do not need a target to run.
                 // Individual Actions (like Damage) should handle null checks internally if required.
                 action.execute(caster, currentTarget, level, globalContext);
