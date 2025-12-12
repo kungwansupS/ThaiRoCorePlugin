@@ -3,162 +3,183 @@ package org.rostats.gui;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.skill.SkillData;
+import org.rostats.engine.skill.SkillManager;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.function.Consumer;
 
 public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final File currentEntry; // เป็นได้ทั้ง Folder จริง หรือ File (Pack)
+    private final File currentDir;
+    private final int page;
 
-    public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
-        this(plugin, plugin.getSkillManager().getRootDir());
+    // Editor State
+    private final boolean isSelectMode;
+    private final String currentEditingSkillId; // Not used in Select Mode, but kept for compatibility
+    private final int bindingIndex;
+    private final String targetItemId;
+
+    // Normal Constructor
+    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentDir, int page) {
+        this(plugin, currentDir, page, false, null, -1, null);
     }
 
-    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
+    // Full Constructor
+    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentDir, int page, boolean isSelectMode, String currentEditingSkillId, int bindingIndex, String targetItemId) {
         this.plugin = plugin;
-        this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
+        this.currentDir = currentDir;
+        this.page = page;
+        this.isSelectMode = isSelectMode;
+        this.currentEditingSkillId = currentEditingSkillId;
+        this.bindingIndex = bindingIndex;
+        this.targetItemId = targetItemId;
     }
 
     public void open(Player player) {
-        if (currentEntry.isDirectory()) {
-            openDirectoryView(player, currentEntry);
-        } else if (currentEntry.isFile()) {
-            openPackView(player, currentEntry);
-        }
+        String title = isSelectMode ? "SkillSelect:" : "SkillLibrary:";
+        // Shorten path for title limit
+        String path = currentDir.getName().equals("skills") ? "/" : currentDir.getName();
+        invOpen(player, title + " " + path, page);
     }
 
-    // [FIXED] รับ 3 Argument: Player, SuccessCallback, CancelCallback
-    public void openSelectMode(Player player, Consumer<String> onSelect, Runnable onCancel) {
-        GUIListener.setSelectionMode(player, onSelect, onCancel);
-        player.sendMessage("§ePlease select a skill from the library...");
-        open(player);
-    }
+    private void invOpen(Player player, String titlePrefix, int page) {
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text(titlePrefix + " #P" + page));
+        SkillManager manager = plugin.getSkillManager();
+        List<File> contents = manager.listContents(currentDir);
 
-    public void openConfirmDelete(Player player, File target) {
-        Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
+        int start = page * 45;
+        int max = Math.min(contents.size(), start + 45);
 
-        inv.setItem(3, createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE",
-                "§7Target: " + target.getName(),
-                "§c§lWARNING: Cannot be undone!"));
+        // If Select Mode -> We might want to list ALL skills inside files if we are inside a pack?
+        // Current logic: List Files. If user clicks a .yml pack, we handle it?
+        // BETTER LOGIC for Select Mode:
+        // 1. If currentDir contains .yml files, list them as Packs.
+        // 2. Ideally, we want to SEE the skills to select them.
 
-        inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return."));
+        // Mixed View: Show Folders + Show Skills from files in this folder
+        // This is complex. Let's stick to File browsing.
+        // BUT, if isSelectMode is true, we must allow clicking a Pack to see its skills?
+        // Or simply listing all skills from all files in currentDir?
 
-        player.openInventory(inv);
-    }
+        // Let's implement: List Files/Folders.
+        // AND if a file is a .yml, list the SKILLS inside it instead of the file itself?
+        // OR list the file, and when clicked, enter it like a folder? -> "Pseudo-folder" logic
 
-    // --- View 1: Folder จริง ---
-    private void openDirectoryView(Player player, File dir) {
-        String path = plugin.getSkillManager().getRelativePath(dir);
-        String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Lib: " + titlePath));
+        // Simplified Logic for Full Code: List Files.
+        // If it's a .yml file, we display it.
+        // In GUIListener, checking "SkillSelect" mode, if they click a .yml, we treat it as a container.
 
-        List<File> files = plugin.getSkillManager().listContents(dir);
+        // Actually, to make "Skill Packs" work seamlessly:
+        // We will iterate files. If it's a directory, show Chest.
+        // If it's a .yml, parse it and show ALL skills inside it as individual items.
 
-        for (File file : files) {
+        List<ItemStack> displayItems = new ArrayList<>();
+
+        for (File file : contents) {
             if (file.isDirectory()) {
-                inv.addItem(createGuiItem(Material.CHEST, "§6📂 " + file.getName(),
-                        "§7Type: Folder", "§eClick to open."));
-            }
-            else if (file.getName().endsWith(".yml")) {
-                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-                Set<String> keys = config.getKeys(false);
-                int count = keys.size();
-
-                if (count > 1) {
-                    inv.addItem(createGuiItem(Material.ENDER_CHEST, "§d📦 " + file.getName(),
-                            "§7Type: Skill Pack",
-                            "§7Contains: §f" + count + " skills",
-                            "§eClick to open pack."));
-                } else if (count == 1) {
-                    if (!keys.isEmpty()) {
-                        String skillId = keys.iterator().next();
-                        SkillData skill = plugin.getSkillManager().getSkill(skillId);
-                        if (skill != null) {
-                            inv.addItem(createSkillItem(skill, "File: " + file.getName()));
-                        } else {
-                            inv.addItem(createGuiItem(Material.BARRIER, "§c" + file.getName(), "§7Error loading data"));
+                displayItems.add(createGuiItem(Material.CHEST, "§aFolder: " + file.getName()));
+            } else if (file.getName().endsWith(".yml")) {
+                if (isSelectMode) {
+                    // Expand Skills
+                    try {
+                        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                        for (String key : config.getKeys(false)) {
+                            SkillData skill = manager.getSkill(key);
+                            if (skill != null) {
+                                displayItems.add(createSkillItem(skill));
+                            }
                         }
-                    }
+                    } catch (Exception e) {}
                 } else {
-                    inv.addItem(createGuiItem(Material.PAPER, "§7" + file.getName(), "§7(Empty File)"));
+                    // Normal Mode: Show Pack
+                    displayItems.add(createGuiItem(Material.PAPER, "§bSkill Pack: §f" + file.getName()));
                 }
             }
         }
 
-        if (!path.equals("/")) {
-            inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
+        // Pagination logic for displayItems
+        int itemStart = page * 45;
+        int itemMax = Math.min(displayItems.size(), itemStart + 45);
+
+        for (int i = itemStart; i < itemMax; i++) {
+            inv.setItem(i - itemStart, displayItems.get(i));
         }
 
-        inv.setItem(48, createGuiItem(Material.CHEST, "§6+ New Folder", "§7Create a sub-folder"));
-        inv.setItem(49, createGuiItem(Material.PAPER, "§e+ New Skill", "§7Create a single skill file"));
-        inv.setItem(50, createGuiItem(Material.ENDER_CHEST, "§d+ New Pack", "§7Create a multi-skill pack"));
+        // --- Footer ---
+        ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 45; i < 54; i++) inv.setItem(i, bg);
 
-        player.openInventory(inv);
-    }
+        // Navigation
+        if (page > 0) inv.setItem(48, createGuiItem(Material.ARROW, "§ePrevious Page"));
+        if (displayItems.size() > itemMax) inv.setItem(50, createGuiItem(Material.ARROW, "§eNext Page"));
 
-    // --- View 2: ภายในไฟล์ (Skill Pack) ---
-    private void openPackView(Player player, File file) {
-        String path = plugin.getSkillManager().getRelativePath(file);
-        String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Pack: " + titlePath));
-
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        for (String skillId : config.getKeys(false)) {
-            SkillData skill = plugin.getSkillManager().getSkill(skillId);
-            if (skill != null) {
-                inv.addItem(createSkillItem(skill, "ID: " + skillId));
-            } else {
-                inv.addItem(createGuiItem(Material.BARRIER, "§c" + skillId, "§7Error loading skill."));
-            }
+        if (!currentDir.equals(manager.getRootDir())) {
+            inv.setItem(45, createGuiItem(Material.ARROW, "§cBack", "§7Up one level"));
         }
 
-        inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Return to folder"));
-        inv.setItem(53, createGuiItem(Material.LIME_DYE, "§a+ Add Skill", "§7Add another skill to this pack"));
-
-        player.openInventory(inv);
-    }
-
-    private ItemStack createSkillItem(SkillData skill, String subInfo) {
-        ItemStack item = new ItemStack(skill.getIcon());
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§e" + skill.getDisplayName());
-            List<String> lore = new ArrayList<>();
-            lore.add("§8ID: " + skill.getId());
-            lore.add("§7" + subInfo);
-            lore.add("");
-            lore.add("§eClick to Edit/Select");
-            lore.add("§cRight-Click to Delete");
+        // Context Info for Select Mode
+        if (isSelectMode) {
+            ItemStack info = createGuiItem(Material.BOOK, "§eSelecting Skill", "§7Target Item: " + targetItemId);
+            // Hide context data in lore for GUIListener to reconstruct state
+            ItemMeta meta = info.getItemMeta();
+            List<String> lore = meta.getLore();
+            lore.add("§0INDEX:" + bindingIndex); // Hidden
             meta.setLore(lore);
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-            item.setItemMeta(meta);
+            info.setItemMeta(meta);
+
+            // Put in slot 53 (Back/Info)
+            ItemStack backBtn = createGuiItem(Material.RED_BED, "§cBack to Skill Binding", "§7(Skill: " + targetItemId + ")");
+            ItemMeta backMeta = backBtn.getItemMeta();
+            backMeta.setLore(lore); // Pass the hidden lore
+            backBtn.setItemMeta(backMeta);
+
+            inv.setItem(53, backBtn);
         }
+
+        player.openInventory(inv);
+    }
+
+    private ItemStack createSkillItem(SkillData skill) {
+        Material icon = skill.getIcon() != null ? skill.getIcon() : Material.BOOK;
+        ItemStack item = new ItemStack(icon);
+        ItemMeta meta = item.getItemMeta();
+
+        String displayName = skill.getDisplayName() != null ? skill.getDisplayName().replace("&", "§") : skill.getId();
+        meta.setDisplayName("§e[Select] " + displayName);
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§7ID: " + skill.getId());
+        lore.add("§7Type: " + skill.getSkillType());
+        lore.add("§7Cooldown: " + skill.getCooldownBase());
+        lore.add("");
+        lore.add("§aClick to Select");
+
+        // [IMPORTANT] Hidden ID for GUIListener
+        lore.add("§0SKILL_ID:" + skill.getId());
+
+        meta.setLore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        item.setItemMeta(meta);
         return item;
     }
 
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(lore));
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-            item.setItemMeta(meta);
-        }
+        meta.setDisplayName(name);
+        meta.setLore(Arrays.asList(lore));
+        item.setItemMeta(meta);
         return item;
     }
 }

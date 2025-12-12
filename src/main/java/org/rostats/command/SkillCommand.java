@@ -27,8 +27,9 @@ public class SkillCommand implements CommandExecutor {
             return true;
         }
 
-        // เปิด GUI ที่หน้า Root (ใช้ Constructor แบบ 1 ค่า ที่เพิ่มไปใน SkillLibraryGUI)
-        new SkillLibraryGUI(plugin).open(player);
+        // [FIX] อัปเดตการเรียกใช้ Constructor ให้ตรงกับ SkillLibraryGUI ล่าสุด
+        // โดยส่ง Root Directory และ Page 0 ไปด้วย
+        new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
         return true;
     }
 }
