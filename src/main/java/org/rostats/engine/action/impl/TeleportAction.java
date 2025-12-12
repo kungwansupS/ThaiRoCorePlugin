@@ -6,6 +6,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.util.Vector;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
+import org.rostats.utils.FormulaParser; // Import FormulaParser
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +29,8 @@ public class TeleportAction implements SkillAction {
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
         Location start = caster.getLocation();
+
+        // Note: Currently range is fixed double, no need for FormulaParser here unless the constructor is modified.
 
         if (toTarget && target != null) {
             // วาร์ปไปหาเป้าหมาย (ด้านหลัง)

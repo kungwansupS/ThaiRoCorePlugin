@@ -38,7 +38,7 @@ public class SkillActionPropertyGUI {
         if (type == ActionType.DAMAGE) {
             inv.setItem(slot++, createPropItem(Material.PAPER, "formula", "Formula", (String)data.getOrDefault("formula","ATK"), "§eEdit Formula"));
             inv.setItem(slot++, createPropItem(Material.BLAZE_POWDER, "element", "Element", (String)data.getOrDefault("element","NEUTRAL"), "§eEdit Element"));
-            // [NEW] Bypass Def
+            // [NEW] Bypass Def GUI
             inv.setItem(slot++, createPropItem(Material.TOTEM_OF_UNDYING, "bypass-def", "Bypass DEF/MDEF", data.getOrDefault("bypass-def",false).toString(), "§eToggle (True Damage Mode)"));
         }
         else if (type == ActionType.HEAL) {

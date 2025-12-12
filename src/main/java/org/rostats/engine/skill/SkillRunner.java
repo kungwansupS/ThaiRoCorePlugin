@@ -69,7 +69,10 @@ public class SkillRunner {
 
         // 2. Handle Logic Actions
         if (action.getType() == ActionType.DELAY) {
-            long delayTicks = ((DelayAction) action).getDelay();
+            // [MODIFIED] คำนวณ Delay Ticks จาก Expression
+            DelayAction delayAction = (DelayAction) action;
+            long delayTicks = delayAction.getDelay(caster, currentTarget, level, globalContext, plugin);
+
             new BukkitRunnable() {
                 @Override
                 public void run() {

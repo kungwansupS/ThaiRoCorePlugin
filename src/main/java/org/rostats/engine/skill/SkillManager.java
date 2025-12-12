@@ -133,13 +133,32 @@ public class SkillManager {
                     skill.getFixedCastTimeReduction()
             );
 
-            // Add Cast Time Delay
+            // [MODIFIED] Cast Time Delay Logic
             if (finalCastTimeSeconds > 0.0) {
-                finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
+                // หา Action Delay ตัวแรกที่ผู้ใช้กำหนด (ซึ่งควรเป็นตัวที่รอ Cast Time)
+                int firstDelayIndex = -1;
+                for (int i = 0; i < finalActions.size(); i++) {
+                    if (finalActions.get(i).getType() == ActionType.DELAY) {
+                        firstDelayIndex = i;
+                        break;
+                    }
+                }
+
+                long castTicks = (long) (finalCastTimeSeconds * 20.0);
+                String castTicksExpr = String.valueOf(castTicks);
+
+                if (firstDelayIndex != -1) {
+                    // หากมี Delay อยู่แล้ว (Action 3 ใน YAML) ให้แทนที่ Delay นั้นด้วย Cast Time ที่คำนวณได้
+                    finalActions.set(firstDelayIndex, new DelayAction(castTicksExpr));
+                } else {
+                    // หากไม่มี Delay เลย ให้เพิ่ม Cast Time เข้าไปที่หัวคิว
+                    finalActions.add(0, new DelayAction(castTicksExpr));
+                }
             }
-            // Add Pre-Motion Delay
+
+            // Add Pre-Motion Delay (ควรจะทำก่อน Cast Time)
             if (preMotion > 0.0) {
-                finalActions.add(0, new DelayAction((long) (preMotion * 20.0)));
+                finalActions.add(0, new DelayAction(String.valueOf((long) (preMotion * 20.0))));
             }
 
             // --- Apply Costs & Delays ---
@@ -170,7 +189,12 @@ public class SkillManager {
         }
 
         // Execute Actions
-        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions, parentContext);
+        // [MODIFIED] Create base context including skill metadata for FormulaParser
+        Map<String, Double> skillContext = parentContext != null ? new HashMap<>(parentContext) : new HashMap<>();
+        skillContext.put("skill_range", skill.getCastRange());
+        skillContext.put("skill_max_level", (double) skill.getMaxLevel());
+
+        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions, skillContext);
         runner.runNext();
     }
 
@@ -354,8 +378,9 @@ public class SkillManager {
                     return new AreaAction(plugin, radius, tType, subSkill, maxT);
 
                 case DELAY:
-                    long ticks = map.containsKey("ticks") ? ((Number) map.get("ticks")).longValue() : 20L;
-                    return new DelayAction(ticks);
+                    // [MODIFIED] เปลี่ยนเป็นรับ String
+                    String ticksExpr = String.valueOf(map.getOrDefault("ticks", "20"));
+                    return new DelayAction(ticksExpr);
 
                 case VELOCITY:
                     double vx = map.containsKey("x") ? ((Number) map.get("x")).doubleValue() : 0.0;

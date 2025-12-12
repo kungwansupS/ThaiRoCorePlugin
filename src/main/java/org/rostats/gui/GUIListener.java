@@ -485,7 +485,7 @@ public class GUIListener implements Listener {
             case SPAWN_ENTITY: return new SpawnEntityAction(plugin, "LIGHTNING_BOLT", "none");
             case SET_VARIABLE: return new SetVariableAction(plugin, "temp", "1");
             case SELECT_TARGET: return new TargetSelectorAction(TargetSelectorAction.SelectorMode.SELF, 10.0);
-            case DELAY: return new DelayAction(20L);
+            case DELAY: return new DelayAction("20");
             default: return null;
         }
     }
@@ -698,12 +698,13 @@ public class GUIListener implements Listener {
                         getString(data, "skill-id", "none")
                 );
             case DELAY:
-                return new DelayAction((long)getInt(data, "ticks", 20));
+                return new DelayAction(getString(data, "ticks", "20"));
             default: return oldAction;
         }
     }
 
-    private boolean isIntegerKey(String key) { return key.equals("level") || key.equals("duration") || key.equals("count") || key.equals("amplifier") || key.equals("max-targets") || key.equals("ticks"); }
+    private boolean isIntegerKey(String key) { return key.equals("level") || key.equals("duration") || key.equals("count") || key.equals("amplifier") || key.equals("max-targets"); }
+    // [MODIFIED] ลบ 'ticks' ออกจาก isDoubleKey เนื่องจากเราต้องการให้มันเป็น String expression
     private boolean isDoubleKey(String key) { return key.equals("power") || key.equals("chance") || key.equals("speed") || key.equals("offset") || key.equals("range") || key.equals("volume") || key.equals("pitch") || key.equals("radius") || key.equals("x") || key.equals("y") || key.equals("z"); }
 
     private void reopenPropertyGUI(Player player, String skillId, int index, Map<String, Object> data, ActionType type) {

@@ -137,6 +137,15 @@ public class FormulaParser {
             } else if (key.equals("level")) {
                 value = String.valueOf(level);
             }
+            // [NEW] Skill Meta Data Placeholders
+            else if (key.equals("skill_range")) {
+                Double range = context != null ? context.get("skill_range") : null;
+                value = range != null ? String.valueOf(range) : "0";
+            }
+            else if (key.equals("skill_max_level")) {
+                Double maxLevel = context != null ? context.get("skill_max_level") : null;
+                value = maxLevel != null ? String.valueOf(maxLevel) : "1";
+            }
 
             matcher.appendReplacement(sb, value);
         }
