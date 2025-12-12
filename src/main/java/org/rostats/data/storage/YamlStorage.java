@@ -37,10 +37,12 @@ public class YamlStorage implements PlayerDataStorage {
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
+        // Run on main thread to update player stats safely
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
 
             PlayerData data = plugin.getStatManager().getData(uuid);
+            if (data == null) return;
 
             data.setBaseLevel(config.getInt("base-level", 1));
             data.setBaseExp(config.getLong("base-exp", 0));
@@ -126,6 +128,7 @@ public class YamlStorage implements PlayerDataStorage {
         config.set("stats.LUK", data.getStat("LUK"));
 
         int idx = 0;
+        // Copy list to avoid concurrent modification issues
         for (ActiveEffect effect : new ArrayList<>(data.getActiveEffects())) {
             String path = "active-effects." + idx;
             config.set(path + ".id", effect.getId());
