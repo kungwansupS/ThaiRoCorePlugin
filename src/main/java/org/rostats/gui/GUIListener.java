@@ -84,16 +84,23 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        if (title.contains(CharacterGUI.TITLE_HEADER) || title.startsWith("Skill") || title.startsWith("Action") || title.startsWith("Lib:") || title.startsWith("Pack:") || title.startsWith("Delete:") || title.startsWith("SkillLibrary:")) {
-            event.setCancelled(true);
+        // [FIX] ปรับปรุงการเช็ค Title ให้เฉพาะเจาะจง เพื่อไม่ให้ชนกับ ItemEditor
+        boolean isMyGUI = title.contains(CharacterGUI.TITLE_HEADER)
+                || title.startsWith("Lib:")
+                || title.startsWith("Pack:")
+                || title.startsWith("Delete:")
+                || title.startsWith("SkillEditor:")
+                || title.startsWith("ActionSelector:")
+                || title.startsWith("ActionEdit:");
 
+        if (isMyGUI) {
+            event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) {
                 return;
             }
         }
 
-        // [FIX] เพิ่มการตรวจสอบ Title "SkillLibrary:" ด้วย เพราะอาจมีการเปลี่ยนชื่อ Title ในเวอร์ชันใหม่
-        if (title.startsWith("Lib:") || title.startsWith("Pack:") || title.startsWith("SkillLibrary:")) {
+        if (title.startsWith("Lib:") || title.startsWith("Pack:")) {
             handleLibraryNavigation(event, player, title);
             return;
         }
@@ -121,49 +128,32 @@ public class GUIListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        // Parse path from title
-        String pathString;
-        if (title.startsWith("Lib: ")) pathString = title.substring(5);
-        else if (title.startsWith("Pack: ")) pathString = title.substring(6);
-        else if (title.startsWith("SkillLibrary: ")) pathString = title.substring(14).split(" #P")[0];
-        else pathString = "/";
-
-        if (pathString.startsWith("...")) pathString = "/"; // Fallback if truncated
+        String pathString = title.startsWith("Lib: ") ? title.substring(5) : title.substring(6);
+        if (pathString.startsWith("...")) pathString = "/";
 
         File currentDir = plugin.getSkillManager().getFileFromRelative(pathString.trim());
         if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
 
         // 1. Enter Folder
-        if (clicked.getType() == Material.CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("Folder:")) {
-            String folderName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("Folder: ", "").trim();
-            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-            // [FIX] Added page 0
-            new SkillLibraryGUI(plugin, new File(currentDir, folderName), 0).open(player);
-            return;
-        }
-
-        // Support old format just in case
         if (clicked.getType() == Material.CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("📂")) {
             String folderName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("📂 ", "").trim();
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-            // [FIX] Added page 0
+            // [FIX] เพิ่ม page 0
             new SkillLibraryGUI(plugin, new File(currentDir, folderName), 0).open(player);
             return;
         }
 
-        // 2. Enter Pack (Support opening pack content view if we want, but in new GUI it shows content directly if configured)
-        // For now, if clicking a Skill Pack file, we treat it as entering it (if new GUI logic supports it) OR just refreshing
-        if (clicked.getType() == Material.PAPER && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().startsWith("§bSkill Pack:")) {
-            // Logic handled inside SkillLibraryGUI now, or we can just open it as current dir if it's a file
-            // Let's assume we don't dive into pack in Admin view for now unless configured,
-            // but if we want to, we pass the file as currentDir
-            // [FIX] Using new constructor signature
-            // Actually, for consistency with new GUI, if it's just a file, we might not "open" it here unless we implement file viewing.
-            // But let's leave it compatible.
+        // 2. Enter Pack
+        if (clicked.getType() == Material.ENDER_CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("📦")) {
+            String fileName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("📦 ", "").trim();
+            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+            // [FIX] เพิ่ม page 0
+            new SkillLibraryGUI(plugin, new File(currentDir, fileName), 0).open(player);
+            return;
         }
 
         // 3. Back Button
-        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("Back")) {
+        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("BACK")) {
             if (cancelCallbacks.containsKey(player.getUniqueId()) && currentDir.equals(plugin.getSkillManager().getRootDir())) {
                 Runnable cancel = cancelCallbacks.remove(player.getUniqueId());
                 selectionCallbacks.remove(player.getUniqueId());
@@ -175,10 +165,10 @@ public class GUIListener implements Listener {
             File parent = currentDir.getParentFile();
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
             if (parent != null && parent.getAbsolutePath().startsWith(plugin.getSkillManager().getRootDir().getAbsolutePath())) {
-                // [FIX] Added page 0
+                // [FIX] เพิ่ม page 0
                 new SkillLibraryGUI(plugin, parent, 0).open(player);
             } else {
-                // [FIX] Added page 0
+                // [FIX] ใช้ Root Dir และ page 0
                 new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
             }
             return;
@@ -186,12 +176,6 @@ public class GUIListener implements Listener {
 
         // 4. Create Buttons
         if (!selectionCallbacks.containsKey(player.getUniqueId())) {
-            if (clicked.getType() == Material.BOOK && clicked.getItemMeta().getDisplayName().contains("Create New File")) {
-                boolean isRightClick = event.isRightClick();
-                promptCreate(player, currentDir, !isRightClick, false); // Left=File, Right=Folder
-                return;
-            }
-            // Old format support
             if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
                 promptCreate(player, currentDir, false, false);
                 return;
@@ -200,44 +184,44 @@ public class GUIListener implements Listener {
                 promptCreate(player, currentDir, true, false);
                 return;
             }
+            if (clicked.getType() == Material.ENDER_CHEST && clicked.getItemMeta().getDisplayName().contains("New Pack")) {
+                promptCreate(player, currentDir, true, true);
+                return;
+            }
+            if (clicked.getType() == Material.LIME_DYE && title.startsWith("Pack:")) {
+                final File packFile = currentDir;
+                player.sendMessage("§eType new skill name:");
+                player.closeInventory();
+                plugin.getChatInputHandler().awaitInput(player, "Skill Name:", (name) -> {
+                    plugin.getSkillManager().addSkillToFile(packFile, name);
+                    // [FIX] เพิ่ม page 0
+                    runSync(() -> new SkillLibraryGUI(plugin, packFile, 0).open(player));
+                });
+                return;
+            }
         }
 
         // 5. Select/Edit Skill
-        // This is for the OLD GUI Items (if any remain) or specifically configured ones.
-        // The new GUI creates "Edit" items for skills.
-        if (clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().startsWith("§e[Select]")) {
-            // This is mostly for ItemEditor selection, handled in ItemEditor GUIListener usually.
-            // But if we use this listener for selection mode as well:
-            String dp = clicked.getItemMeta().getDisplayName();
-            String skillId = null;
-            // Try getting ID from Lore (New method)
-            if (clicked.getItemMeta().hasLore()) {
-                for (String l : clicked.getItemMeta().getLore()) {
-                    if (l.contains("SKILL_ID:")) {
-                        skillId = l.substring(l.indexOf("SKILL_ID:") + 9).trim();
-                        break;
-                    }
+        if (clicked.hasItemMeta() && clicked.getItemMeta().hasLore()) {
+            List<String> lore = clicked.getItemMeta().getLore();
+            if (lore != null && !lore.isEmpty() && lore.get(0).startsWith("§8ID: ")) {
+                String skillId = lore.get(0).replace("§8ID: ", "");
+
+                if (selectionCallbacks.containsKey(player.getUniqueId())) {
+                    Consumer<String> callback = selectionCallbacks.remove(player.getUniqueId());
+                    cancelCallbacks.remove(player.getUniqueId());
+                    player.sendMessage("§aSelected: " + skillId);
+                    player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+                    player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+                    callback.accept(skillId);
+                    return;
                 }
-            }
-            // Fallback
-            if (skillId == null) skillId = dp.substring(10); // Remove "§e[Select] "
 
-            if (selectionCallbacks.containsKey(player.getUniqueId())) {
-                Consumer<String> callback = selectionCallbacks.remove(player.getUniqueId());
-                cancelCallbacks.remove(player.getUniqueId());
-                player.sendMessage("§aSelected: " + skillId);
-                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
-                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-                callback.accept(skillId);
-                return;
-            }
-
-            // Open Editor
-            if (event.isRightClick()) {
-                // Confirm delete
-                // Logic for delete confirm not updated to new GUI yet, skipping for safety
-            } else {
-                new SkillEditorGUI(plugin, skillId).open(player);
+                if (event.isRightClick()) {
+                    new SkillLibraryGUI(plugin, currentDir, 0).openConfirmDelete(player, new File(currentDir, skillId + ".yml"));
+                } else {
+                    new SkillEditorGUI(plugin, skillId).open(player);
+                }
             }
         }
     }
@@ -252,7 +236,7 @@ public class GUIListener implements Listener {
             } else {
                 plugin.getSkillManager().createFolder(dir, input);
             }
-            // [FIX] Added page 0
+            // [FIX] เพิ่ม page 0
             runSync(() -> new SkillLibraryGUI(plugin, dir, 0).open(player));
         });
     }
@@ -264,10 +248,10 @@ public class GUIListener implements Listener {
             File parent = target.getParentFile();
             plugin.getSkillManager().deleteFile(target);
             player.sendMessage("§cDeleted.");
-            // [FIX] Added page 0
+            // [FIX] เพิ่ม page 0
             runSync(() -> new SkillLibraryGUI(plugin, parent, 0).open(player));
         } else if (event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.RED_CONCRETE) {
-            // [FIX] Added root & page 0
+            // [FIX] ใช้ Root Dir และ page 0
             new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
         }
     }
@@ -287,7 +271,7 @@ public class GUIListener implements Listener {
             if (!isNested) {
                 // Return to Library
                 player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-                // [FIX] Added root & page 0
+                // [FIX] ใช้ Root Dir และ page 0
                 new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
             } else {
                 // Return to Root Skill List
@@ -305,7 +289,6 @@ public class GUIListener implements Listener {
             return;
         }
         if (slot == 50) {
-            // [FIX] Context Loss: Prevent currentEditingList from being cleared when opening Selector
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
             new SkillActionSelectorGUI(plugin, skillId).open(player);
             return;
@@ -318,14 +301,12 @@ public class GUIListener implements Listener {
                 if (action instanceof ConditionAction && event.isRightClick()) {
                     ConditionAction cond = (ConditionAction) action;
                     currentEditingList.put(player.getUniqueId(), event.isShiftClick() ? cond.getFailActions() : cond.getSuccessActions());
-                    // [FIX] Context Loss: Entering Nested List
                     player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillEditorGUI(plugin, skillId, event.isShiftClick() ? cond.getFailActions() : cond.getSuccessActions(), 0, "Condition").open(player);
                     return;
                 }
                 if (action instanceof LoopAction && event.isRightClick() && !event.isShiftClick()) {
                     currentEditingList.put(player.getUniqueId(), ((LoopAction)action).getSubActions());
-                    // [FIX] Context Loss: Entering Nested List
                     player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillEditorGUI(plugin, skillId, ((LoopAction)action).getSubActions(), 0, "Loop").open(player);
                     return;
@@ -338,7 +319,6 @@ public class GUIListener implements Listener {
                     activeList.remove(index); refreshGUI(player, skillId, page);
                 } else if (event.isLeftClick()) {
                     editingProperties.put(player.getUniqueId(), new HashMap<>(action.serialize()));
-                    // [FIX] State Loss: Entering Property Editor
                     player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillActionPropertyGUI(plugin, skillId, index, action).open(player);
                 }
@@ -354,7 +334,6 @@ public class GUIListener implements Listener {
         SkillData root = plugin.getSkillManager().getSkill(skillId);
         List<SkillAction> list = currentEditingList.getOrDefault(player.getUniqueId(), root.getActions());
         String name = currentEditingList.containsKey(player.getUniqueId()) ? "Nested List" : "Main";
-        // [FIX] General Stability: Ensure switch flag is set on refresh
         player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
         new SkillEditorGUI(plugin, skillId, list, page, name).open(player);
     }
@@ -445,7 +424,6 @@ public class GUIListener implements Listener {
                 fData.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType());
             } else {
-                // [FIX] State Loss: Prevent editingProperties from being cleared during chat input
                 player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                 player.closeInventory();
                 plugin.getChatInputHandler().awaitInput(player, "Enter " + key + ":", (str) -> {
@@ -495,7 +473,6 @@ public class GUIListener implements Listener {
             public void execute(org.bukkit.entity.LivingEntity c, org.bukkit.entity.LivingEntity t, int l, Map<String, Double> ctx) {}
             public Map<String, Object> serialize() { return data; }
         };
-        // [FIX] Ensure switch flag is set when reopening property GUI
         player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }
