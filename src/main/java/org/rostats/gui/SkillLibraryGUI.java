@@ -15,6 +15,7 @@ import org.rostats.engine.skill.SkillData;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -23,14 +24,20 @@ public class SkillLibraryGUI {
 
     private final ThaiRoCorePlugin plugin;
     private final File currentEntry;
+    private final int page;
 
     public SkillLibraryGUI(ThaiRoCorePlugin plugin) {
-        this(plugin, plugin.getSkillManager().getRootDir());
+        this(plugin, plugin.getSkillManager().getRootDir(), 0);
     }
 
     public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry) {
+        this(plugin, currentEntry, 0);
+    }
+
+    public SkillLibraryGUI(ThaiRoCorePlugin plugin, File currentEntry, int page) {
         this.plugin = plugin;
         this.currentEntry = currentEntry != null ? currentEntry : plugin.getSkillManager().getRootDir();
+        this.page = page;
     }
 
     public void open(Player player) {
@@ -41,8 +48,11 @@ public class SkillLibraryGUI {
         }
     }
 
-    // [UPDATED] openSelectMode signature is managed by GUIListener externally now, this is just for internal GUI logic.
-    // GUIListener calls open(player) after setting up callbacks.
+    public void openSelectMode(Player player, Consumer<String> onSelect, Runnable onCancel) {
+        GUIListener.setSelectionMode(player, onSelect, onCancel);
+        player.sendMessage("§ePlease select a skill from the library...");
+        open(player);
+    }
 
     public void openConfirmDelete(Player player, File target) {
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
@@ -58,12 +68,17 @@ public class SkillLibraryGUI {
 
     private void openDirectoryView(Player player, File dir) {
         String path = plugin.getSkillManager().getRelativePath(dir);
-        String titlePath = path.length() > 32 ? "..." + path.substring(path.length() - 28) : path;
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Lib: " + titlePath));
+        String titlePath = path.length() > 24 ? "..." + path.substring(path.length() - 20) : path;
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Lib: " + titlePath + " #P" + page));
 
         List<File> files = plugin.getSkillManager().listContents(dir);
 
-        for (File file : files) {
+        int itemsPerPage = 45;
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, files.size());
+
+        for (int i = startIndex; i < endIndex; i++) {
+            File file = files.get(i);
             if (file.isDirectory()) {
                 inv.addItem(createGuiItem(Material.CHEST, "§6📂 " + file.getName(),
                         "§7Type: Folder", "§eClick to open."));
@@ -94,9 +109,7 @@ public class SkillLibraryGUI {
             }
         }
 
-        if (!path.equals("/")) {
-            inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
-        }
+        addNavigationButtons(inv, path, files.size(), itemsPerPage);
 
         inv.setItem(48, createGuiItem(Material.CHEST, "§6+ New Folder", "§7Create a sub-folder"));
         inv.setItem(49, createGuiItem(Material.PAPER, "§e+ New Skill", "§7Create a single skill file"));
@@ -107,11 +120,19 @@ public class SkillLibraryGUI {
 
     private void openPackView(Player player, File file) {
         String path = plugin.getSkillManager().getRelativePath(file);
-        String titlePath = path.length() > 30 ? "..." + path.substring(path.length() - 26) : path;
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Pack: " + titlePath));
+        String titlePath = path.length() > 24 ? "..." + path.substring(path.length() - 20) : path;
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Pack: " + titlePath + " #P" + page));
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        for (String skillId : config.getKeys(false)) {
+        List<String> skillKeys = new ArrayList<>(config.getKeys(false));
+        Collections.sort(skillKeys);
+
+        int itemsPerPage = 45;
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, skillKeys.size());
+
+        for (int i = startIndex; i < endIndex; i++) {
+            String skillId = skillKeys.get(i);
             SkillData skill = plugin.getSkillManager().getSkill(skillId);
             if (skill != null) {
                 inv.addItem(createSkillItem(skill, "ID: " + skillId));
@@ -120,10 +141,25 @@ public class SkillLibraryGUI {
             }
         }
 
-        inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Return to folder"));
+        addNavigationButtons(inv, path, skillKeys.size(), itemsPerPage);
+
         inv.setItem(53, createGuiItem(Material.LIME_DYE, "§a+ Add Skill", "§7Add another skill to this pack"));
 
         player.openInventory(inv);
+    }
+
+    private void addNavigationButtons(Inventory inv, String currentPath, int totalItems, int itemsPerPage) {
+        if (page > 0) {
+            inv.setItem(45, createGuiItem(Material.ARROW, "§ePrevious Page", "§7Go to page " + page));
+        } else {
+            if (!currentPath.equals("/")) {
+                inv.setItem(45, createGuiItem(Material.ARROW, "§c§l< BACK", "§7Go to parent folder"));
+            }
+        }
+
+        if (totalItems > (page + 1) * itemsPerPage) {
+            inv.setItem(53, createGuiItem(Material.ARROW, "§eNext Page", "§7Go to page " + (page + 2)));
+        }
     }
 
     private ItemStack createSkillItem(SkillData skill, String subInfo) {
