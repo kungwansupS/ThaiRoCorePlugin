@@ -19,6 +19,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
+import org.rostats.engine.element.Element; // Import
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
 import org.rostats.itemeditor.ItemSkillBinding;
@@ -209,11 +210,6 @@ public class AttributeHandler implements Listener {
         data.setFixedCTPercent(data.getFixedCTPercent() + attr.getFixedCTPercent());
         data.setFixedCTFlat(data.getFixedCTFlat() + attr.getFixedCTFlat());
 
-        // [FIXED] Inverted Logic for Cooldowns:
-        // Item Value (+) = Increase CD = Bad -> Should decrease Reduction
-        // Item Value (-) = Decrease CD = Good -> Should increase Reduction (Subtract negative)
-        // So we SUBTRACT the item value from the reduction stats.
-
         data.setSkillCooldownReductionPercent(data.getSkillCooldownReductionPercent() - attr.getSkillCooldownPercent());
         data.setSkillCooldownReductionFlat(data.getSkillCooldownReductionFlat() - attr.getSkillCooldownFlat());
 
@@ -246,6 +242,19 @@ public class AttributeHandler implements Listener {
         data.setRangePDReductionPercent(data.getRangePDReductionPercent() + attr.getRangePDReductionPercent());
 
         data.setTrueDamageFlat(data.getTrueDamageFlat() + attr.getTrueDamageFlat());
+
+        // --- Apply Elements (Last Item Override Logic) ---
+        // ถ้าไอเทมชิ้นนี้มีธาตุ (ไม่เท่ากับ -1) ให้ตั้งค่า
+        // หมายเหตุ: Logic นี้จะให้ความสำคัญกับไอเทมที่ถูก loop ทีหลัง (เช่น Off-Hand อาจทับ Main-Hand)
+        // ถ้าต้องการ Logic ที่ซับซ้อนกว่านี้ต้องปรับปรุงลูปใน applyAllEquipmentAttributes
+        if (attr.getAttackElement() != -1) {
+            if (attr.getAttackElement() >= 0 && attr.getAttackElement() < Element.values().length)
+                data.setAttackElement(Element.values()[attr.getAttackElement()]);
+        }
+        if (attr.getDefenseElement() != -1) {
+            if (attr.getDefenseElement() >= 0 && attr.getDefenseElement() < Element.values().length)
+                data.setDefenseElement(Element.values()[attr.getDefenseElement()]);
+        }
     }
 
     public void updatePlayerStats(Player player) {

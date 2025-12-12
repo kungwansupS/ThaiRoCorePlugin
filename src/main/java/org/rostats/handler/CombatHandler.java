@@ -18,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
+import org.rostats.engine.element.Element; // Import
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
 import org.rostats.itemeditor.ItemSkillBinding;
@@ -125,9 +126,7 @@ public class CombatHandler implements Listener {
         PlayerData A = (attackerPlayer != null) ? stats.getData(attackerPlayer.getUniqueId()) : null;
         PlayerData D = (defenderEntity instanceof Player) ? stats.getData(defenderEntity.getUniqueId()) : null;
 
-        // =========================================================================================
-        // STEP 0: HIT / FLEE Calculation
-        // =========================================================================================
+        // HIT / FLEE Logic
         int attackerHit = (A != null) ? stats.getHit(attackerPlayer) : 100;
         int defenderFlee = (D != null) ? stats.getFlee((Player) defenderEntity) : 0;
 
@@ -152,22 +151,27 @@ public class CombatHandler implements Listener {
             }
         }
 
-        // =========================================================================================
-        // DAMAGE CALCULATION FLOW
-        // =========================================================================================
-
         double finalDamage = 0.0;
+        double elementModifier = 1.0; // Default
 
         if (attackerPlayer != null && A != null) {
             checkTriggers(attackerPlayer, defenderEntity, TriggerType.ON_HIT);
 
-            // --- STEP 1-5: Basic Damage Calculation ---
+            // --- STEP 1: Basic Attack Calculation ---
             double baseATK = isMagic ? stats.calculateBaseMAtk(attackerPlayer) : stats.calculateBasePAtk(attackerPlayer);
             double equipFlat = isMagic ? (A.getWeaponMAtk() + A.getMAtkBonusFlat()) : (A.getWeaponPAtk() + A.getPAtkBonusFlat());
             double refineFlat = 0.0;
             double totalFlat = baseATK + equipFlat + refineFlat;
             double equipPercent = isMagic ? A.getMDmgBonusPercent() : A.getPDmgBonusPercent();
             double totalATK = totalFlat * (1 + equipPercent / 100.0);
+
+            // --- STEP 2: Element Calculation (New) ---
+            Element atkElement = plugin.getElementManager().getAttackElement(attackerPlayer);
+            Element defElement = plugin.getElementManager().getDefenseElement(defenderEntity);
+            elementModifier = plugin.getElementManager().getModifier(atkElement, defElement);
+
+            // Apply Element Multiplier to ATK (In RO, Element applies to damage, effectively ATK here)
+            totalATK *= elementModifier;
 
             double skillATKPercent = DEFAULT_SKILL_ATK_PERCENT;
             double skillBase = totalATK * (skillATKPercent / 100.0);
@@ -216,13 +220,8 @@ public class CombatHandler implements Listener {
             double totalFinalMultiplier = (1 + finalDMGPercent / 100.0) * (1 - Math.min(100, reducePercent) / 100.0);
             double preFlatDamage = damageAfterDEF * totalFinalMultiplier;
 
-            // =========================================================================================
-            // STEP 6: Critical Calculation (Updated for Magic Crit Condition)
-            // =========================================================================================
+            // Critical Logic
             boolean canCrit = true;
-
-            // ถ้าเป็น Magic -> Default คือไม่ติดคริ (false)
-            // จะเปลี่ยนเป็น true ก็ต่อเมื่อผ่านเงื่อนไขพิเศษ (checkMagicCritCondition)
             if (isMagic) {
                 canCrit = false;
                 if (checkMagicCritCondition(attackerPlayer, A)) {
@@ -230,7 +229,6 @@ public class CombatHandler implements Listener {
                 }
             }
 
-            // ถ้าสามารถคริได้ ให้คำนวณโอกาสคริ
             if (canCrit) {
                 double critChance = calculateCritChance(attackerPlayer, defenderEntity);
                 if (random.nextDouble() < critChance) {
@@ -241,7 +239,6 @@ public class CombatHandler implements Listener {
                     double critMult = 1.5 + (critDmg / 100.0);
                     preFlatDamage *= critMult;
 
-                    // แสดงผล FCT โดยส่ง isMagic ไปด้วยเพื่อกำหนดสี
                     showCritEffects(attackerPlayer, defenderEntity, preFlatDamage, isMagic);
                 }
             }
@@ -253,6 +250,13 @@ public class CombatHandler implements Listener {
             // MOB ATTACKER LOGIC
             finalDamage = vanillaDamage;
             if (D != null && defenderEntity instanceof Player defP) {
+                // Apply Element Def Logic for Mobs hitting Players
+                Element mobElement = Element.NEUTRAL; // Todo: Get from mob config
+                Element playerDefElement = D.getDefenseElement();
+                double mod = plugin.getElementManager().getModifier(mobElement, playerDefElement);
+                finalDamage *= mod;
+                elementModifier = mod; // Track for FCT color
+
                 double def = isMagic ? stats.getSoftMDef(defP) : stats.getSoftDef(defP);
                 finalDamage = Math.max(0, finalDamage - def);
                 double reduce = isMagic ? D.getMDmgReductionPercent() : D.getPDmgReductionPercent();
@@ -269,44 +273,31 @@ public class CombatHandler implements Listener {
         finalDamage = Math.max(0, finalDamage);
         event.setDamage(finalDamage);
 
-        // FCT สำหรับ Normal Hit (ที่ไม่ติดคริ)
+        // FCT Handling (Normal Hit)
         if (finalDamage > 0 && attackerPlayer != null) {
             if (!isCritical) {
                 String dmgText = formatDamage(finalDamage);
-                plugin.showCombatFloatingText(defenderEntity.getLocation(), "§f" + dmgText);
+                String colorPrefix = "§f"; // White
+
+                // Color coding based on element effectiveness
+                if (elementModifier > 1.0) colorPrefix = "§c"; // Red (Strong)
+                else if (elementModifier < 1.0 && elementModifier > 0) colorPrefix = "§7"; // Gray (Weak)
+                else if (elementModifier == 0) colorPrefix = "§8"; // Miss/Immune logic handled earlier but just in case
+
+                plugin.showCombatFloatingText(defenderEntity.getLocation(), colorPrefix + dmgText);
             }
         }
     }
 
     // --- Helper Methods ---
-
-    /**
-     * แปลงตัวเลขเป็นหน่วยย่อ M, B, T, Q, Qi พร้อมทศนิยม 2 ตำแหน่ง
-     */
     private String formatDamage(double damage) {
-        if (damage >= 1_000_000_000_000_000_000.0) return String.format("%.2fQi", damage / 1_000_000_000_000_000_000.0);
-        if (damage >= 1_000_000_000_000_000.0) return String.format("%.2fQ", damage / 1_000_000_000_000_000.0);
-        if (damage >= 1_000_000_000_000.0) return String.format("%.2fT", damage / 1_000_000_000_000.0);
         if (damage >= 1_000_000_000.0) return String.format("%.2fB", damage / 1_000_000_000.0);
         if (damage >= 1_000_000.0) return String.format("%.2fM", damage / 1_000_000.0);
         return String.format("%.0f", damage);
     }
 
-    /**
-     * เช็คเงื่อนไขพิเศษสำหรับ Magic Crit
-     * คุณสามารถเพิ่มเงื่อนไขอื่นๆ ได้ที่นี่ เช่น เช็ค Passive Skill, ไอเทมที่สวมใส่ ฯลฯ
-     */
     private boolean checkMagicCritCondition(Player player, PlayerData data) {
-        // ตัวอย่าง 1: เช็ค Permission
-        if (player.hasPermission("rostats.magiccrit")) return true;
-
-        // ตัวอย่าง 2: เช็ค Metadata (บัฟจากสกิล)
-        if (player.hasMetadata("BUFF_MAGIC_CRIT")) return true;
-
-        // ตัวอย่าง 3: เช็ค Stat พิเศษ (ถ้ามี)
-        // if (data.getStat("MAGIC_CRIT_RATE") > 0) return true;
-
-        return false;
+        return player.hasPermission("rostats.magiccrit");
     }
 
     private void checkTriggers(Player player, LivingEntity target, TriggerType type) {
@@ -347,21 +338,12 @@ public class CombatHandler implements Listener {
         return 1.00;
     }
 
-    /**
-     * แสดง Effect และ Floating Text เมื่อติด Critical
-     */
     private void showCritEffects(Player attacker, LivingEntity victim, double finalDamage, boolean isMagic) {
         String damageText = formatDamage(finalDamage);
-
-        // กำหนดสี: Magic = Purple (§5), Physical = Red (§c)
-        String color = isMagic ? "§5" : "§c";
-
+        String color = isMagic ? "§5" : "§c"; // Purple vs Red
         plugin.showCombatFloatingText(victim.getLocation().add(0, 0.5, 0),  color + "§l" + damageText + "💥 ");
-
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 1f);
-
         if (isMagic) {
-            // [FIX] เปลี่ยนจาก SPELL_WITCH เป็น WITCH สำหรับเวอร์ชัน 1.13+
             attacker.getWorld().spawnParticle(Particle.WITCH, victim.getLocation().add(0, 1, 0), 20);
         } else {
             attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20);

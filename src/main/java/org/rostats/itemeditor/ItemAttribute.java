@@ -22,7 +22,6 @@ public class ItemAttribute {
     private double maxHPPercent;
     private double maxSPPercent;
 
-    // Derived
     private double hitFlat;
     private double fleeFlat;
     private double baseMSPD;
@@ -53,7 +52,6 @@ public class ItemAttribute {
     private double skillCooldownPercent;
     private double skillCooldownFlat;
 
-    // Global Cooldown (GCD) & ACD
     private double globalCooldownPercent;
     private double globalCooldownFlat;
 
@@ -107,10 +105,13 @@ public class ItemAttribute {
     private double shieldValueFlat;
     private double shieldRatePercent;
 
+    // --- 11. Elements (Stored as Int index 0-9) ---
+    private int attackElement = -1; // -1 means no change
+    private int defenseElement = -1; // -1 means no change
+
     // Misc
     private boolean removeVanillaAttribute;
     private Integer customModelData;
-    // Unbreakable Status
     private boolean unbreakable;
 
     private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
@@ -144,13 +145,11 @@ public class ItemAttribute {
         attr.fleeFlat = att.getDouble("flee-flat", 0);
         attr.baseMSPD = att.getDouble("base-mspd", 0);
 
-        // Core Combat
         attr.weaponPAtk = att.getDouble("weapon-p-atk", 0);
         attr.weaponMAtk = att.getDouble("weapon-m-atk", 0);
         attr.pAtkFlat = att.getDouble("p-atk-flat", 0);
         attr.mAtkFlat = att.getDouble("m-atk-flat", 0);
 
-        // Pen & Ignore
         attr.pPenFlat = att.getDouble("p-pen-flat", 0);
         attr.pPenPercent = att.getDouble("p-pen-%", 0);
         attr.ignorePDefFlat = att.getDouble("ignore-p-def-flat", 0);
@@ -160,7 +159,6 @@ public class ItemAttribute {
         attr.ignoreMDefFlat = att.getDouble("ignore-m-def-flat", 0);
         attr.ignoreMDefPercent = att.getDouble("ignore-m-def-%", 0);
 
-        // Casting & Cooldown
         attr.varCTPercent = att.getDouble("var-ct-%", 0);
         attr.varCTFlat = att.getDouble("var-ct-flat", 0);
         attr.fixedCTPercent = att.getDouble("fixed-ct-%", 0);
@@ -168,23 +166,19 @@ public class ItemAttribute {
         attr.skillCooldownPercent = att.getDouble("skill-cd-%", 0);
         attr.skillCooldownFlat = att.getDouble("skill-cd-flat", 0);
 
-        // Global CD & ACD
         attr.globalCooldownPercent = att.getDouble("global-cd-%", 0);
         attr.globalCooldownFlat = att.getDouble("global-cd-flat", 0);
         attr.acdPercent = att.getDouble("acd-%", 0);
         attr.acdFlat = att.getDouble("acd-flat", 0);
 
-        // Speed
         attr.aSpdPercent = att.getDouble("aspd-%", 0);
         attr.mSpdPercent = att.getDouble("mspd-%", 0);
 
-        // Crit
         attr.critRate = att.getDouble("crit-rate", 0);
         attr.critDmgPercent = att.getDouble("crit-dmg-%", 0);
         attr.critRes = att.getDouble("crit-res", 0);
         attr.critDmgResPercent = att.getDouble("crit-dmg-res-%", 0);
 
-        // Universal Dmg
         attr.pDmgPercent = att.getDouble("p-dmg-%", 0);
         attr.pDmgFlat = att.getDouble("p-dmg-flat", 0);
         attr.pDmgReductionPercent = att.getDouble("p-dmg-reduce-%", 0);
@@ -197,7 +191,6 @@ public class ItemAttribute {
         attr.finalDmgResPercent = att.getDouble("final-dmg-res-%", 0);
         attr.trueDamageFlat = att.getDouble("true-damage", 0);
 
-        // Distance & Content
         attr.meleePDmgPercent = att.getDouble("melee-p-dmg-%", 0);
         attr.meleePDReductionPercent = att.getDouble("melee-p-reduce-%", 0);
         attr.rangePDmgPercent = att.getDouble("range-p-dmg-%", 0);
@@ -207,7 +200,6 @@ public class ItemAttribute {
         attr.pvpDmgPercent = att.getDouble("pvp-dmg-%", 0);
         attr.pvpDmgReductionPercent = att.getDouble("pvp-reduce-%", 0);
 
-        // Healing & Shield
         attr.healingEffectPercent = att.getDouble("heal-effect-%", 0);
         attr.healingReceivedPercent = att.getDouble("heal-received-%", 0);
         attr.lifestealPPercent = att.getDouble("lifesteal-p-%", 0);
@@ -215,7 +207,10 @@ public class ItemAttribute {
         attr.shieldValueFlat = att.getDouble("shield-flat", 0);
         attr.shieldRatePercent = att.getDouble("shield-rate-%", 0);
 
-        // Effects & Skills
+        // Elements
+        attr.attackElement = att.getInt("atk-element", -1);
+        attr.defenseElement = att.getInt("def-element", -1);
+
         if (att.contains("effects")) {
             ConfigurationSection effectsSec = att.getConfigurationSection("effects");
             for (String key : effectsSec.getKeys(false)) {
@@ -245,7 +240,6 @@ public class ItemAttribute {
 
         if (customModelData != null) section.set("custom-model-data", customModelData);
 
-        // Helper for cleanliness
         setIfNonZero(section, "str", strGear);
         setIfNonZero(section, "agi", agiGear);
         setIfNonZero(section, "vit", vitGear);
@@ -320,6 +314,10 @@ public class ItemAttribute {
         setIfNonZero(section, "lifesteal-m-%", lifestealMPercent);
         setIfNonZero(section, "shield-flat", shieldValueFlat);
         setIfNonZero(section, "shield-rate-%", shieldRatePercent);
+
+        // Elements
+        if (attackElement != -1) section.set("atk-element", attackElement);
+        if (defenseElement != -1) section.set("def-element", defenseElement);
 
         if (!potionEffects.isEmpty()) {
             ConfigurationSection effectsSec = section.createSection("effects");
@@ -399,12 +397,10 @@ public class ItemAttribute {
     public void setFixedCTPercent(double v) { this.fixedCTPercent = v; }
     public double getFixedCTFlat() { return fixedCTFlat; }
     public void setFixedCTFlat(double v) { this.fixedCTFlat = v; }
-
     public double getSkillCooldownPercent() { return skillCooldownPercent; }
     public void setSkillCooldownPercent(double v) { this.skillCooldownPercent = v; }
     public double getSkillCooldownFlat() { return skillCooldownFlat; }
     public void setSkillCooldownFlat(double v) { this.skillCooldownFlat = v; }
-
     public double getGlobalCooldownPercent() { return globalCooldownPercent; }
     public void setGlobalCooldownPercent(double v) { this.globalCooldownPercent = v; }
     public double getGlobalCooldownFlat() { return globalCooldownFlat; }
@@ -413,7 +409,6 @@ public class ItemAttribute {
     public void setAcdPercent(double v) { this.acdPercent = v; }
     public double getAcdFlat() { return acdFlat; }
     public void setAcdFlat(double v) { this.acdFlat = v; }
-
     public double getASpdPercent() { return aSpdPercent; }
     public void setASpdPercent(double v) { this.aSpdPercent = v; }
     public double getMSpdPercent() { return mSpdPercent; }
@@ -484,7 +479,11 @@ public class ItemAttribute {
     public void setPotionEffects(Map<PotionEffectType, Integer> v) { this.potionEffects = v; }
     public List<ItemSkillBinding> getSkillBindings() { return skillBindings; }
     public void setSkillBindings(List<ItemSkillBinding> v) { this.skillBindings = v; }
-
     public boolean isUnbreakable() { return unbreakable; }
     public void setUnbreakable(boolean v) { this.unbreakable = v; }
+
+    public int getAttackElement() { return attackElement; }
+    public void setAttackElement(int v) { this.attackElement = v; }
+    public int getDefenseElement() { return defenseElement; }
+    public void setDefenseElement(int v) { this.defenseElement = v; }
 }

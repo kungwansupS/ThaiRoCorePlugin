@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.effect.ActiveEffect;
 import org.rostats.engine.effect.EffectType;
+import org.rostats.engine.element.Element; // Import Element
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +20,10 @@ public class PlayerData {
     private int skillPoints = 0;
     private double currentSP = 20;
     private int resetCount = 0;
+
+    // Element System
+    private Element attackElement = Element.NEUTRAL;
+    private Element defenseElement = Element.NEUTRAL;
 
     private final Map<String, Integer> stats = new HashMap<>();
     private final Map<String, Integer> pendingStats = new HashMap<>();
@@ -84,15 +89,12 @@ public class PlayerData {
     private double skillCooldownReductionPercent = 0.0;
     private double skillCooldownReductionFlat = 0.0;
 
-    // [NEW] After-Cast Delay (ACD) Reduction
     private double acdReductionPercent = 0.0;
     private double acdReductionFlat = 0.0;
 
-    // [NEW] Global Cooldown (GCD) Reduction
     private double gcdReductionPercent = 0.0;
     private double gcdReductionFlat = 0.0;
 
-    // "Global Delay" - Blocks ALL skills (Priority Lock Result)
     private long globalDelayEndTime = 0L;
 
     private double healingEffectPercent = 0.0;
@@ -125,6 +127,13 @@ public class PlayerData {
         stats.put("INT", 1); stats.put("DEX", 1); stats.put("LUK", 1);
         calculateMaxSP();
     }
+
+    // --- Element Getters/Setters ---
+    public Element getAttackElement() { return attackElement; }
+    public void setAttackElement(Element attackElement) { this.attackElement = attackElement; }
+
+    public Element getDefenseElement() { return defenseElement; }
+    public void setDefenseElement(Element defenseElement) { this.defenseElement = defenseElement; }
 
     public List<ActiveEffect> getActiveEffects() { return activeEffects; }
     public void addActiveEffect(ActiveEffect effect) { this.activeEffects.add(effect); }
@@ -169,11 +178,9 @@ public class PlayerData {
         this.shieldValueFlat = 0; this.shieldRatePercent = 0;
         this.aSpdPercent = 0; this.mSpdPercent = 0; this.baseMSPD = 0.1;
 
-        // Casting
         this.varCTPercent = 0; this.varCTFlat = 0;
         this.fixedCTPercent = 0; this.fixedCTFlat = 0;
 
-        // Cooldowns
         this.skillCooldownReductionPercent = 0;
         this.skillCooldownReductionFlat = 0;
         this.acdReductionPercent = 0;
@@ -191,6 +198,10 @@ public class PlayerData {
         this.meleePDmgPercent = 0; this.rangePDmgPercent = 0;
         this.meleePDReductionPercent = 0; this.rangePDReductionPercent = 0;
         this.trueDamageFlat = 0;
+
+        // Reset Elements to Neutral (AttributeHandler will re-apply from items)
+        this.attackElement = Element.NEUTRAL;
+        this.defenseElement = Element.NEUTRAL;
     }
 
     public void resetStats() {
@@ -203,8 +214,6 @@ public class PlayerData {
         calculateMaxSP();
         this.currentSP = getMaxSP();
     }
-
-    // --- EXP Logic ---
 
     public void addBaseExp(long amount, UUID uuid) {
         int maxBaseLevel = getMaxBaseLevel();
@@ -312,13 +321,11 @@ public class PlayerData {
     public long getGlobalDelayEndTime() { return globalDelayEndTime; }
     public void setGlobalDelayEndTime(long timestamp) { this.globalDelayEndTime = timestamp; }
 
-    // ACD Getters/Setters
     public double getAcdReductionPercent() { return acdReductionPercent; }
     public void setAcdReductionPercent(double v) { this.acdReductionPercent = v; }
     public double getAcdReductionFlat() { return acdReductionFlat; }
     public void setAcdReductionFlat(double v) { this.acdReductionFlat = v; }
 
-    // [NEW] GCD Getters/Setters
     public double getGcdReductionPercent() { return gcdReductionPercent; }
     public void setGcdReductionPercent(double v) { this.gcdReductionPercent = v; }
     public double getGcdReductionFlat() { return gcdReductionFlat; }

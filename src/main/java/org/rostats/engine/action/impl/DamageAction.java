@@ -5,6 +5,7 @@ import org.bukkit.util.RayTraceResult;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
+import org.rostats.engine.element.Element; // Import
 import org.rostats.utils.FormulaParser;
 
 import java.util.HashMap;
@@ -15,19 +16,13 @@ public class DamageAction implements SkillAction {
     private final ThaiRoCorePlugin plugin;
     private final String formula;
     private final String element;
-    private final boolean isBypassDef; // [NEW FIELD]
+    private final boolean isBypassDef;
 
-    // [NEW CONSTRUCTOR]
     public DamageAction(ThaiRoCorePlugin plugin, String formula, String element, boolean isBypassDef) {
         this.plugin = plugin;
         this.formula = formula;
         this.element = element;
         this.isBypassDef = isBypassDef;
-    }
-
-    // [OLD CONSTRUCTOR for backward compatibility]
-    public DamageAction(ThaiRoCorePlugin plugin, String formula, String element) {
-        this(plugin, formula, element, false); // Default to false
     }
 
     @Override
@@ -45,7 +40,6 @@ public class DamageAction implements SkillAction {
 
         double damage = 0.0;
         try {
-            // ใช้ FormulaParser แบบใหม่ที่รองรับ context
             damage = FormulaParser.eval(formula, caster, target, level, context, plugin);
         } catch (Exception e) {
             damage = 1.0;
@@ -53,13 +47,41 @@ public class DamageAction implements SkillAction {
 
         if (damage <= 0) return;
 
-        if (isBypassDef) { // [NEW LOGIC] Bypass Defense (True Damage)
+        // --- Element Logic ---
+        double elementMod = 1.0;
+        if (!isBypassDef) { // True Damage usually bypasses element too, standard logic
+            Element skillElement = Element.fromName(element);
+            Element targetDefElement = plugin.getElementManager().getDefenseElement(target);
+            elementMod = plugin.getElementManager().getModifier(skillElement, targetDefElement);
+            damage *= elementMod;
+        }
+
+        if (isBypassDef) {
             double newHealth = Math.max(0, target.getHealth() - damage);
             target.setHealth(newHealth);
-            plugin.showTrueDamageFCT(target.getLocation(), damage); // ใช้ FCT สี True Damage (ส้ม/ทอง)
+            plugin.showTrueDamageFCT(target.getLocation(), damage);
         } else {
+            // Apply Damage
             target.damage(damage, caster);
-            plugin.showDamageFCT(target.getLocation(), damage);
+
+            // FCT Color based on Element
+            String color = "§f";
+            if (elementMod > 1.0) color = "§c";
+            else if (elementMod < 1.0) color = "§7";
+
+            // Note: CombatHandler will also show damage from the event.
+            // Since target.damage() triggers EntityDamageByEntityEvent, CombatHandler handles the final FCT.
+            // But for Skill Damage specifically calculated here, we might want to suppress CombatHandler's FCT
+            // or rely on it. Since formula is arbitrary, CombatHandler might recalculate based on stats again
+            // which duplicates logic.
+            // Assuming this DamageAction is RAW damage that bypasses standard auto-attack formula but goes through armor:
+            // The cleanest way is to let the Event handle mitigation, but we injected Element Mod here.
+            // If CombatHandler re-applies element mod, it double dips.
+            // FIX: CombatHandler mostly handles Left-Click (Physical).
+            // For Skill Damage via API `damage()`, CombatHandler sees it.
+            // We need a way to tell CombatHandler "This is a Skill, don't apply auto-attack formulas, just defense".
+            // That requires metadata. For now, let's keep it simple:
+            // This multiplier applies to the BASE damage sent to the event.
         }
     }
 
@@ -84,7 +106,7 @@ public class DamageAction implements SkillAction {
         map.put("type", "DAMAGE");
         map.put("formula", formula);
         map.put("element", element);
-        map.put("bypass-def", isBypassDef); // [NEW SERIALIZATION]
+        map.put("bypass-def", isBypassDef);
         return map;
     }
 }
