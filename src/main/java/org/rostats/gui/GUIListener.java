@@ -85,9 +85,11 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
+        // [FIX] เพิ่ม event.setCancelled(true) เพื่อป้องกันการหยิบไอเทมใน GUI ของระบบทั้งหมด
         if (title.contains(CharacterGUI.TITLE_HEADER) || title.startsWith("Skill") || title.startsWith("Action") || title.startsWith("Lib:") || title.startsWith("Pack:") || title.startsWith("Delete:")) {
+            event.setCancelled(true);
+
             if (event.getClickedInventory() != event.getView().getTopInventory()) {
-                event.setCancelled(true);
                 return;
             }
         }
