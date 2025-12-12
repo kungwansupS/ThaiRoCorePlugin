@@ -16,10 +16,9 @@ import org.rostats.engine.skill.SkillData;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ItemSkillSelectGUI {
 
@@ -137,8 +136,6 @@ public class ItemSkillSelectGUI {
             // Back Button (Only on Page 0)
             if (!currentPath.equals("/")) {
                 // Determine Parent Path
-                // If currentEntry is a file, parent is its folder.
-                // If currentEntry is a folder, parent is its parent folder.
                 String parentPath;
                 if (currentEntry.getParentFile() != null) {
                     parentPath = plugin.getSkillManager().getRelativePath(currentEntry.getParentFile());
@@ -157,9 +154,7 @@ public class ItemSkillSelectGUI {
             inv.setItem(53, createGuiItem(Material.ARROW, "§eNext Page", "next_page", String.valueOf(page + 1), "§7Go to page " + (page + 2)));
         }
 
-        // Store Current Path info in an invisible item (Slot 49) for context safety if needed,
-        // though we attach context to folders/items directly.
-        // We attach the current path to the background or info icon to ensure GUIListener knows where we are on refresh.
+        // Info Item
         inv.setItem(49, createGuiItem(Material.BOOK, "§eCurrent: " + currentEntry.getName(), "current_path_info", currentPath,
                 "§7Page: " + (page + 1), "§7Total: " + totalItems));
     }
@@ -176,15 +171,8 @@ public class ItemSkillSelectGUI {
             meta.setLore(lore);
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
 
-            // Store full path context if this is a single file skill
-            String pathData = value;
-            if (type.equals("file_skill")) {
-                // value is skillId, we might want the file path too?
-                // Actually value is just passed to callback.
-            }
-
             setPDC(meta, type, value);
-            // Also store current path to know where to return or refresh
+            // Store context
             String currentRelPath = plugin.getSkillManager().getRelativePath(currentEntry);
             NamespacedKey keyContext = new NamespacedKey(plugin, "ctx_path");
             meta.getPersistentDataContainer().set(keyContext, PersistentDataType.STRING, currentRelPath);
@@ -204,7 +192,7 @@ public class ItemSkillSelectGUI {
 
             setPDC(meta, type, value);
 
-            // Store context for navigation
+            // Store context
             String currentRelPath = plugin.getSkillManager().getRelativePath(currentEntry);
             NamespacedKey keyContext = new NamespacedKey(plugin, "ctx_path");
             meta.getPersistentDataContainer().set(keyContext, PersistentDataType.STRING, currentRelPath);

@@ -22,6 +22,7 @@ import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,14 +110,14 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
         }
-        // 5. Item Skill Selection (Fixed Logic)
+        // 5. Item Skill Selection
         else if (title.startsWith("ItemSkillSelect: ")) {
             event.setCancelled(true);
             handleItemSkillSelectClick(event, player);
         }
     }
 
-    // --- Item Skill Selection Handler (Revised) ---
+    // --- Item Skill Selection Handler ---
     private void handleItemSkillSelectClick(InventoryClickEvent event, Player player) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
@@ -144,7 +145,6 @@ public class GUIListener implements Listener {
 
         if (type.equals("folder")) {
             setSwitching(player);
-            // Value is filename, relative to current context
             File folder = new File(currentContextDir, value);
             new ItemSkillSelectGUI(plugin, folder).open(player);
         }
@@ -154,7 +154,6 @@ public class GUIListener implements Listener {
             new ItemSkillSelectGUI(plugin, pack).open(player);
         }
         else if (type.equals("file_skill") || type.equals("pack_skill")) {
-            // Value is Skill ID
             String skillId = value;
             if (skillSelectCallbacks.containsKey(player.getUniqueId())) {
                 Consumer<String> callback = skillSelectCallbacks.remove(player.getUniqueId());
