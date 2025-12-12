@@ -35,7 +35,12 @@ public class ChatInputHandler implements Listener {
         this.plugin = plugin;
     }
 
-    // [UPDATED] Add onCancel
+    // Overload 1: Basic
+    public void awaitInput(Player player, String prompt, Consumer<String> callback) {
+        awaitInput(player, prompt, callback, null);
+    }
+
+    // Overload 2: With Cancel
     public void awaitInput(Player player, String prompt, Consumer<String> callback, Runnable onCancel) {
         player.closeInventory();
         player.sendMessage("§e[Input] " + prompt);
@@ -44,12 +49,12 @@ public class ChatInputHandler implements Listener {
         if (onCancel != null) cancelCallbacks.put(player.getUniqueId(), onCancel);
     }
 
-    // Default overload for compatibility (if any)
-    public void awaitInput(Player player, String prompt, Consumer<String> callback) {
-        awaitInput(player, prompt, callback, null);
+    // Overload 1: Basic Multi
+    public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback) {
+        awaitMultiLineInput(player, prompt, callback, null);
     }
 
-    // [UPDATED] Add onCancel
+    // Overload 2: With Cancel Multi
     public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback, Runnable onCancel) {
         player.closeInventory();
         player.sendMessage("§e[Multi-Line] " + prompt);
@@ -68,11 +73,6 @@ public class ChatInputHandler implements Listener {
         multiLineBuffers.put(player.getUniqueId(), new ArrayList<>());
         multiLineCallbacks.put(player.getUniqueId(), callback);
         if (onCancel != null) cancelCallbacks.put(player.getUniqueId(), onCancel);
-    }
-
-    // Default overload
-    public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback) {
-        awaitMultiLineInput(player, prompt, callback, null);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -150,9 +150,8 @@ public class ChatInputHandler implements Listener {
         // Trigger cancel callback if exists
         Runnable onCancel = cancelCallbacks.remove(uuid);
         if (onCancel != null) {
-            // Run sync if possible, but safely
             try {
-                // If player quit, this might not show GUI, but cleans up logic
+                // Run sync if possible, but safely
                 new BukkitRunnable() {
                     @Override
                     public void run() {

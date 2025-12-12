@@ -18,8 +18,8 @@ public class ItemManager {
 
     private final ThaiRoCorePlugin plugin;
     private final File rootDir;
-    // [NEW] Regex for safe filename
-    private final Pattern fileNamePattern = Pattern.compile("^[a-zA-Z0-9._ -]+$");
+    // [NEW] Regex Pattern for safe filenames (A-Z, 0-9, . , _ , -)
+    private final Pattern fileNamePattern = Pattern.compile("^[a-zA-Z0-9._-]+$");
 
     public ItemManager(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -67,13 +67,13 @@ public class ItemManager {
     }
 
     public void createFolder(File parent, String name) {
-        if (!isValidFileName(name)) return; // Validate
+        if (!isValidFileName(name)) return;
         File newFolder = new File(parent, name);
         if (!newFolder.exists()) newFolder.mkdirs();
     }
 
     public void createItem(File parent, String fileName, Material material) {
-        if (!isValidFileName(fileName.replace(".yml", ""))) return; // Validate
+        if (!isValidFileName(fileName.replace(".yml", ""))) return;
 
         File file = new File(parent, fileName.endsWith(".yml") ? fileName : fileName + ".yml");
         if (file.exists()) return;
@@ -101,16 +101,17 @@ public class ItemManager {
             if (meta.hasLore()) {
                 List<String> fullLore = meta.getLore();
                 List<String> manualLore = new ArrayList<>();
-                String header = "§f§l--- Item Stats ---";
+                String header = "§f§l--- Item Stats ---"; // Marker logic
 
                 for (String line : fullLore) {
                     if (line.equals(header)) break;
                     manualLore.add(line.replace("§", "&"));
                 }
 
+                // Trim empty last line
                 if (!manualLore.isEmpty()) {
                     String last = manualLore.get(manualLore.size() - 1);
-                    if (last.trim().isEmpty()) {
+                    if (last != null && last.trim().isEmpty()) {
                         manualLore.remove(manualLore.size() - 1);
                     }
                 }
@@ -162,11 +163,13 @@ public class ItemManager {
         if (config.contains("enchantments")) {
             ItemMeta meta = item.getItemMeta();
             ConfigurationSection enchSec = config.getConfigurationSection("enchantments");
-            for (String key : enchSec.getKeys(false)) {
-                for (Enchantment e : Enchantment.values()) {
-                    if (e.getKey().getKey().equalsIgnoreCase(key)) {
-                        meta.addEnchant(e, enchSec.getInt(key), true);
-                        break;
+            if (enchSec != null) {
+                for (String key : enchSec.getKeys(false)) {
+                    for (Enchantment e : Enchantment.values()) {
+                        if (e.getKey().getKey().equalsIgnoreCase(key)) {
+                            meta.addEnchant(e, enchSec.getInt(key), true);
+                            break;
+                        }
                     }
                 }
             }
@@ -190,7 +193,7 @@ public class ItemManager {
     }
 
     public void renameFile(File file, String newName) {
-        if (!isValidFileName(newName.replace(".yml", ""))) return; // Validate
+        if (!isValidFileName(newName.replace(".yml", ""))) return;
 
         String finalName = file.isDirectory() ? newName : (newName.endsWith(".yml") ? newName : newName + ".yml");
         File dest = new File(file.getParentFile(), finalName);
