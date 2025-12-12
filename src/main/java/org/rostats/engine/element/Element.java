@@ -23,6 +23,7 @@ public enum Element {
     }
 
     public static Element fromName(String name) {
+        if (name == null) return NEUTRAL;
         try {
             return valueOf(name.toUpperCase());
         } catch (IllegalArgumentException e) {

@@ -340,6 +340,14 @@ public class GUIListener implements Listener {
             new SkillBindingGUI(plugin, itemFile).open(player);
             return;
         }
+
+        // [NEW] Handle Elements Page Button
+        if (dp.contains("Edit Elements")) {
+            setSwitching(player);
+            new AttributeEditorGUI(plugin, itemFile).open(player, Page.ELEMENTS);
+            return;
+        }
+
         if (dp.contains("Rename Item")) {
             setSwitching(player);
             plugin.getChatInputHandler().awaitInput(player, "New Name:", (str) -> {
@@ -400,13 +408,29 @@ public class GUIListener implements Listener {
             if (dp.equals(type.getDisplayName())) {
                 ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
                 double current = plugin.getItemAttributeManager().getAttributeValueFromAttrObject(attr, type);
-                double change = 0;
-                if (event.getClick() == ClickType.LEFT) change = type.getClickStep();
-                else if (event.getClick() == ClickType.RIGHT) change = -type.getClickStep();
-                else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
-                else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
 
-                plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
+                // [NEW] Special Logic for Elements (Cycle -1 to 9)
+                if (type == ItemAttributeType.ATTACK_ELEMENT || type == ItemAttributeType.DEFENSE_ELEMENT) {
+                    int val = (int) current;
+                    // Cycle Logic
+                    if (event.getClick().isLeftClick()) {
+                        val++;
+                        if (val > 9) val = -1; // Reset to None
+                    } else if (event.getClick().isRightClick()) {
+                        val--;
+                        if (val < -1) val = 9; // Loop to Undead
+                    }
+                    plugin.getItemAttributeManager().setAttributeToObj(attr, type, val);
+                } else {
+                    // Standard Logic
+                    double change = 0;
+                    if (event.getClick() == ClickType.LEFT) change = type.getClickStep();
+                    else if (event.getClick() == ClickType.RIGHT) change = -type.getClickStep();
+                    else if (event.getClick() == ClickType.SHIFT_LEFT) change = type.getRightClickStep();
+                    else if (event.getClick() == ClickType.SHIFT_RIGHT) change = -type.getRightClickStep();
+                    plugin.getItemAttributeManager().setAttributeToObj(attr, type, current + change);
+                }
+
                 plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
                 setSwitching(player);
                 new AttributeEditorGUI(plugin, itemFile).open(player, getPageFromTitle(title));

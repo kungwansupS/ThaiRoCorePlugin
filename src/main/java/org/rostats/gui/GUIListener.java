@@ -422,7 +422,7 @@ public class GUIListener implements Listener {
 
     private SkillAction createDefaultAction(ActionType type) {
         switch(type) {
-            case DAMAGE: return new DamageAction(plugin, "ATK", "NEUTRAL"); // Fixed constructor
+            case DAMAGE: return new DamageAction(plugin, "ATK", "NEUTRAL", false); // [FIX] Added 4th arg
             case HEAL: return new HealAction(plugin, "10", false, true);
             case CONDITION: return new ConditionAction(plugin, "true", new ArrayList<>(), new ArrayList<>());
             case LOOP: return new LoopAction(plugin, "0", "5", "1", "i", new ArrayList<>());
@@ -439,7 +439,7 @@ public class GUIListener implements Listener {
             case SPAWN_ENTITY: return new SpawnEntityAction(plugin, "LIGHTNING_BOLT", "none");
             case SET_VARIABLE: return new SetVariableAction(plugin, "temp", "1");
             case SELECT_TARGET: return new TargetSelectorAction(TargetSelectorAction.SelectorMode.SELF, 10.0);
-            case DELAY: return new DelayAction(20L); // Added DelayAction support
+            case DELAY: return new DelayAction(20L);
             default: return null;
         }
     }
@@ -504,7 +504,7 @@ public class GUIListener implements Listener {
         }
     }
 
-    // Helper Methods for Reconstruct (Fixing Lambda Error)
+    // Helper Methods for Reconstruct
     private String getString(Map<String, Object> data, String key, String def) {
         return String.valueOf(data.getOrDefault(key, def));
     }
@@ -519,7 +519,6 @@ public class GUIListener implements Listener {
 
     private int getInt(Map<String, Object> data, String key, int def) {
         try {
-            // Handle cases where double is stored but we need int (e.g. 1.0 -> 1)
             return (int) Double.parseDouble(getString(data, key, String.valueOf(def)));
         } catch (NumberFormatException e) {
             return def;
@@ -538,9 +537,11 @@ public class GUIListener implements Listener {
                         getDouble(data, "radius", 10.0)
                 );
             case DAMAGE:
+                // [FIX] Added 'bypass-def' reconstruction
                 return new DamageAction(plugin,
                         getString(data, "formula", "ATK"),
-                        getString(data, "element", "NEUTRAL")
+                        getString(data, "element", "NEUTRAL"),
+                        getBoolean(data, "bypass-def", false)
                 );
             case HEAL:
                 return new HealAction(plugin,

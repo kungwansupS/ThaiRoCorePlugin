@@ -3,6 +3,7 @@ package org.rostats;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -11,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.rostats.command.AdminCommand;
@@ -18,26 +20,20 @@ import org.rostats.command.PlayerCommand;
 import org.rostats.command.SkillCommand;
 import org.rostats.data.DataManager;
 import org.rostats.data.StatManager;
+import org.rostats.engine.effect.EffectManager;
+import org.rostats.engine.element.ElementManager;
+import org.rostats.engine.skill.SkillManager;
 import org.rostats.gui.GUIListener;
-import org.rostats.handler.AttributeHandler;
-import org.rostats.handler.CombatHandler;
-import org.rostats.handler.ManaManager;
-import org.rostats.handler.ProjectileHandler;
-import org.rostats.handler.StatusHandler;
+import org.rostats.handler.*;
 import org.rostats.hook.PAPIHook;
 import org.rostats.input.ChatInputHandler;
 import org.rostats.itemeditor.ItemAttributeManager;
 import org.rostats.itemeditor.ItemEditorCommand;
 import org.rostats.itemeditor.ItemManager;
-import org.rostats.engine.effect.EffectManager;
-import org.rostats.engine.skill.SkillManager;
-import org.rostats.engine.element.ElementManager; // [NEW] Import
 
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.bukkit.NamespacedKey;
-import org.bukkit.persistence.PersistentDataType;
 
 public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
@@ -56,7 +52,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     private EffectManager effectManager;
     private SkillManager skillManager;
-    private ElementManager elementManager; // [NEW] Variable
+    private ElementManager elementManager; // [NEW]
 
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
     private NamespacedKey floatingTextKey;
@@ -71,14 +67,14 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
-        this.combatHandler = new CombatHandler(this);
+        this.combatHandler = new CombatHandler(this); // CombatHandler might need ElementManager, but we pass plugin so getter works
 
         this.projectileHandler = new ProjectileHandler(this);
         this.statusHandler = new StatusHandler(this);
 
         this.effectManager = new EffectManager(this);
+        this.elementManager = new ElementManager(this); // [NEW] Init here
         this.skillManager = new SkillManager(this);
-        this.elementManager = new ElementManager(this); // [NEW] Initialize
 
         this.itemAttributeManager = new ItemAttributeManager(this);
         this.itemManager = new ItemManager(this);

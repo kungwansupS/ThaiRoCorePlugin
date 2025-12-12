@@ -5,7 +5,7 @@ import org.bukkit.entity.Player;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.effect.ActiveEffect;
 import org.rostats.engine.effect.EffectType;
-import org.rostats.engine.element.Element; // Import Element
+import org.rostats.engine.element.Element;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,7 +32,7 @@ public class PlayerData {
 
     private final List<ActiveEffect> activeEffects = new CopyOnWriteArrayList<>();
 
-    // Gear Bonuses & Advanced Stats
+    // Gear Bonuses
     private int strBonusGear = 0;
     private int agiBonusGear = 0;
     private int vitBonusGear = 0;

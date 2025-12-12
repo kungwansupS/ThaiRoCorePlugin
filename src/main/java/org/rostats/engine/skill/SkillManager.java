@@ -206,7 +206,6 @@ public class SkillManager {
             SkillData skill = new SkillData(key);
             skill.setDisplayName(section.getString("display-name", key));
 
-            // [UPDATED] Load Lore
             if (section.contains("lore")) {
                 skill.setLore(section.getStringList("lore"));
             }
@@ -274,9 +273,11 @@ public class SkillManager {
 
             switch (type) {
                 case DAMAGE:
+                    // [FIX] Added 'bypass-def' argument (default false)
                     return new DamageAction(plugin,
                             String.valueOf(map.getOrDefault("formula", "ATK")),
-                            String.valueOf(map.getOrDefault("element", "NEUTRAL")));
+                            String.valueOf(map.getOrDefault("element", "NEUTRAL")),
+                            (boolean) map.getOrDefault("bypass-def", false));
 
                 case HEAL:
                     return new HealAction(plugin,
@@ -302,7 +303,6 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    // Full Constructor for Advanced FX (Color, Rotation, Offset)
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
@@ -455,7 +455,6 @@ public class SkillManager {
         if (!newFolder.exists()) newFolder.mkdirs();
     }
 
-    // สร้างไฟล์ Skill ใหม่ (1 สกิลในไฟล์เดียว)
     public void createSkill(File parent, String fileName) {
         String name = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
         File file = new File(parent, name);
@@ -473,7 +472,6 @@ public class SkillManager {
         }
     }
 
-    // เพิ่มสกิลลงในไฟล์ที่มีอยู่แล้ว (Skill Pack)
     public void addSkillToFile(File file, String skillName) {
         if (!file.exists()) return;
         try {
@@ -490,10 +488,9 @@ public class SkillManager {
         }
     }
 
-    // Helper เขียนข้อมูลสกิลเริ่มต้น
     private void writeDefaultSkill(YamlConfiguration config, String id, String displayName) {
         config.set(id + ".display-name", displayName);
-        config.set(id + ".lore", Arrays.asList("&7Description line 1", "&7Description line 2")); // [UPDATED] Default Lore
+        config.set(id + ".lore", Arrays.asList("&7Description line 1", "&7Description line 2"));
         config.set(id + ".icon", "BOOK");
         config.set(id + ".max-level", 1);
         config.set(id + ".trigger", "CAST");
@@ -532,12 +529,11 @@ public class SkillManager {
         String key = skill.getId();
 
         config.set(key + ".display-name", skill.getDisplayName());
-        config.set(key + ".lore", skill.getLore()); // [UPDATED] Save Lore
+        config.set(key + ".lore", skill.getLore());
         config.set(key + ".icon", skill.getIcon().name());
         config.set(key + ".max-level", skill.getMaxLevel());
         config.set(key + ".trigger", skill.getTrigger().name());
 
-        // Save Meta
         config.set(key + ".type", skill.getSkillType());
         config.set(key + ".attack-type", skill.getAttackType());
         config.set(key + ".range", skill.getCastRange());
@@ -599,7 +595,6 @@ public class SkillManager {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(example);
             writeDefaultSkill(config, "fireball", "Fireball");
 
-            // Add example actions manually for the template
             List<Map<String, Object>> actions = new ArrayList<>();
             Map<String, Object> sound = new HashMap<>(); sound.put("type", "SOUND"); sound.put("sound", "ENTITY_GHAST_SHOOT"); actions.add(sound);
             Map<String, Object> delay = new HashMap<>(); delay.put("type", "DELAY"); delay.put("ticks", 10); actions.add(delay);
