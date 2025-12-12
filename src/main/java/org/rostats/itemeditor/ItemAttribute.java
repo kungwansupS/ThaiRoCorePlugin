@@ -53,7 +53,7 @@ public class ItemAttribute {
     private double skillCooldownPercent;
     private double skillCooldownFlat;
 
-    // [NEW] Global Cooldown (GCD) & ACD
+    // Global Cooldown (GCD) & ACD
     private double globalCooldownPercent;
     private double globalCooldownFlat;
 
@@ -110,7 +110,7 @@ public class ItemAttribute {
     // Misc
     private boolean removeVanillaAttribute;
     private Integer customModelData;
-    // [NEW] Unbreakable Status
+    // Unbreakable Status
     private boolean unbreakable;
 
     private Map<PotionEffectType, Integer> potionEffects = new HashMap<>();
@@ -123,7 +123,6 @@ public class ItemAttribute {
         if (root == null) return attr;
 
         attr.removeVanillaAttribute = root.getBoolean("remove-vanilla", false);
-        // [NEW] Read unbreakable
         attr.unbreakable = root.getBoolean("unbreakable", false);
 
         if (root.contains("custom-model-data")) attr.customModelData = root.getInt("custom-model-data");
@@ -169,7 +168,7 @@ public class ItemAttribute {
         attr.skillCooldownPercent = att.getDouble("skill-cd-%", 0);
         attr.skillCooldownFlat = att.getDouble("skill-cd-flat", 0);
 
-        // [FIXED] Load Global CD & ACD
+        // Global CD & ACD
         attr.globalCooldownPercent = att.getDouble("global-cd-%", 0);
         attr.globalCooldownFlat = att.getDouble("global-cd-flat", 0);
         attr.acdPercent = att.getDouble("acd-%", 0);
@@ -242,7 +241,6 @@ public class ItemAttribute {
 
     public void saveToConfig(ConfigurationSection section) {
         section.set("remove-vanilla", removeVanillaAttribute);
-        // [NEW] Save unbreakable
         section.set("unbreakable", unbreakable);
 
         if (customModelData != null) section.set("custom-model-data", customModelData);
@@ -282,7 +280,6 @@ public class ItemAttribute {
         setIfNonZero(section, "skill-cd-%", skillCooldownPercent);
         setIfNonZero(section, "skill-cd-flat", skillCooldownFlat);
 
-        // [FIXED] Save Global CD & ACD
         setIfNonZero(section, "global-cd-%", globalCooldownPercent);
         setIfNonZero(section, "global-cd-flat", globalCooldownFlat);
         setIfNonZero(section, "acd-%", acdPercent);
@@ -408,7 +405,6 @@ public class ItemAttribute {
     public double getSkillCooldownFlat() { return skillCooldownFlat; }
     public void setSkillCooldownFlat(double v) { this.skillCooldownFlat = v; }
 
-    // [FIXED] Global CD & ACD Getters/Setters
     public double getGlobalCooldownPercent() { return globalCooldownPercent; }
     public void setGlobalCooldownPercent(double v) { this.globalCooldownPercent = v; }
     public double getGlobalCooldownFlat() { return globalCooldownFlat; }
@@ -489,7 +485,6 @@ public class ItemAttribute {
     public List<ItemSkillBinding> getSkillBindings() { return skillBindings; }
     public void setSkillBindings(List<ItemSkillBinding> v) { this.skillBindings = v; }
 
-    // [NEW] Unbreakable Getter/Setter
     public boolean isUnbreakable() { return unbreakable; }
     public void setUnbreakable(boolean v) { this.unbreakable = v; }
 }
