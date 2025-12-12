@@ -33,7 +33,7 @@ public class GUIListener implements Listener {
     private final ThaiRoCorePlugin plugin;
     private final Map<UUID, Map<String, Object>> skillBindingFlow = new HashMap<>();
 
-    // Callbacks for Skill Selection (Standalone for ItemEditor)
+    // Callbacks for Skill Selection
     private final Map<UUID, Consumer<String>> skillSelectCallbacks = new HashMap<>();
     private final Map<UUID, Runnable> skillCancelCallbacks = new HashMap<>();
 
@@ -55,7 +55,7 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Cleanup Metadata and Temporary Data on real close
+        // Cleanup
         if (player.hasMetadata("RO_EDITOR_SEL_EFFECT")) player.removeMetadata("RO_EDITOR_SEL_EFFECT", plugin);
         if (player.hasMetadata("RO_EDITOR_SEL_ENCHANT")) player.removeMetadata("RO_EDITOR_SEL_ENCHANT", plugin);
 
@@ -109,15 +109,15 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
         }
-        // 5. [NEW] Item Skill Selection
+        // 5. Item Skill Selection (Fixed Logic)
         else if (title.startsWith("ItemSkillSelect: ")) {
             event.setCancelled(true);
-            handleItemSkillSelectClick(event, player, title.substring(17));
+            handleItemSkillSelectClick(event, player);
         }
     }
 
-    // --- [NEW] Item Skill Selection Handler ---
-    private void handleItemSkillSelectClick(InventoryClickEvent event, Player player, String pathInfo) {
+    // --- Item Skill Selection Handler (Revised) ---
+    private void handleItemSkillSelectClick(InventoryClickEvent event, Player player) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
@@ -126,6 +126,7 @@ public class GUIListener implements Listener {
 
         NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
         NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+        NamespacedKey keyContext = new NamespacedKey(plugin, "ctx_path");
         PersistentDataType<String, String> strType = PersistentDataType.STRING;
 
         if (!meta.getPersistentDataContainer().has(keyType, strType)) return;
@@ -133,30 +134,27 @@ public class GUIListener implements Listener {
         String type = meta.getPersistentDataContainer().get(keyType, strType);
         String value = meta.getPersistentDataContainer().get(keyValue, strType);
 
-        File currentDir = plugin.getSkillManager().getFileFromRelative(pathInfo.startsWith("...") ? "/" : pathInfo);
-        // Correct path logic if truncated
-        if (pathInfo.startsWith("...") && !pathInfo.equals("...")) {
-            // Path logic inside GUI is display-only, use currentDir calculation or rely on parent traversal
-            // But since we navigate by file objects below, currentDir is mostly for "Back" context from title if needed
-            // Actually, we should rely on the file/folder clicked
+        // Retrieve current context path from item (fallback to root if missing)
+        String currentPath = "/";
+        if (meta.getPersistentDataContainer().has(keyContext, strType)) {
+            currentPath = meta.getPersistentDataContainer().get(keyContext, strType);
         }
 
-        // Recover current directory from title for BACK navigation logic context
-        // Ideally we pass File object in GUI, but here we reconstruct or use relative.
-        // For simplicity: We trust 'value' from PDC for forward navigation.
+        File currentContextDir = plugin.getSkillManager().getFileFromRelative(currentPath);
 
         if (type.equals("folder")) {
             setSwitching(player);
-            File folder = new File(currentDir, value);
+            // Value is filename, relative to current context
+            File folder = new File(currentContextDir, value);
             new ItemSkillSelectGUI(plugin, folder).open(player);
         }
         else if (type.equals("pack")) {
             setSwitching(player);
-            File pack = new File(currentDir, value);
+            File pack = new File(currentContextDir, value);
             new ItemSkillSelectGUI(plugin, pack).open(player);
         }
         else if (type.equals("file_skill") || type.equals("pack_skill")) {
-            // Select Skill
+            // Value is Skill ID
             String skillId = value;
             if (skillSelectCallbacks.containsKey(player.getUniqueId())) {
                 Consumer<String> callback = skillSelectCallbacks.remove(player.getUniqueId());
@@ -164,17 +162,25 @@ public class GUIListener implements Listener {
 
                 player.sendMessage("§aSelected Skill: " + skillId);
                 player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
-                setSwitching(player); // Switch context for next GUI
+                setSwitching(player);
                 callback.accept(skillId);
             }
         }
+        else if (type.equals("next_page")) {
+            setSwitching(player);
+            int page = Integer.parseInt(value);
+            new ItemSkillSelectGUI(plugin, currentContextDir, page).open(player);
+        }
+        else if (type.equals("prev_page")) {
+            setSwitching(player);
+            int page = Integer.parseInt(value);
+            new ItemSkillSelectGUI(plugin, currentContextDir, page).open(player);
+        }
         else if (type.equals("back")) {
             setSwitching(player);
-            if (value.equals("dir")) {
-                new ItemSkillSelectGUI(plugin, currentDir.getParentFile()).open(player);
-            } else if (value.equals("pack")) {
-                new ItemSkillSelectGUI(plugin, currentDir.getParentFile()).open(player);
-            }
+            // Value is parent path (absolute relative to root)
+            File parent = plugin.getSkillManager().getFileFromRelative(value);
+            new ItemSkillSelectGUI(plugin, parent).open(player);
         }
         else if (type.equals("cancel")) {
             if (skillCancelCallbacks.containsKey(player.getUniqueId())) {
@@ -502,7 +508,7 @@ public class GUIListener implements Listener {
 
             setSwitching(player);
 
-            // [CHANGED] Use new ItemSkillSelectGUI
+            // Setup callbacks
             skillSelectCallbacks.put(player.getUniqueId(), (selectedSkillId) -> {
                 Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
                 if (flow != null) {
@@ -519,6 +525,7 @@ public class GUIListener implements Listener {
                 new SkillBindingGUI(plugin, itemFile).open(player);
             });
 
+            // Open new Selector GUI
             new ItemSkillSelectGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
 
         } else if (clicked.getType() == Material.ARROW) {

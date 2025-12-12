@@ -8,7 +8,6 @@ org\rostats\itemeditor\ItemManager.class
 org\rostats\engine\skill\SkillData.class
 org\rostats\handler\CombatHandler.class
 org\rostats\hook\PAPIHook.class
-org\rostats\itemeditor\SkillBindingGUI.class
 org\rostats\engine\action\impl\HealAction.class
 org\rostats\engine\action\impl\LoopAction$LoopIncrementAction.class
 org\rostats\data\PlayerData.class
@@ -19,16 +18,12 @@ org\rostats\itemeditor\ItemAttributeType.class
 org\rostats\gui\SkillEditorGUI.class
 org\rostats\engine\action\impl\ConditionAction.class
 org\rostats\engine\skill\SkillRunner$1.class
-org\rostats\itemeditor\TriggerSelectorGUI.class
 org\rostats\data\DataManager.class
 org\rostats\engine\action\impl\AreaAction.class
-org\rostats\itemeditor\ItemTypeSelectorGUI.class
-org\rostats\utils\FormulaParser$1.class
 org\rostats\engine\action\impl\DamageAction.class
 org\rostats\itemeditor\ItemAttributeManager$1.class
 org\rostats\command\PlayerCommand.class
 org\rostats\itemeditor\ItemLibraryGUI.class
-org\rostats\utils\FormulaParser.class
 org\rostats\engine\action\impl\DelayAction.class
 org\rostats\gui\CharacterGUI.class
 org\rostats\itemeditor\ItemAttributeManager.class
@@ -66,7 +61,6 @@ org\rostats\engine\skill\SkillManager$1.class
 org\rostats\handler\DeathHandler.class
 org\rostats\input\ChatInputHandler$1.class
 org\rostats\gui\CharacterGUI$Tab.class
-org\rostats\itemeditor\ItemSkillSelectGUI.class
 org\rostats\handler\AttributeHandler.class
 org\rostats\input\ChatInputHandler.class
 org\rostats\itemeditor\ItemSkillBinding.class
