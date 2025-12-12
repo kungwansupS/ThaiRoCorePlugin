@@ -20,18 +20,22 @@ import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
-import org.rostats.gui.SkillLibraryGUI;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
     private final Map<UUID, Map<String, Object>> skillBindingFlow = new HashMap<>();
+
+    // Callbacks for Skill Selection (Standalone for ItemEditor)
+    private final Map<UUID, Consumer<String>> skillSelectCallbacks = new HashMap<>();
+    private final Map<UUID, Runnable> skillCancelCallbacks = new HashMap<>();
 
     public GUIListener(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -45,20 +49,24 @@ public class GUIListener implements Listener {
     public void onClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
-        // [FIX Phase 2] Check for Switch Flag to preserve state during navigation
+        // Check for Switch Flag to preserve state during navigation
         if (player.hasMetadata("RO_EDITOR_SWITCH")) {
             player.removeMetadata("RO_EDITOR_SWITCH", plugin);
             return;
         }
 
-        // [FIX Phase 2] Cleanup Metadata and Temporary Data on real close
+        // Cleanup Metadata and Temporary Data on real close
         if (player.hasMetadata("RO_EDITOR_SEL_EFFECT")) player.removeMetadata("RO_EDITOR_SEL_EFFECT", plugin);
         if (player.hasMetadata("RO_EDITOR_SEL_ENCHANT")) player.removeMetadata("RO_EDITOR_SEL_ENCHANT", plugin);
+
         skillBindingFlow.remove(player.getUniqueId());
+        skillSelectCallbacks.remove(player.getUniqueId());
+        skillCancelCallbacks.remove(player.getUniqueId());
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
+        if (event.getView().title() == null) return;
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
@@ -100,6 +108,81 @@ public class GUIListener implements Listener {
         else if (title.startsWith("Material Select: ")) {
             event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
+        }
+        // 5. [NEW] Item Skill Selection
+        else if (title.startsWith("ItemSkillSelect: ")) {
+            event.setCancelled(true);
+            handleItemSkillSelectClick(event, player, title.substring(17));
+        }
+    }
+
+    // --- [NEW] Item Skill Selection Handler ---
+    private void handleItemSkillSelectClick(InventoryClickEvent event, Player player, String pathInfo) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null) return;
+
+        NamespacedKey keyType = new NamespacedKey(plugin, "icon_type");
+        NamespacedKey keyValue = new NamespacedKey(plugin, "icon_value");
+        PersistentDataType<String, String> strType = PersistentDataType.STRING;
+
+        if (!meta.getPersistentDataContainer().has(keyType, strType)) return;
+
+        String type = meta.getPersistentDataContainer().get(keyType, strType);
+        String value = meta.getPersistentDataContainer().get(keyValue, strType);
+
+        File currentDir = plugin.getSkillManager().getFileFromRelative(pathInfo.startsWith("...") ? "/" : pathInfo);
+        // Correct path logic if truncated
+        if (pathInfo.startsWith("...") && !pathInfo.equals("...")) {
+            // Path logic inside GUI is display-only, use currentDir calculation or rely on parent traversal
+            // But since we navigate by file objects below, currentDir is mostly for "Back" context from title if needed
+            // Actually, we should rely on the file/folder clicked
+        }
+
+        // Recover current directory from title for BACK navigation logic context
+        // Ideally we pass File object in GUI, but here we reconstruct or use relative.
+        // For simplicity: We trust 'value' from PDC for forward navigation.
+
+        if (type.equals("folder")) {
+            setSwitching(player);
+            File folder = new File(currentDir, value);
+            new ItemSkillSelectGUI(plugin, folder).open(player);
+        }
+        else if (type.equals("pack")) {
+            setSwitching(player);
+            File pack = new File(currentDir, value);
+            new ItemSkillSelectGUI(plugin, pack).open(player);
+        }
+        else if (type.equals("file_skill") || type.equals("pack_skill")) {
+            // Select Skill
+            String skillId = value;
+            if (skillSelectCallbacks.containsKey(player.getUniqueId())) {
+                Consumer<String> callback = skillSelectCallbacks.remove(player.getUniqueId());
+                skillCancelCallbacks.remove(player.getUniqueId());
+
+                player.sendMessage("§aSelected Skill: " + skillId);
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+                setSwitching(player); // Switch context for next GUI
+                callback.accept(skillId);
+            }
+        }
+        else if (type.equals("back")) {
+            setSwitching(player);
+            if (value.equals("dir")) {
+                new ItemSkillSelectGUI(plugin, currentDir.getParentFile()).open(player);
+            } else if (value.equals("pack")) {
+                new ItemSkillSelectGUI(plugin, currentDir.getParentFile()).open(player);
+            }
+        }
+        else if (type.equals("cancel")) {
+            if (skillCancelCallbacks.containsKey(player.getUniqueId())) {
+                Runnable cancel = skillCancelCallbacks.remove(player.getUniqueId());
+                skillSelectCallbacks.remove(player.getUniqueId());
+                setSwitching(player);
+                cancel.run();
+            }
         }
     }
 
@@ -417,30 +500,26 @@ public class GUIListener implements Listener {
             flowData.put("itemFile", itemFile);
             skillBindingFlow.put(player.getUniqueId(), flowData);
 
-            // [FIX] Set BOTH switches:
-            // 1. RO_EDITOR_SWITCH: To prevent this listener (Item) from clearing skillBindingFlow
-            // 2. ROSTATS_SWITCH: To prevent the other listener (Skill) from clearing callbacks
             setSwitching(player);
-            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
 
-            new SkillLibraryGUI(plugin).openSelectMode(player,
-                    (selectedSkillId) -> {
-                        // When selected -> Go to Trigger Selector
-                        Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
-                        if (flow != null) {
-                            flow.put("skillId", selectedSkillId);
-                            setSwitching(player);
-                            new TriggerSelectorGUI(plugin, selectedSkillId).open(player);
-                            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-                        }
-                    },
-                    () -> {
-                        // When cancelled -> Return to Binding GUI
-                        skillBindingFlow.remove(player.getUniqueId());
-                        setSwitching(player);
-                        new SkillBindingGUI(plugin, itemFile).open(player);
-                    }
-            );
+            // [CHANGED] Use new ItemSkillSelectGUI
+            skillSelectCallbacks.put(player.getUniqueId(), (selectedSkillId) -> {
+                Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
+                if (flow != null) {
+                    flow.put("skillId", selectedSkillId);
+                    setSwitching(player);
+                    new TriggerSelectorGUI(plugin, selectedSkillId).open(player);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                }
+            });
+
+            skillCancelCallbacks.put(player.getUniqueId(), () -> {
+                skillBindingFlow.remove(player.getUniqueId());
+                setSwitching(player);
+                new SkillBindingGUI(plugin, itemFile).open(player);
+            });
+
+            new ItemSkillSelectGUI(plugin, plugin.getSkillManager().getRootDir()).open(player);
 
         } else if (clicked.getType() == Material.ARROW) {
             setSwitching(player);
