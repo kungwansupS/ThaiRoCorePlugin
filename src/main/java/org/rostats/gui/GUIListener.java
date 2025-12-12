@@ -20,6 +20,7 @@ import org.rostats.engine.effect.EffectType;
 import org.rostats.engine.skill.SkillData;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.gui.CharacterGUI.Tab;
+import org.rostats.input.ChatInputHandler;
 
 import java.io.File;
 import java.util.*;
@@ -84,30 +85,21 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // [CRITICAL FIX] แยกเช็ค Title ให้ละเอียด ป้องกันการชนกับ ItemEditor (SkillSelect)
-        // Listener นี้จะทำงานเฉพาะกับหน้าจอเหล่านี้เท่านั้น
-        boolean isMyScope = title.contains(CharacterGUI.TITLE_HEADER)
-                || title.startsWith("SkillEditor:")
-                || title.startsWith("ActionSelector:")
-                || title.startsWith("ActionEdit:")
-                || title.startsWith("Lib:")
-                || title.startsWith("Pack:")
-                || title.startsWith("Delete:")
-                || title.startsWith("SkillLibrary:"); // เฉพาะ Library ปกติ ไม่รวม SkillSelect
+        // [FIX] เพิ่ม event.setCancelled(true) เพื่อป้องกันการหยิบไอเทมใน GUI ของระบบทั้งหมด
+        if (title.contains(CharacterGUI.TITLE_HEADER) || title.startsWith("Skill") || title.startsWith("Action") || title.startsWith("Lib:") || title.startsWith("Pack:") || title.startsWith("Delete:")) {
+            event.setCancelled(true);
 
-        // ถ้าไม่ใช่หน้าที่รับผิดชอบ ให้ return ออกไปเลย (ปล่อยให้ Listener อื่นทำงาน)
-        if (!isMyScope) return;
+            if (event.getClickedInventory() != event.getView().getTopInventory()) {
+                return;
+            }
+        }
 
-        event.setCancelled(true);
-        if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-
-        if (title.startsWith("Lib:") || title.startsWith("Pack:") || title.startsWith("SkillLibrary:")) {
+        if (title.startsWith("Lib:") || title.startsWith("Pack:")) {
             handleLibraryNavigation(event, player, title);
             return;
         }
 
         if (title.startsWith("Delete:")) { handleSkillDeleteClick(event, player, title); return; }
-
         if (title.startsWith("SkillEditor:")) {
             String[] parts = title.substring(12).trim().split(" #P");
             String skillId = parts[0];
@@ -130,73 +122,92 @@ public class GUIListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        String pathString;
-        if (title.startsWith("Lib: ")) pathString = title.substring(5);
-        else if (title.startsWith("Pack: ")) pathString = title.substring(6);
-        else if (title.startsWith("SkillLibrary: ")) pathString = title.substring(14).split(" #P")[0];
-        else pathString = "/";
-
+        String pathString = title.startsWith("Lib: ") ? title.substring(5) : title.substring(6);
         if (pathString.startsWith("...")) pathString = "/";
 
         File currentDir = plugin.getSkillManager().getFileFromRelative(pathString.trim());
         if (!currentDir.exists()) currentDir = plugin.getSkillManager().getRootDir();
 
         // 1. Enter Folder
-        if (clicked.getType() == Material.CHEST && clicked.hasItemMeta()) {
-            String name = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
-            name = name.replace("📂 ", "").replace("Folder: ", "").trim();
+        if (clicked.getType() == Material.CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("📂")) {
+            String folderName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("📂 ", "").trim();
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-            new SkillLibraryGUI(plugin, new File(currentDir, name), 0).open(player);
+            new SkillLibraryGUI(plugin, new File(currentDir, folderName)).open(player);
             return;
         }
 
-        // 2. Enter Pack (if visible as chest/enderchest)
-        if (clicked.getType() == Material.ENDER_CHEST && clicked.hasItemMeta()) {
-            String name = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
-            name = name.replace("📦 ", "").replace("Skill Pack: ", "").trim();
+        // 2. Enter Pack
+        if (clicked.getType() == Material.ENDER_CHEST && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("📦")) {
+            String fileName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName()).replace("📦 ", "").trim();
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-            new SkillLibraryGUI(plugin, new File(currentDir, name), 0).open(player);
+            new SkillLibraryGUI(plugin, new File(currentDir, fileName)).open(player);
             return;
         }
 
         // 3. Back Button
-        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("Back")) {
+        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("BACK")) {
+            if (cancelCallbacks.containsKey(player.getUniqueId()) && currentDir.equals(plugin.getSkillManager().getRootDir())) {
+                Runnable cancel = cancelCallbacks.remove(player.getUniqueId());
+                selectionCallbacks.remove(player.getUniqueId());
+                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+                cancel.run();
+                return;
+            }
+
             File parent = currentDir.getParentFile();
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-
             if (parent != null && parent.getAbsolutePath().startsWith(plugin.getSkillManager().getRootDir().getAbsolutePath())) {
-                new SkillLibraryGUI(plugin, parent, 0).open(player);
+                new SkillLibraryGUI(plugin, parent).open(player);
             } else {
-                new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
+                new SkillLibraryGUI(plugin).open(player);
             }
             return;
         }
 
         // 4. Create Buttons
         if (!selectionCallbacks.containsKey(player.getUniqueId())) {
-            String dp = clicked.getItemMeta().getDisplayName();
-            if (dp.contains("New Folder")) { promptCreate(player, currentDir, false, false); return; }
-            if (dp.contains("New Skill")) { promptCreate(player, currentDir, true, false); return; }
-            if (dp.contains("New Pack")) { promptCreate(player, currentDir, true, true); return; }
-            if (dp.contains("Add Skill")) { promptCreateInPack(player, currentDir); return; }
+            if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().contains("New Folder")) {
+                promptCreate(player, currentDir, false, false);
+                return;
+            }
+            if (clicked.getType() == Material.PAPER && clicked.getItemMeta().getDisplayName().contains("New Skill")) {
+                promptCreate(player, currentDir, true, false);
+                return;
+            }
+            if (clicked.getType() == Material.ENDER_CHEST && clicked.getItemMeta().getDisplayName().contains("New Pack")) {
+                promptCreate(player, currentDir, true, true);
+                return;
+            }
+            if (clicked.getType() == Material.LIME_DYE && title.startsWith("Pack:")) {
+                final File packFile = currentDir;
+                player.sendMessage("§eType new skill name:");
+                player.closeInventory();
+                plugin.getChatInputHandler().awaitInput(player, "Skill Name:", (name) -> {
+                    plugin.getSkillManager().addSkillToFile(packFile, name);
+                    runSync(() -> new SkillLibraryGUI(plugin, packFile).open(player));
+                });
+                return;
+            }
         }
 
-        // 5. Select/Edit Skill (Admin Mode)
+        // 5. Select/Edit Skill
         if (clicked.hasItemMeta() && clicked.getItemMeta().hasLore()) {
-            String skillId = null;
-            for (String line : clicked.getItemMeta().getLore()) {
-                if (line.contains("ID: ")) {
-                    skillId = line.substring(line.indexOf("ID: ") + 4).trim();
-                    break;
-                } else if (line.contains("SKILL_ID:")) { // รองรับ Lore แบบใหม่
-                    skillId = line.substring(line.indexOf("SKILL_ID:") + 9).trim();
-                    break;
-                }
-            }
+            List<String> lore = clicked.getItemMeta().getLore();
+            if (lore != null && !lore.isEmpty() && lore.get(0).startsWith("§8ID: ")) {
+                String skillId = lore.get(0).replace("§8ID: ", "");
 
-            if (skillId != null) {
+                if (selectionCallbacks.containsKey(player.getUniqueId())) {
+                    Consumer<String> callback = selectionCallbacks.remove(player.getUniqueId());
+                    cancelCallbacks.remove(player.getUniqueId());
+                    player.sendMessage("§aSelected: " + skillId);
+                    player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+                    player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+                    callback.accept(skillId);
+                    return;
+                }
+
                 if (event.isRightClick()) {
-                    new SkillLibraryGUI(plugin, currentDir, 0).openConfirmDelete(player, new File(currentDir, skillId + ".yml"));
+                    new SkillLibraryGUI(plugin, currentDir).openConfirmDelete(player, new File(currentDir, skillId + ".yml"));
                 } else {
                     new SkillEditorGUI(plugin, skillId).open(player);
                 }
@@ -205,30 +216,16 @@ public class GUIListener implements Listener {
     }
 
     private void promptCreate(Player player, File dir, boolean isFile, boolean isPack) {
-        player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-        player.sendMessage("§eEnter name in chat:");
+        player.sendMessage("§eType name:");
         player.closeInventory();
         plugin.getChatInputHandler().awaitInput(player, "Name:", (input) -> {
             if (isFile) {
                 String name = input.endsWith(".yml") ? input : input + ".yml";
                 plugin.getSkillManager().createSkill(dir, name);
-                player.sendMessage("§aCreated " + (isPack ? "Pack" : "Skill") + ": " + name);
             } else {
                 plugin.getSkillManager().createFolder(dir, input);
-                player.sendMessage("§aCreated Folder: " + input);
             }
-            runSync(() -> new SkillLibraryGUI(plugin, dir, 0).open(player));
-        });
-    }
-
-    private void promptCreateInPack(Player player, File packFile) {
-        player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-        player.sendMessage("§eEnter NEW Skill ID in chat:");
-        player.closeInventory();
-        plugin.getChatInputHandler().awaitInput(player, "Skill ID:", (input) -> {
-            plugin.getSkillManager().addSkillToFile(packFile, input);
-            player.sendMessage("§aAdded skill '" + input + "' to pack.");
-            runSync(() -> new SkillLibraryGUI(plugin, packFile, 0).open(player));
+            runSync(() -> new SkillLibraryGUI(plugin, dir).open(player));
         });
     }
 
@@ -239,9 +236,9 @@ public class GUIListener implements Listener {
             File parent = target.getParentFile();
             plugin.getSkillManager().deleteFile(target);
             player.sendMessage("§cDeleted.");
-            runSync(() -> new SkillLibraryGUI(plugin, parent, 0).open(player));
+            runSync(() -> new SkillLibraryGUI(plugin, parent).open(player));
         } else if (event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.RED_CONCRETE) {
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
+            new SkillLibraryGUI(plugin).open(player);
         }
     }
 
@@ -258,11 +255,13 @@ public class GUIListener implements Listener {
         if (slot == 48) {
             boolean isNested = currentEditingList.containsKey(player.getUniqueId());
             if (!isNested) {
+                // Return to Library
                 player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-                new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0).open(player);
+                new SkillLibraryGUI(plugin).open(player);
             } else {
+                // Return to Root Skill List
                 currentEditingList.remove(player.getUniqueId());
-                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true)); // [FIX] Added switch
                 new SkillEditorGUI(plugin, skillId, 0).open(player);
             }
             return;
@@ -275,6 +274,7 @@ public class GUIListener implements Listener {
             return;
         }
         if (slot == 50) {
+            // [FIX] Context Loss: Prevent currentEditingList from being cleared when opening Selector
             player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
             new SkillActionSelectorGUI(plugin, skillId).open(player);
             return;
@@ -287,12 +287,14 @@ public class GUIListener implements Listener {
                 if (action instanceof ConditionAction && event.isRightClick()) {
                     ConditionAction cond = (ConditionAction) action;
                     currentEditingList.put(player.getUniqueId(), event.isShiftClick() ? cond.getFailActions() : cond.getSuccessActions());
+                    // [FIX] Context Loss: Entering Nested List
                     player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillEditorGUI(plugin, skillId, event.isShiftClick() ? cond.getFailActions() : cond.getSuccessActions(), 0, "Condition").open(player);
                     return;
                 }
                 if (action instanceof LoopAction && event.isRightClick() && !event.isShiftClick()) {
                     currentEditingList.put(player.getUniqueId(), ((LoopAction)action).getSubActions());
+                    // [FIX] Context Loss: Entering Nested List
                     player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillEditorGUI(plugin, skillId, ((LoopAction)action).getSubActions(), 0, "Loop").open(player);
                     return;
@@ -305,6 +307,7 @@ public class GUIListener implements Listener {
                     activeList.remove(index); refreshGUI(player, skillId, page);
                 } else if (event.isLeftClick()) {
                     editingProperties.put(player.getUniqueId(), new HashMap<>(action.serialize()));
+                    // [FIX] State Loss: Entering Property Editor
                     player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                     new SkillActionPropertyGUI(plugin, skillId, index, action).open(player);
                 }
@@ -320,6 +323,7 @@ public class GUIListener implements Listener {
         SkillData root = plugin.getSkillManager().getSkill(skillId);
         List<SkillAction> list = currentEditingList.getOrDefault(player.getUniqueId(), root.getActions());
         String name = currentEditingList.containsKey(player.getUniqueId()) ? "Nested List" : "Main";
+        // [FIX] General Stability: Ensure switch flag is set on refresh
         player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
         new SkillEditorGUI(plugin, skillId, list, page, name).open(player);
     }
@@ -410,6 +414,7 @@ public class GUIListener implements Listener {
                 fData.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType());
             } else {
+                // [FIX] State Loss: Prevent editingProperties from being cleared during chat input
                 player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
                 player.closeInventory();
                 plugin.getChatInputHandler().awaitInput(player, "Enter " + key + ":", (str) -> {
@@ -459,6 +464,7 @@ public class GUIListener implements Listener {
             public void execute(org.bukkit.entity.LivingEntity c, org.bukkit.entity.LivingEntity t, int l, Map<String, Double> ctx) {}
             public Map<String, Object> serialize() { return data; }
         };
+        // [FIX] Ensure switch flag is set when reopening property GUI
         player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
         new SkillActionPropertyGUI(plugin, skillId, index, tempAction).open(player);
     }

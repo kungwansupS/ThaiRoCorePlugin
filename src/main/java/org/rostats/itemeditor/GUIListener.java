@@ -21,7 +21,6 @@ import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
 import org.rostats.gui.SkillLibraryGUI;
-import org.rostats.input.ChatInputHandler;
 
 import java.io.File;
 import java.util.HashMap;
@@ -32,6 +31,7 @@ import java.util.UUID;
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
+    private final Map<UUID, Map<String, Object>> skillBindingFlow = new HashMap<>();
 
     public GUIListener(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -45,60 +45,61 @@ public class GUIListener implements Listener {
     public void onClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
+        // [FIX Phase 2] Check for Switch Flag to preserve state during navigation
         if (player.hasMetadata("RO_EDITOR_SWITCH")) {
             player.removeMetadata("RO_EDITOR_SWITCH", plugin);
             return;
         }
 
+        // [FIX Phase 2] Cleanup Metadata and Temporary Data on real close
         if (player.hasMetadata("RO_EDITOR_SEL_EFFECT")) player.removeMetadata("RO_EDITOR_SEL_EFFECT", plugin);
         if (player.hasMetadata("RO_EDITOR_SEL_ENCHANT")) player.removeMetadata("RO_EDITOR_SEL_ENCHANT", plugin);
+        skillBindingFlow.remove(player.getUniqueId());
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (event.getView().title() == null) return;
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // [IMPORTANT] ItemEditor Scope
-        boolean isItemEditorScope = title.startsWith("Editor: ")
-                || title.startsWith("Library: ")
-                || title.startsWith("Confirm Delete: ")
-                || title.startsWith("Select Trigger: ")
-                || title.startsWith("Material Select: ")
-                || title.startsWith("SkillSelect:") // รับผิดชอบ SkillSelect ด้วย
-                || title.startsWith("ItemEditor:"); // เผื่อ TriggerSelectorGUI Title
-
-        if (!isItemEditorScope) return; // ถ้าไม่ใช่ของ ItemEditor ก็ปล่อยผ่าน
-
-        event.setCancelled(true);
-        if (event.getClickedInventory() != event.getView().getTopInventory()) return;
-
+        // 1. Library Handling
         if (title.startsWith("Library: ")) {
+            event.setCancelled(true);
             String relativePath = title.substring(9);
-            handleLibraryClick(event, player, relativePath);
-        }
-        else if (title.startsWith("Editor: ")) {
-            if (title.contains("[SKILLS]")) {
-                handleSkillBindingClick(event, player, title);
-            } else if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
-                handleEffectEnchantClick(event, player, title);
+            if (event.getClickedInventory() == event.getView().getBottomInventory()) {
+                handleImportItem(event, player, relativePath);
             } else {
-                handleEditorClick(event, player, title);
+                handleLibraryClick(event, player, relativePath);
             }
         }
+        // 2. Editor Handling
+        else if (title.startsWith("Editor: ")) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+
+            if (title.contains("[SKILLS]")) {
+                handleSkillBindingClick(event, player, title);
+                return;
+            }
+            if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
+                handleEffectEnchantClick(event, player, title);
+                return;
+            }
+            handleEditorClick(event, player, title);
+        }
+        // 3. Confirm Dialog
         else if (title.startsWith("Confirm Delete: ")) {
+            event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
         }
-        else if (title.startsWith("Select Trigger: ") || title.startsWith("ItemEditor: Trigger Selection:")) {
-            String itemId = title.contains("Select Trigger: ") ? title.substring(16) : title.substring(title.lastIndexOf(":") + 1).trim();
-            handleTriggerSelectClick(event, player, itemId);
+        // 4. Selectors
+        else if (title.startsWith("Select Trigger: ")) {
+            event.setCancelled(true);
+            handleTriggerSelectClick(event, player, title.substring(16));
         }
         else if (title.startsWith("Material Select: ")) {
+            event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
-        }
-        else if (title.startsWith("SkillSelect:")) {
-            handleSkillSelectModeClick(event, player, title);
         }
     }
 
@@ -333,89 +334,73 @@ public class GUIListener implements Listener {
         });
     }
 
-    private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String itemId) {
+    private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
+        if (clicked == null) return;
 
-        String dp = clicked.getItemMeta().getDisplayName();
-        File itemFile = findFileByName(plugin.getItemManager().getRootDir(), itemId);
-        if (itemFile == null) return;
+        if (clicked.getType() == Material.ARROW) {
+            Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
+            if (flowData != null && flowData.containsKey("itemFile")) {
+                setSwitching(player);
+                new SkillBindingGUI(plugin, (File) flowData.get("itemFile")).open(player);
+            }
+            return;
+        }
 
-        // Reconstruct GUI state
-        TriggerSelectorGUI currentGUI = null;
-        if (event.getInventory().getHolder() instanceof TriggerSelectorGUI) {
-            currentGUI = (TriggerSelectorGUI) event.getInventory().getHolder();
-        } else {
-            // Fallback reconstruction
-            int bindingIndex = -1;
-            String skillId = null;
-            ItemStack infoItem = event.getInventory().getItem(4);
-            if (infoItem != null && infoItem.hasItemMeta() && infoItem.getItemMeta().hasLore()) {
-                for (String l : infoItem.getItemMeta().getLore()) {
-                    if (l.startsWith("§0INDEX:")) bindingIndex = Integer.parseInt(l.substring(8));
-                    if (l.startsWith("§0ID: ")) skillId = l.substring(6);
+        List<String> lore = clicked.getItemMeta().getLore();
+        TriggerType trigger = null;
+        if (lore != null) {
+            for (String l : lore) {
+                if (l.startsWith("§7Type: §f")) {
+                    try {
+                        trigger = TriggerType.valueOf(l.substring(10));
+                    } catch (Exception ignored) {}
+                    break;
                 }
             }
-            currentGUI = new TriggerSelectorGUI(plugin, itemId, bindingIndex, skillId);
         }
 
-        // Trigger Buttons (Slots 10-16)
-        if (event.getSlot() >= 10 && event.getSlot() <= 16 && dp.startsWith("§6Trigger:")) {
-            try {
-                TriggerType selectedTrigger = TriggerType.valueOf(dp.substring("§6Trigger: §e".length()));
-                setSwitching(player);
-                new TriggerSelectorGUI(plugin, itemId, currentGUI.getBindingIndex(),
-                        currentGUI.getSkillIdToEdit(), selectedTrigger,
-                        currentGUI.getTempLevel(), currentGUI.getTempChance()).open(player);
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-            } catch (Exception ignored) {}
-            return;
-        }
+        if (trigger != null) {
+            Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
+            if (flowData == null) return;
+            flowData.put("trigger", trigger);
 
-        // Back Button
-        if (event.getSlot() == 18 && dp.contains("Back")) {
             setSwitching(player);
-            new SkillBindingGUI(plugin, itemFile).open(player);
-            return;
-        }
+            plugin.getChatInputHandler().awaitInput(player, "Enter Skill Level (ตัวเลข):", (lvlStr) -> {
+                try {
+                    int level = Integer.parseInt(lvlStr);
+                    if (level < 1) level = 1;
 
-        // Change Skill Button
-        if (event.getSlot() == 4 && dp.contains("Change Skill")) {
-            setSwitching(player);
-            // Open SkillLibrary in SELECT mode
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0, true, itemId, currentGUI.getBindingIndex(), itemId).open(player);
-            return;
-        }
+                    int finalLevel = level;
+                    setSwitching(player); // Protect flow for next input
+                    plugin.getChatInputHandler().awaitInput(player, "Enter Chance (0.0 - 1.0):", (chanceStr) -> {
+                        try {
+                            double chance = Double.parseDouble(chanceStr);
+                            if (chance < 0) chance = 0; if (chance > 1) chance = 1;
 
-        // Edit Level/Chance Button
-        if (event.getSlot() == 26 && dp.contains("Edit Level/Chance")) {
-            setSwitching(player);
-            player.closeInventory();
-            final TriggerSelectorGUI finalGUI = currentGUI;
+                            File itemFile = (File) flowData.get("itemFile");
+                            String sId = (String) flowData.get("skillId");
+                            TriggerType trig = (TriggerType) flowData.get("trigger");
 
-            ChatInputHandler.awaitSkillLevel(plugin, player, currentGUI.getSkillIdToEdit(), itemId, currentGUI.getBindingIndex(), currentGUI.getTempTrigger(), (level) -> {
-                // Success Callback -> Reopen TriggerSelector
-                new BukkitRunnableWrapper(plugin, () -> {
-                    new TriggerSelectorGUI(plugin, itemId, finalGUI.getBindingIndex(), finalGUI.getSkillIdToEdit(), finalGUI.getTempTrigger(), level, finalGUI.getTempChance()).open(player);
-                });
+                            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+                            ItemStack stack = plugin.getItemManager().loadItemStack(itemFile);
+
+                            attr.getSkillBindings().add(new ItemSkillBinding(sId, trig, finalLevel, chance));
+                            plugin.getItemManager().saveItem(itemFile, attr, stack);
+
+                            player.sendMessage("§aSkill bound successfully!");
+                            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
+
+                            skillBindingFlow.remove(player.getUniqueId()); // Explicit remove on success
+                            new BukkitRunnableWrapper(plugin, () -> {
+                                setSwitching(player);
+                                new SkillBindingGUI(plugin, itemFile).open(player);
+                            });
+
+                        } catch (Exception e) { player.sendMessage("§cInvalid Chance"); }
+                    });
+                } catch (Exception e) { player.sendMessage("§cInvalid Level"); }
             });
-            return;
-        }
-
-        // Confirm Button
-        if (event.getSlot() == 22 && dp.contains("Confirm Binding")) {
-            player.closeInventory();
-            plugin.getChatInputHandler().finalizeSkillBinding(player, itemId,
-                    currentGUI.getSkillIdToEdit(),
-                    currentGUI.getBindingIndex(),
-                    currentGUI.getTempTrigger(),
-                    currentGUI.getTempLevel(),
-                    currentGUI.getTempChance());
-            new BukkitRunnableWrapper(plugin, () -> {
-                setSwitching(player);
-                new SkillBindingGUI(plugin, itemFile).open(player);
-            });
-            return;
         }
     }
 
@@ -423,118 +408,55 @@ public class GUIListener implements Listener {
         String fileName = title.substring(8, title.lastIndexOf(" ["));
         File itemFile = findFileByName(plugin.getItemManager().getRootDir(), fileName);
         if (itemFile == null) return;
-        String itemId = itemFile.getName().replace(".yml", "");
 
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
-        if (clicked.getType() == Material.EMERALD || clicked.getType() == Material.LIME_DYE || clicked.getItemMeta().getDisplayName().contains("Add New")) {
-            // Add New Binding -> Open Skill Selector (New Mode)
+        if (clicked.getType() == Material.LIME_DYE) { // Add Skill Button
+            Map<String, Object> flowData = new HashMap<>();
+            flowData.put("itemFile", itemFile);
+            skillBindingFlow.put(player.getUniqueId(), flowData);
+
+            // [FIX] Set BOTH switches:
+            // 1. RO_EDITOR_SWITCH: To prevent this listener (Item) from clearing skillBindingFlow
+            // 2. ROSTATS_SWITCH: To prevent the other listener (Skill) from clearing callbacks
             setSwitching(player);
-            new SkillLibraryGUI(plugin, plugin.getSkillManager().getRootDir(), 0, true, itemId, -1, itemId).open(player);
-            return;
-        }
-        else if (clicked.getType() == Material.RED_BED) { // Back
+            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+
+            new SkillLibraryGUI(plugin).openSelectMode(player,
+                    (selectedSkillId) -> {
+                        // When selected -> Go to Trigger Selector
+                        Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
+                        if (flow != null) {
+                            flow.put("skillId", selectedSkillId);
+                            setSwitching(player);
+                            new TriggerSelectorGUI(plugin, selectedSkillId).open(player);
+                            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                        }
+                    },
+                    () -> {
+                        // When cancelled -> Return to Binding GUI
+                        skillBindingFlow.remove(player.getUniqueId());
+                        setSwitching(player);
+                        new SkillBindingGUI(plugin, itemFile).open(player);
+                    }
+            );
+
+        } else if (clicked.getType() == Material.ARROW) {
             setSwitching(player);
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
-        }
-        else if (clicked.getType() == Material.CHEST) { // Save
-            player.sendMessage("§aItem Saved!");
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1, 1);
-        }
-        else {
-            // Existing Binding Click
-            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
-            List<ItemSkillBinding> bindings = attr.getSkillBindings();
-            int slot = event.getSlot();
-
-            if (slot < bindings.size()) {
-                ItemSkillBinding binding = bindings.get(slot);
-
-                if (event.isLeftClick() && !event.isShiftClick()) {
-                    setSwitching(player);
-                    new TriggerSelectorGUI(plugin, itemId, slot, binding.getSkillId()).open(player);
-                } else if (event.isRightClick()) {
+        } else if (clicked.getType() == Material.ENCHANTED_BOOK) {
+            if (event.isRightClick()) {
+                ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+                List<ItemSkillBinding> bindings = attr.getSkillBindings();
+                int slot = event.getSlot();
+                if (slot < bindings.size()) {
                     bindings.remove(slot);
                     plugin.getItemManager().saveItem(itemFile, attr, plugin.getItemManager().loadItemStack(itemFile));
                     player.sendMessage("§cRemoved skill binding.");
-                    player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 1f);
                     setSwitching(player);
                     new SkillBindingGUI(plugin, itemFile).open(player);
                 }
-            }
-        }
-    }
-
-    // [NEW] Handle Skill Selector Mode Click (Fixes Add Skill Issue)
-    private void handleSkillSelectModeClick(InventoryClickEvent event, Player player, String title) {
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null) return;
-
-        // Handle Navigation (Prev/Next Page) in Select Mode
-        if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("Page")) {
-            setSwitching(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.RED_BED) { // Back
-            // Extract Item ID from back button
-            String itemId = null;
-            if (clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("(Skill:")) {
-                itemId = clicked.getItemMeta().getDisplayName().split("\\(Skill: ")[1].replace(")", "").trim();
-            }
-            if (itemId != null) {
-                setSwitching(player);
-                new SkillBindingGUI(plugin, findFileByName(plugin.getItemManager().getRootDir(), itemId)).open(player);
-            }
-            return;
-        }
-
-        ItemMeta meta = clicked.getItemMeta();
-        if (meta == null) return;
-
-        String dp = meta.getDisplayName();
-
-        if (dp.startsWith("§e[Select]")) {
-            String skillId = null;
-            if (meta.hasLore()) {
-                for (String line : meta.getLore()) {
-                    if (line.contains("SKILL_ID:")) {
-                        skillId = line.substring(line.indexOf("SKILL_ID:") + 9).trim();
-                        break;
-                    }
-                }
-            }
-            if (skillId == null) {
-                skillId = dp.substring("§e[Select] ".length());
-            }
-
-            // Retrieve context
-            ItemStack backItem = event.getInventory().getItem(53);
-            String itemId = null;
-            int bindingIndex = -1;
-
-            if (backItem != null && backItem.hasItemMeta()) {
-                List<String> backLore = backItem.getItemMeta().getLore();
-                if (backLore != null) {
-                    for (String l : backLore) {
-                        if (l.contains("INDEX:")) bindingIndex = Integer.parseInt(l.split("INDEX:")[1].trim());
-                    }
-                }
-                String backName = backItem.getItemMeta().getDisplayName();
-                if (backName.contains("(Skill: ")) {
-                    itemId = backName.split("\\(Skill: ")[1].replace(")", "").trim();
-                }
-            }
-
-            if (skillId != null && itemId != null) {
-                setSwitching(player);
-                player.closeInventory();
-
-                // Start Chat Input Flow -> Return to TriggerSelector
-                ChatInputHandler.awaitSkillLevel(plugin, player, skillId, itemId, bindingIndex, null, (level) -> {
-                    // Callback loop logic managed in ChatInputHandler
-                });
             }
         }
     }

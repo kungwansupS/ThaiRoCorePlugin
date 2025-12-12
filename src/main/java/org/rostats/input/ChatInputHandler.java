@@ -1,201 +1,139 @@
 package org.rostats.input;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.engine.trigger.TriggerType;
-import org.rostats.itemeditor.ItemAttribute;
-import org.rostats.itemeditor.ItemSkillBinding;
-import org.rostats.itemeditor.TriggerSelectorGUI;
 
-import java.io.File;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChatInputHandler implements Listener {
 
     private final ThaiRoCorePlugin plugin;
-    private final Map<UUID, Consumer<String>> inputCallbacks = new HashMap<>();
-    private static final Map<UUID, SkillInputState> skillInputMap = new HashMap<>();
+    private final Map<UUID, Consumer<String>> singleInputs = new HashMap<>();
+    private final Map<UUID, List<String>> multiLineBuffers = new HashMap<>();
+    private final Map<UUID, Consumer<List<String>>> multiLineCallbacks = new HashMap<>();
 
-    // State class to hold skill binding information during chat input
-    private static class SkillInputState {
-        final String skillId;
-        final String itemId;
-        final int bindingIndex;
-        final TriggerType trigger;
-        final Consumer<Integer> finalCallback;
-
-        public SkillInputState(String skillId, String itemId, int bindingIndex, TriggerType trigger, Consumer<Integer> finalCallback) {
-            this.skillId = skillId;
-            this.itemId = itemId;
-            this.bindingIndex = bindingIndex;
-            this.trigger = trigger;
-            this.finalCallback = finalCallback;
-        }
-    }
+    // Pattern สำหรับ Hex Color &#RRGGBB
+    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})");
 
     public ChatInputHandler(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
     }
 
-    // --- General Input ---
     public void awaitInput(Player player, String prompt, Consumer<String> callback) {
         player.closeInventory();
         player.sendMessage("§e[Input] " + prompt);
-        player.sendMessage("§7(Type 'cancel' to abort)");
-        inputCallbacks.put(player.getUniqueId(), callback);
+        singleInputs.put(player.getUniqueId(), callback);
     }
 
     public void awaitMultiLineInput(Player player, String prompt, Consumer<List<String>> callback) {
-        // Simple implementation for single line acting as multi-line for now,
-        // or you can implement full multi-line logic.
-        // For brevity in this fix, we reuse awaitInput and wrap list.
-        awaitInput(player, prompt, (str) -> callback.accept(List.of(str.split("\\\\n"))));
-    }
-
-    // --- Skill Binding Input Logic ---
-
-    // Entry point from SkillLibraryGUI (New Binding)
-    public static void awaitSkillLevel(ThaiRoCorePlugin plugin, Player player, String skillId, String itemId, Consumer<Integer> finalCallback) {
-        awaitSkillLevel(plugin, player, skillId, itemId, -1, null, finalCallback);
-    }
-
-    // Entry point with full context
-    public static void awaitSkillLevel(ThaiRoCorePlugin plugin, Player player, String skillId, String itemId, int bindingIndex, TriggerType trigger, Consumer<Integer> finalCallback) {
         player.closeInventory();
-        player.sendMessage("§e---------------------------------");
-        player.sendMessage("§e[Skill Binding] Enter Skill Level and Chance.");
-        player.sendMessage("§7Format: <Level> <Chance%> (e.g., 5 10 for Level 5, 10% chance)");
-        player.sendMessage("§7Enter 'cancel' to abort.");
-        player.sendMessage("§e---------------------------------");
+        player.sendMessage("§e[Multi-Line] " + prompt);
 
-        skillInputMap.put(player.getUniqueId(), new SkillInputState(skillId, itemId, bindingIndex, trigger, finalCallback));
+        // สร้างข้อความแบบ Clickable Component
+        Component message = Component.text("พิมพ์ข้อความทีละบรรทัด กดที่ ", NamedTextColor.GRAY)
+                .append(Component.text("[DONE]", NamedTextColor.GREEN)
+                        .clickEvent(ClickEvent.runCommand("/done"))
+                        .hoverEvent(HoverEvent.showText(Component.text("คลิกเพื่อบันทึกและเสร็จสิ้น", NamedTextColor.GREEN))))
+                .append(Component.text(" เพื่อเสร็จสิ้น หรือ กดที่ ", NamedTextColor.GRAY))
+                .append(Component.text("[CANCEL]", NamedTextColor.RED)
+                        .clickEvent(ClickEvent.runCommand("/cancel"))
+                        .hoverEvent(HoverEvent.showText(Component.text("คลิกเพื่อยกเลิก", NamedTextColor.RED))));
 
-        // Timeout (1 minute)
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (skillInputMap.containsKey(player.getUniqueId())) {
-                    skillInputMap.remove(player.getUniqueId());
-                    if (player.isOnline()) {
-                        player.sendMessage("§c[Skill Binding] Input timed out.");
-                    }
-                }
-            }
-        }.runTaskLater(plugin, 20 * 60);
+        player.sendMessage(message);
+
+        multiLineBuffers.put(player.getUniqueId(), new ArrayList<>());
+        multiLineCallbacks.put(player.getUniqueId(), callback);
     }
 
-    @EventHandler(ignoreCancelled = true)
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onCommandPreprocess(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
+        UUID uuid = player.getUniqueId();
+        String message = event.getMessage();
 
-        // 1. Handle General Input
-        if (inputCallbacks.containsKey(playerId)) {
-            event.setCancelled(true);
-            Consumer<String> callback = inputCallbacks.remove(playerId);
-            String msg = event.getMessage().trim();
-            if (msg.equalsIgnoreCase("cancel")) {
-                player.sendMessage("§cCancelled.");
-            } else {
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        callback.accept(msg);
-                    }
-                }.runTask(plugin);
-            }
-            return;
-        }
-
-        // 2. Handle Skill Input
-        if (skillInputMap.containsKey(playerId)) {
-            event.setCancelled(true);
-            SkillInputState state = skillInputMap.remove(playerId);
-            String message = event.getMessage().trim();
-
-            if (message.equalsIgnoreCase("cancel")) {
-                player.sendMessage("§c[Skill Binding] Operation cancelled.");
-                // Try to reopen GUI on main thread
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        new TriggerSelectorGUI(plugin, state.itemId, state.bindingIndex, state.skillId).open(player);
-                    }
-                }.runTask(plugin);
+        if (multiLineBuffers.containsKey(uuid)) {
+            if (message.equalsIgnoreCase("/cancel")) {
+                event.setCancelled(true);
+                multiLineBuffers.remove(uuid);
+                multiLineCallbacks.remove(uuid);
+                player.sendMessage("§cยกเลิกการแก้ไข Lore");
                 return;
             }
 
-            try {
-                String[] parts = message.split(" ");
-                if (parts.length != 2) {
-                    player.sendMessage("§c[Skill Binding] Invalid format. Use: <Level> <Chance%> (e.g., 5 10)");
-                    // Re-add state to let user try again
-                    skillInputMap.put(playerId, state);
-                    return;
-                }
+            if (message.equalsIgnoreCase("/done")) {
+                event.setCancelled(true);
+                List<String> result = multiLineBuffers.remove(uuid);
+                Consumer<List<String>> callback = multiLineCallbacks.remove(uuid);
 
-                int level = Integer.parseInt(parts[0]);
-                double chancePct = Double.parseDouble(parts[1]);
-                double chance = Math.max(0.0, Math.min(1.0, chancePct / 100.0));
-
-                if (state.trigger == null) {
-                    // Case 1: Need to pick Trigger next
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            new TriggerSelectorGUI(plugin, state.itemId, state.bindingIndex, state.skillId, TriggerType.CAST, level, chance).open(player);
-                        }
-                    }.runTask(plugin);
-                } else {
-                    // Case 2: Finalize
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            finalizeSkillBinding(player, state.itemId, state.skillId, state.bindingIndex, state.trigger, level, chance);
-                            if (state.finalCallback != null) {
-                                state.finalCallback.accept(level);
-                            }
-                        }
-                    }.runTask(plugin);
-                }
-
-            } catch (NumberFormatException e) {
-                player.sendMessage("§c[Skill Binding] Level or Chance must be a valid number.");
-                skillInputMap.put(playerId, state);
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        callback.accept(result);
+                    }
+                }.runTask(plugin);
             }
         }
     }
 
-    public void finalizeSkillBinding(Player player, String itemId, String skillId, int bindingIndex, TriggerType trigger, int level, double chance) {
-        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(player.getInventory().getItemInMainHand());
-        List<ItemSkillBinding> bindings = attr.getSkillBindings();
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        String message = event.getMessage();
 
-        ItemSkillBinding newBinding = new ItemSkillBinding(skillId, trigger, level, chance);
+        // 1. Handle Single Line Input
+        if (singleInputs.containsKey(uuid)) {
+            event.setCancelled(true);
+            Consumer<String> callback = singleInputs.remove(uuid);
 
-        if (bindingIndex == -1) {
-            bindings.add(newBinding);
-        } else if (bindingIndex >= 0 && bindingIndex < bindings.size()) {
-            bindings.set(bindingIndex, newBinding);
-        } else {
-            bindings.add(newBinding); // Fallback
+            // Sync execution to main thread
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    callback.accept(translateColorCodes(message));
+                }
+            }.runTask(plugin);
+            return;
         }
 
-        attr.setSkillBindings(bindings);
-        plugin.getItemAttributeManager().applyAttributesToItem(player.getInventory().getItemInMainHand(), attr);
-        plugin.getItemAttributeManager().applyLoreStats(player.getInventory().getItemInMainHand(), attr);
+        // 2. Handle Multi Line Input
+        if (multiLineBuffers.containsKey(uuid)) {
+            event.setCancelled(true);
 
-        File itemFile = plugin.getItemManager().getFileFromRelative(itemId + ".yml");
-        if (itemFile.exists()) {
-            plugin.getItemManager().saveItem(itemFile, attr, player.getInventory().getItemInMainHand());
+            List<String> buffer = multiLineBuffers.get(uuid);
+            buffer.add(translateColorCodes(message));
+            player.sendMessage("§a+ บันทึกบรรทัดที่ " + buffer.size());
         }
-        player.sendMessage("§a[Skill Binding] Saved: " + skillId + " (Lv." + level + ")");
+    }
+
+    private String translateColorCodes(String text) {
+        // 1. แปลง Hex Color &#RRGGBB -> §x§R§R§G§G§B§B (Format ของ Bukkit)
+        Matcher matcher = hexPattern.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String color = matcher.group(1);
+            StringBuilder sb = new StringBuilder("§x");
+            for (char c : color.toCharArray()) {
+                sb.append("§").append(c);
+            }
+            matcher.appendReplacement(buffer, sb.toString());
+        }
+        matcher.appendTail(buffer);
+
+        // 2. แปลง Legacy Color Code (&c, &l ฯลฯ)
+        return buffer.toString().replace("&", "§");
     }
 }

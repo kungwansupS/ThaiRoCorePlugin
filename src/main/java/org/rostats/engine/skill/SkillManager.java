@@ -302,6 +302,7 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
+                    // Full Constructor for Advanced FX (Color, Rotation, Offset)
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
@@ -458,12 +459,7 @@ public class SkillManager {
     public void createSkill(File parent, String fileName) {
         String name = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
         File file = new File(parent, name);
-
-        // [FIX] Ensure unique filename if exists
-        if (file.exists()) {
-            plugin.getLogger().warning("File already exists: " + name);
-            return;
-        }
+        if (file.exists()) return;
 
         try {
             file.createNewFile();
@@ -471,14 +467,13 @@ public class SkillManager {
             String id = name.replace(".yml", "").toLowerCase().replace(" ", "_");
             writeDefaultSkill(config, id, name.replace(".yml", ""));
             config.save(file);
-
-            // [FIX] Load immediately so it appears in GUI
             loadSkills();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    // เพิ่มสกิลลงในไฟล์ที่มีอยู่แล้ว (Skill Pack)
     public void addSkillToFile(File file, String skillName) {
         if (!file.exists()) return;
         try {

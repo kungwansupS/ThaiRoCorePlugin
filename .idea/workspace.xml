@@ -6,9 +6,45 @@
   <component name="ChangeListManager">
     <list default="true" id="acb8312f-798b-40e3-978e-b3645c431b8b" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ThaiRoCorePlugin.iml" beforeDir="false" afterPath="$PROJECT_DIR$/ThaiRoCorePlugin.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/command/SkillCommand.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/command/SkillCommand.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillData.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillData.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/trigger/TriggerType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/trigger/TriggerType.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionPropertyGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillActionPropertyGUI.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillEditorGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillEditorGUI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillLibraryGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillLibraryGUI.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/input/ChatInputHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/input/ChatInputHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/GUIListener.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttribute.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttribute.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttributeManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/ItemAttributeManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/SkillBindingGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/SkillBindingGUI.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/TriggerSelectorGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/TriggerSelectorGUI.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/command/SkillCommand.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/command/SkillCommand.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillData.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillData.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/trigger/TriggerType.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/trigger/TriggerType.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillLibraryGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillLibraryGUI.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$2.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$2.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$3.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$4.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$5.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler$SkillInputState.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/input/ChatInputHandler.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener$BukkitRunnableWrapper.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener$BukkitRunnableWrapper.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttribute.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttribute.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemAttributeManager.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/SkillBindingGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/SkillBindingGUI.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/TriggerSelectorGUI.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/TriggerSelectorGUI.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,6 +71,7 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/github/ThaiRoCorePlugin&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -59,7 +96,8 @@
       <option name="presentableId" value="Default" />
       <updated>1765513197834</updated>
       <workItem from="1765513199384" duration="731000" />
-      <workItem from="1765522774484" duration="621000" />
+      <workItem from="1765522774484" duration="823000" />
+      <workItem from="1765524040517" duration="500000" />
     </task>
     <servers />
   </component>

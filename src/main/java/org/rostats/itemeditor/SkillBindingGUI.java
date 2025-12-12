@@ -9,92 +9,66 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.rostats.ThaiRoCorePlugin;
-import org.rostats.engine.skill.SkillData;
 
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 public class SkillBindingGUI {
 
     private final ThaiRoCorePlugin plugin;
-    private final String itemId;
+    private final File itemFile;
 
-    public SkillBindingGUI(ThaiRoCorePlugin plugin, String itemId) {
+    public SkillBindingGUI(ThaiRoCorePlugin plugin, File itemFile) {
         this.plugin = plugin;
-        this.itemId = itemId;
-    }
-
-    // Constructor accepting File for convenience
-    public SkillBindingGUI(ThaiRoCorePlugin plugin, java.io.File itemFile) {
-        this.plugin = plugin;
-        this.itemId = itemFile.getName().replace(".yml", "");
+        this.itemFile = itemFile;
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, Component.text("ItemEditor: Skill Binding: " + itemId));
+        Inventory inv = Bukkit.createInventory(null, 54, Component.text("Editor: " + itemFile.getName() + " [SKILLS]"));
 
-        ItemAttribute attr = plugin.getItemAttributeManager().readFromItem(player.getInventory().getItemInMainHand());
+        ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
         List<ItemSkillBinding> bindings = attr.getSkillBindings();
 
-        // Bindings List
-        for (int i = 0; i < 45; i++) {
-            if (i < bindings.size()) {
-                inv.setItem(i, createBindingItem(bindings.get(i), i));
-            } else {
-                inv.setItem(i, createEmptySlot());
-            }
+        int slot = 0;
+        for (ItemSkillBinding binding : bindings) {
+            if (slot >= 45) break;
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Skill ID: §f" + binding.getSkillId());
+            lore.add("§7Trigger: §f" + binding.getTrigger());
+            lore.add("§7Level: §f" + binding.getLevel());
+            lore.add("§7Chance: §f" + (binding.getChance() * 100) + "%");
+            lore.add("");
+            lore.add("§cRight-Click to Remove");
+
+            ItemStack item = createGuiItem(Material.ENCHANTED_BOOK, "§aBinding #" + (slot + 1), lore);
+            inv.setItem(slot, item);
+            slot++;
         }
 
-        // --- Controls ---
+        // Add Button
+        inv.setItem(49, createGuiItem(Material.LIME_DYE, "§a§l+ ADD SKILL", "§7Click to add a skill binding."));
+        inv.setItem(45, createGuiItem(Material.ARROW, "§cBack", "§7Return to editor."));
+
+        // Fill BG
         ItemStack bg = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 45; i < 54; i++) {
-            inv.setItem(i, bg);
+            if (inv.getItem(i) == null) inv.setItem(i, bg);
         }
-
-        inv.setItem(45, createGuiItem(Material.RED_BED, "§cBack to Item Editor"));
-        inv.setItem(51, createGuiItem(Material.EMERALD, "§aAdd New Skill Binding"));
-        inv.setItem(53, createGuiItem(Material.CHEST, "§aSave Item"));
 
         player.openInventory(inv);
     }
 
-    private ItemStack createBindingItem(ItemSkillBinding binding, int index) {
-        SkillData skill = plugin.getSkillManager().getSkill(binding.getSkillId());
-        Material mat = (skill != null && skill.getIcon() != null) ? skill.getIcon() : Material.BOOK;
-        String name = (skill != null && skill.getDisplayName() != null) ? skill.getDisplayName().replace("&", "§") : binding.getSkillId();
-
-        ItemStack item = new ItemStack(mat);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§6#" + (index + 1) + " Skill: §e" + name);
-
-        List<String> lore = new ArrayList<>();
-        lore.add("§7ID: " + binding.getSkillId());
-        lore.add("§7Level: " + binding.getLevel());
-        lore.add("§7Chance: " + String.format("%.0f%%", binding.getChance() * 100));
-        lore.add("§7Trigger: " + binding.getTrigger().name());
-        lore.add("");
-        lore.add("§eLeft-Click to Edit");
-        lore.add("§cRight-Click to Remove");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createEmptySlot() {
-        ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§7Empty Slot");
-        item.setItemMeta(meta);
-        return item;
-    }
-
     private ItemStack createGuiItem(Material mat, String name, String... lore) {
+        return createGuiItem(mat, name, Arrays.asList(lore));
+    }
+
+    private ItemStack createGuiItem(Material mat, String name, List<String> lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
-        meta.setLore(Arrays.asList(lore));
+        meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         item.setItemMeta(meta);
         return item;
