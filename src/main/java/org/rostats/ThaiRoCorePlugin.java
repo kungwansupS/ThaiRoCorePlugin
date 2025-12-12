@@ -3,7 +3,6 @@ package org.rostats;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -33,7 +32,6 @@ import org.rostats.itemeditor.ItemManager;
 import org.rostats.engine.effect.EffectManager;
 import org.rostats.engine.skill.SkillManager;
 
-import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,10 +65,8 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
         this.floatingTextKey = new NamespacedKey(this, "RO_FLOATING_TEXT");
 
-        // [FIXED] Removed heavy entity iteration on main thread to prevent lag on startup
-
         this.statManager = new StatManager(this);
-        this.dataManager = new DataManager(this);
+        this.dataManager = new DataManager(this); // Initialize DataManager (loads storage)
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
         this.combatHandler = new CombatHandler(this);
@@ -120,12 +116,16 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             new PAPIHook(this).register();
         }
 
-        getServer().getScheduler().runTaskTimer(this, () -> {
-            for (Player player : getServer().getOnlinePlayers()) {
-                dataManager.savePlayerData(player, true);
-            }
-            getLogger().info("💾 Auto-Saved all player data.");
-        }, 6000L, 6000L);
+        // Auto-save task
+        long autoSaveTicks = getConfig().getLong("storage.auto-save", 300) * 20L;
+        if (autoSaveTicks > 0) {
+            getServer().getScheduler().runTaskTimer(this, () -> {
+                for (Player player : getServer().getOnlinePlayers()) {
+                    dataManager.savePlayerData(player, true);
+                }
+                getLogger().info("💾 Auto-Saved all player data.");
+            }, autoSaveTicks, autoSaveTicks);
+        }
 
         getServer().getScheduler().runTaskTimer(this, () -> {
             if (attributeHandler != null) {
@@ -138,11 +138,15 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        // Save all online players first
         if (dataManager != null) {
             for (Player player : getServer().getOnlinePlayers()) {
-                dataManager.savePlayerData(player, false);
+                dataManager.savePlayerData(player, false); // Sync save
                 if (manaManager != null) manaManager.removeBar(player);
             }
+
+            // [PHASE 3 FIX] Shutdown DataManager (Closes Database Connection)
+            dataManager.shutdown();
         }
 
         for (Entity entity : activeFloatingTexts) {
@@ -157,6 +161,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     public void reload() {
         reloadConfig();
+        if (dataManager != null) dataManager.reload(); // Reload DB settings
         if (combatHandler != null) combatHandler.loadValues();
         skillManager.loadSkills();
         getLogger().info("Configuration Reloaded.");
@@ -169,7 +174,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        dataManager.savePlayerData(event.getPlayer(), true);
+        dataManager.savePlayerData(event.getPlayer(), true); // Async save on quit
 
         statManager.removeData(event.getPlayer().getUniqueId());
         if (manaManager != null) {
