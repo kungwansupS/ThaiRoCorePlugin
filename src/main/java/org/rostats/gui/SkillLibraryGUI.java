@@ -53,36 +53,25 @@ public class SkillLibraryGUI {
         invOpen(player, title + " " + path, page);
     }
 
+    // [FIX] เพิ่มเมธอด openConfirmDelete กลับเข้ามาเพื่อให้ GUIListener เรียกใช้ได้
+    public void openConfirmDelete(Player player, File target) {
+        Inventory inv = Bukkit.createInventory(null, 9, Component.text("Delete: " + target.getName()));
+
+        inv.setItem(3, createGuiItem(Material.LIME_CONCRETE, "§a§lCONFIRM DELETE", "§7Target: " + target.getName()));
+        inv.setItem(5, createGuiItem(Material.RED_CONCRETE, "§c§lCANCEL", "§7Return to library"));
+
+        player.openInventory(inv);
+    }
+
     private void invOpen(Player player, String titlePrefix, int page) {
         Inventory inv = Bukkit.createInventory(null, 54, Component.text(titlePrefix + " #P" + page));
         SkillManager manager = plugin.getSkillManager();
         List<File> contents = manager.listContents(currentDir);
 
         int start = page * 45;
-        int max = Math.min(contents.size(), start + 45);
-
-        // If Select Mode -> We might want to list ALL skills inside files if we are inside a pack?
-        // Current logic: List Files. If user clicks a .yml pack, we handle it?
-        // BETTER LOGIC for Select Mode:
-        // 1. If currentDir contains .yml files, list them as Packs.
-        // 2. Ideally, we want to SEE the skills to select them.
-
-        // Mixed View: Show Folders + Show Skills from files in this folder
-        // This is complex. Let's stick to File browsing.
-        // BUT, if isSelectMode is true, we must allow clicking a Pack to see its skills?
-        // Or simply listing all skills from all files in currentDir?
-
-        // Let's implement: List Files/Folders.
-        // AND if a file is a .yml, list the SKILLS inside it instead of the file itself?
-        // OR list the file, and when clicked, enter it like a folder? -> "Pseudo-folder" logic
-
-        // Simplified Logic for Full Code: List Files.
-        // If it's a .yml file, we display it.
-        // In GUIListener, checking "SkillSelect" mode, if they click a .yml, we treat it as a container.
-
-        // Actually, to make "Skill Packs" work seamlessly:
-        // We will iterate files. If it's a directory, show Chest.
-        // If it's a .yml, parse it and show ALL skills inside it as individual items.
+        // Logic เพื่อรวมสกิลจากไฟล์ใน Select Mode หรือแสดงไฟล์ในโหมดปกติ
+        // เพื่อความง่ายและประสิทธิภาพใน FULLCODE นี้ จะแสดงเป็น File/Folder structure ก่อน
+        // แต่ถ้าเป็น Select Mode และเจอไฟล์ .yml จะพยายามแตก Skill ข้างในออกมาโชว์ (Optional enhancement)
 
         List<ItemStack> displayItems = new ArrayList<>();
 
@@ -91,7 +80,7 @@ public class SkillLibraryGUI {
                 displayItems.add(createGuiItem(Material.CHEST, "§aFolder: " + file.getName()));
             } else if (file.getName().endsWith(".yml")) {
                 if (isSelectMode) {
-                    // Expand Skills
+                    // ในโหมดเลือก: แตกสกิลในไฟล์ออกมาแสดงเป็นไอเทม
                     try {
                         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                         for (String key : config.getKeys(false)) {
@@ -100,15 +89,17 @@ public class SkillLibraryGUI {
                                 displayItems.add(createSkillItem(skill));
                             }
                         }
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                        // ถ้าอ่านไฟล์ไม่ได้ ให้แสดงเป็นไฟล์ Error หรือข้ามไป
+                    }
                 } else {
-                    // Normal Mode: Show Pack
+                    // โหมดปกติ: แสดงเป็น Skill Pack
                     displayItems.add(createGuiItem(Material.PAPER, "§bSkill Pack: §f" + file.getName()));
                 }
             }
         }
 
-        // Pagination logic for displayItems
+        // Pagination
         int itemStart = page * 45;
         int itemMax = Math.min(displayItems.size(), itemStart + 45);
 
@@ -128,23 +119,27 @@ public class SkillLibraryGUI {
             inv.setItem(45, createGuiItem(Material.ARROW, "§cBack", "§7Up one level"));
         }
 
-        // Context Info for Select Mode
+        // Context Info / Controls
         if (isSelectMode) {
             ItemStack info = createGuiItem(Material.BOOK, "§eSelecting Skill", "§7Target Item: " + targetItemId);
-            // Hide context data in lore for GUIListener to reconstruct state
+            // ซ่อนข้อมูล Context ไว้ใน Lore เพื่อให้ GUIListener อ่านกลับไปได้
             ItemMeta meta = info.getItemMeta();
-            List<String> lore = meta.getLore();
-            lore.add("§0INDEX:" + bindingIndex); // Hidden
+            List<String> lore = meta.getLore() != null ? meta.getLore() : new ArrayList<>();
+            lore.add("§0INDEX:" + bindingIndex);
             meta.setLore(lore);
             info.setItemMeta(meta);
 
-            // Put in slot 53 (Back/Info)
+            // ปุ่ม Back กลับไปหน้า Binding
             ItemStack backBtn = createGuiItem(Material.RED_BED, "§cBack to Skill Binding", "§7(Skill: " + targetItemId + ")");
             ItemMeta backMeta = backBtn.getItemMeta();
-            backMeta.setLore(lore); // Pass the hidden lore
+            backMeta.setLore(lore); // ส่ง Context กลับไปด้วย
             backBtn.setItemMeta(backMeta);
 
             inv.setItem(53, backBtn);
+        } else {
+            // โหมด Admin ปกติ: ปุ่มสร้างไฟล์/โฟลเดอร์
+            inv.setItem(49, createGuiItem(Material.PAPER, "§eNew Skill", "§7Create new skill file"));
+            inv.setItem(50, createGuiItem(Material.CHEST, "§6New Folder", "§7Create new folder"));
         }
 
         player.openInventory(inv);
@@ -165,7 +160,7 @@ public class SkillLibraryGUI {
         lore.add("");
         lore.add("§aClick to Select");
 
-        // [IMPORTANT] Hidden ID for GUIListener
+        // [IMPORTANT] Hidden ID for GUIListener to identify skill correctly
         lore.add("§0SKILL_ID:" + skill.getId());
 
         meta.setLore(lore);
