@@ -5,11 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="acb8312f-798b-40e3-978e-b3645c431b8b" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" beforeDir="false" afterPath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/ThaiRoCorePlugin-0.1.0-SNAPSHOT.jar" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
