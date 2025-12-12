@@ -66,6 +66,7 @@ org\rostats\engine\skill\SkillManager$1.class
 org\rostats\handler\DeathHandler.class
 org\rostats\input\ChatInputHandler$1.class
 org\rostats\gui\CharacterGUI$Tab.class
+org\rostats\itemeditor\ItemSkillSelectGUI.class
 org\rostats\handler\AttributeHandler.class
 org\rostats\input\ChatInputHandler.class
 org\rostats\itemeditor\ItemSkillBinding.class

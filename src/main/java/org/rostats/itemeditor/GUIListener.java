@@ -17,12 +17,14 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffectType;
 import org.rostats.ThaiRoCorePlugin;
+import org.rostats.engine.skill.SkillManager;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.AttributeEditorGUI.Page;
 import org.rostats.itemeditor.EffectEnchantGUI.Mode;
-import org.rostats.gui.SkillLibraryGUI;
+// import org.rostats.gui.SkillLibraryGUI; // Removed - replaced by ItemSkillSelectGUI
 
 import java.io.File;
+import java.io.IOException; // [FIX] Added import for IOException
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +102,11 @@ public class GUIListener implements Listener {
         else if (title.startsWith("Material Select: ")) {
             event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
+        }
+        // [NEW] 5. Item Skill Selector
+        else if (title.startsWith("ItemSkillSelect:")) {
+            event.setCancelled(true);
+            handleItemSkillSelectClick(event, player, title);
         }
     }
 
@@ -334,15 +341,133 @@ public class GUIListener implements Listener {
         });
     }
 
+    // [NEW] Handler for ItemSkillSelectGUI interactions
+    private void handleItemSkillSelectClick(InventoryClickEvent event, Player player, String title) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
+
+        // Extract context (e.g., current path and page)
+        String[] parts = title.substring("ItemSkillSelect: ".length()).split(" #P");
+        String path = parts[0].trim();
+        int page = parts.length > 1 ? Integer.parseInt(parts[1].substring(1)) : 0;
+
+        SkillManager skillManager = plugin.getSkillManager();
+        File rootDir = skillManager.getRootDir();
+        File currentDir = skillManager.getFileFromRelative(path);
+        if (!currentDir.exists()) currentDir = rootDir;
+
+        // Helper to extract hidden data from Lore (Context data is always present on functional items)
+        String skillId = getHiddenLore(clicked, "SKILL_ID:");
+        String itemTemplateId = getHiddenLore(clicked, "ITEM_ID:");
+        String bindingIndexStr = getHiddenLore(clicked, "INDEX:");
+        int bindingIndex = bindingIndexStr != null && !bindingIndexStr.equals("-1") ? Integer.parseInt(bindingIndexStr) : -1;
+
+        File itemFile = itemTemplateId != null ? findFileByName(plugin.getItemManager().getRootDir(), itemTemplateId) : null;
+
+        // Navigation Logic
+        if (clicked.getType() == Material.CHEST && clicked.getItemMeta().getDisplayName().startsWith("§aFolder: ")) {
+            // Folder click (Navigate into folder)
+            String folderName = clicked.getItemMeta().getDisplayName().substring("§aFolder: ".length());
+            File nextDir = new File(currentDir, folderName);
+            if (nextDir.exists() && nextDir.isDirectory()) {
+                setSwitching(player);
+                new ItemSkillSelectGUI(plugin, nextDir, 0, itemTemplateId, bindingIndex).open(player);
+            }
+            return;
+        }
+
+        if (event.getSlot() == 45) { // Back button (Up one level)
+            File parentDir = currentDir.getParentFile();
+
+            // [FIX] Replaced the erroneous rootDir.isAncestor(parentDir) call
+            // with a robust canonical path check.
+            boolean isWithinRoot = false;
+            if (parentDir != null) {
+                try {
+                    String rootPath = rootDir.getCanonicalPath();
+                    String parentPath = parentDir.getCanonicalPath();
+
+                    // Check if parentDir is the rootDir itself or a direct child folder/file of the rootDir.
+                    if (parentPath.equals(rootPath) || parentPath.startsWith(rootPath + File.separator)) {
+                        isWithinRoot = true;
+                    }
+                } catch (IOException ignored) {
+                    // Fallback to basic equals check if canonical path resolution fails.
+                    isWithinRoot = parentDir.equals(rootDir);
+                }
+            }
+
+            if (isWithinRoot) {
+                setSwitching(player);
+                new ItemSkillSelectGUI(plugin, parentDir, 0, itemTemplateId, bindingIndex).open(player);
+            }
+            return;
+        }
+
+        if (event.getSlot() == 48 && page > 0) { // Previous Page
+            setSwitching(player);
+            new ItemSkillSelectGUI(plugin, currentDir, page - 1, itemTemplateId, bindingIndex).open(player);
+            return;
+        }
+
+        // Slot 50 is Next Page in ItemSkillSelectGUI (Check if it has the display name "Next Page")
+        if (event.getSlot() == 50 && clicked.hasItemMeta() && clicked.getItemMeta().getDisplayName().contains("Next Page")) {
+            setSwitching(player);
+            new ItemSkillSelectGUI(plugin, currentDir, page + 1, itemTemplateId, bindingIndex).open(player);
+            return;
+        }
+
+        // Slot 53 is Back to Skill Binding
+        if (event.getSlot() == 53 && itemFile != null) {
+            skillBindingFlow.remove(player.getUniqueId());
+            setSwitching(player);
+            new SkillBindingGUI(plugin, itemFile).open(player);
+            return;
+        }
+
+        // If a Skill Item is clicked (Identified by non-null skillId hidden in lore)
+        if (skillId != null && itemFile != null) {
+            // Setup flow context for the subsequent TriggerSelectorGUI and Chat Input phase
+            Map<String, Object> flowData = new HashMap<>();
+            flowData.put("itemFile", itemFile);
+            flowData.put("skillId", skillId); // Store selected skill ID
+            flowData.put("bindingIndex", bindingIndex);
+            skillBindingFlow.put(player.getUniqueId(), flowData);
+
+            setSwitching(player);
+            new TriggerSelectorGUI(plugin, skillId).open(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
+    }
+
     private void handleTriggerSelectClick(InventoryClickEvent event, Player player, String skillId) {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null) return;
 
+        Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
+
+        // Navigation back to skill selector
         if (clicked.getType() == Material.ARROW) {
-            Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
             if (flowData != null && flowData.containsKey("itemFile")) {
+                File itemFile = (File) flowData.get("itemFile");
+                String itemTemplateId = itemFile.getName();
+                int bindingIndex = (int) flowData.getOrDefault("bindingIndex", -1);
+
+                // Get the current directory from ItemSkillSelectGUI
+                // We rely on the navigation logic in ItemSkillSelectGUI to handle the path properly.
+                // Since the flow data doesn't explicitly store the *last viewed folder* in ItemSkillSelectGUI,
+                // we return to the root folder of skills.
+
+                File rootDir = plugin.getSkillManager().getRootDir();
+
                 setSwitching(player);
-                new SkillBindingGUI(plugin, (File) flowData.get("itemFile")).open(player);
+                // Open ItemSkillSelectGUI to the root directory for simplicity.
+                new ItemSkillSelectGUI(plugin, rootDir, 0, itemTemplateId, bindingIndex).open(player);
+            } else {
+                player.sendMessage("§cBinding flow context lost. Returning to main editor.");
+                setSwitching(player);
+                player.closeInventory();
             }
             return;
         }
@@ -361,8 +486,10 @@ public class GUIListener implements Listener {
         }
 
         if (trigger != null) {
-            Map<String, Object> flowData = skillBindingFlow.get(player.getUniqueId());
-            if (flowData == null) return;
+            if (flowData == null || !flowData.containsKey("itemFile") || !flowData.containsKey("skillId")) {
+                player.sendMessage("§cBinding flow interrupted. Please try again.");
+                return;
+            }
             flowData.put("trigger", trigger);
 
             setSwitching(player);
@@ -413,35 +540,21 @@ public class GUIListener implements Listener {
         if (clicked == null || clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
         if (clicked.getType() == Material.LIME_DYE) { // Add Skill Button
+            ItemAttribute attr = plugin.getItemManager().loadAttribute(itemFile);
+            int bindingIndex = attr.getSkillBindings().size();
+            String itemTemplateId = itemFile.getName();
+
+            // Store the flow context for the multi-step operation
             Map<String, Object> flowData = new HashMap<>();
             flowData.put("itemFile", itemFile);
+            flowData.put("itemTemplateId", itemTemplateId);
+            flowData.put("bindingIndex", bindingIndex);
             skillBindingFlow.put(player.getUniqueId(), flowData);
 
-            // [FIX] Set BOTH switches:
-            // 1. RO_EDITOR_SWITCH: To prevent this listener (Item) from clearing skillBindingFlow
-            // 2. ROSTATS_SWITCH: To prevent the other listener (Skill) from clearing callbacks
             setSwitching(player);
-            player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
-
-            new SkillLibraryGUI(plugin).openSelectMode(player,
-                    (selectedSkillId) -> {
-                        // When selected -> Go to Trigger Selector
-                        Map<String, Object> flow = skillBindingFlow.get(player.getUniqueId());
-                        if (flow != null) {
-                            flow.put("skillId", selectedSkillId);
-                            setSwitching(player);
-                            new TriggerSelectorGUI(plugin, selectedSkillId).open(player);
-                            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-                        }
-                    },
-                    () -> {
-                        // When cancelled -> Return to Binding GUI
-                        skillBindingFlow.remove(player.getUniqueId());
-                        setSwitching(player);
-                        new SkillBindingGUI(plugin, itemFile).open(player);
-                    }
-            );
-
+            // Open the new ItemSkillSelectGUI
+            new ItemSkillSelectGUI(plugin, plugin.getSkillManager().getRootDir(), 0, itemTemplateId, bindingIndex).open(player);
+            return;
         } else if (clicked.getType() == Material.ARROW) {
             setSwitching(player);
             new AttributeEditorGUI(plugin, itemFile).open(player, Page.GENERAL);
@@ -633,6 +746,18 @@ public class GUIListener implements Listener {
             if (title.contains(p.name())) return p;
         }
         return Page.GENERAL;
+    }
+
+    // [NEW] Helper method to extract hidden data from Item Lore
+    private String getHiddenLore(ItemStack item, String prefix) {
+        if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
+            for (String lore : item.getItemMeta().getLore()) {
+                if (lore.startsWith("§0" + prefix)) {
+                    return lore.substring(("§0" + prefix).length());
+                }
+            }
+        }
+        return null;
     }
 
     private static class BukkitRunnableWrapper {
