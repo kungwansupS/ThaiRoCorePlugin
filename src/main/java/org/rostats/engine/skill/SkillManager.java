@@ -206,11 +206,6 @@ public class SkillManager {
             SkillData skill = new SkillData(key);
             skill.setDisplayName(section.getString("display-name", key));
 
-            // [UPDATED] Load Lore
-            if (section.contains("lore")) {
-                skill.setLore(section.getStringList("lore"));
-            }
-
             String iconName = section.getString("icon", "BOOK");
             Material icon = Material.getMaterial(iconName);
             skill.setIcon(icon != null ? icon : Material.BOOK);
@@ -302,7 +297,7 @@ public class SkillManager {
                     return new SoundAction(soundName, volume, pitch);
 
                 case PARTICLE:
-                    // Full Constructor for Advanced FX (Color, Rotation, Offset)
+                    // [UPDATED] Full Constructor for Advanced FX (Color, Rotation, Offset)
                     return new ParticleAction(plugin,
                             (String) map.getOrDefault("particle", "VILLAGER_HAPPY"),
                             String.valueOf(map.getOrDefault("count", "5")),
@@ -310,9 +305,9 @@ public class SkillManager {
                             (String) map.getOrDefault("shape", "POINT"),
                             String.valueOf(map.getOrDefault("radius", "0.5")),
                             String.valueOf(map.getOrDefault("points", "20")),
-                            (String) map.getOrDefault("color", "0,0,0"),
-                            (String) map.getOrDefault("rotation", "0,0,0"),
-                            (String) map.getOrDefault("offset", "0,0,0")
+                            (String) map.getOrDefault("color", "0,0,0"),       // New
+                            (String) map.getOrDefault("rotation", "0,0,0"),    // New
+                            (String) map.getOrDefault("offset", "0,0,0")       // New
                     );
 
                 case POTION:
@@ -473,7 +468,7 @@ public class SkillManager {
         }
     }
 
-    // เพิ่มสกิลลงในไฟล์ที่มีอยู่แล้ว (Skill Pack)
+    // [NEW] เพิ่มสกิลลงในไฟล์ที่มีอยู่แล้ว (Skill Pack)
     public void addSkillToFile(File file, String skillName) {
         if (!file.exists()) return;
         try {
@@ -493,7 +488,6 @@ public class SkillManager {
     // Helper เขียนข้อมูลสกิลเริ่มต้น
     private void writeDefaultSkill(YamlConfiguration config, String id, String displayName) {
         config.set(id + ".display-name", displayName);
-        config.set(id + ".lore", Arrays.asList("&7Description line 1", "&7Description line 2")); // [UPDATED] Default Lore
         config.set(id + ".icon", "BOOK");
         config.set(id + ".max-level", 1);
         config.set(id + ".trigger", "CAST");
@@ -532,7 +526,6 @@ public class SkillManager {
         String key = skill.getId();
 
         config.set(key + ".display-name", skill.getDisplayName());
-        config.set(key + ".lore", skill.getLore()); // [UPDATED] Save Lore
         config.set(key + ".icon", skill.getIcon().name());
         config.set(key + ".max-level", skill.getMaxLevel());
         config.set(key + ".trigger", skill.getTrigger().name());

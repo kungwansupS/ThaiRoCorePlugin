@@ -11,7 +11,6 @@ public class SkillData {
 
     private final String id;
     private String displayName;
-    private List<String> lore = new ArrayList<>(); // [NEW] เพิ่ม Lore
     private Material icon;
     private int maxLevel;
     private TriggerType trigger;
@@ -67,10 +66,6 @@ public class SkillData {
 
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
-
-    // [NEW] Lore Getters/Setters
-    public List<String> getLore() { return lore; }
-    public void setLore(List<String> lore) { this.lore = lore; }
 
     public Material getIcon() { return icon; }
     public void setIcon(Material icon) { this.icon = icon; }
