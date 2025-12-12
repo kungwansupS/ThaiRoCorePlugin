@@ -1,6 +1,7 @@
 package org.rostats.engine.skill;
 
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
@@ -24,13 +25,15 @@ public class SkillRunner {
     private final int level;
     private final LinkedList<SkillAction> actionQueue = new LinkedList<>();
     private final Map<String, Double> globalContext = new HashMap<>();
+    private final String skillId; // [DEBUG] เพิ่ม field สำหรับเก็บ Skill ID
 
-    public SkillRunner(ThaiRoCorePlugin plugin, LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions) {
+    public SkillRunner(ThaiRoCorePlugin plugin, LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions, String skillId) {
         this.plugin = plugin;
         this.caster = caster;
         this.originalTarget = target;
         this.currentTarget = target; // Start with original target (can be null for Right-Click skills)
         this.level = level;
+        this.skillId = skillId; // [DEBUG] กำหนด Skill ID
 
         if (actions != null) {
             this.actionQueue.addAll(actions);
@@ -45,25 +48,66 @@ public class SkillRunner {
     }
 
     public void runNext() {
-        if (actionQueue.isEmpty()) return;
+        // [FIX]: Check caster validity FIRST before processing
+        if (caster == null || !caster.isValid()) {
+            // Debugging output on termination
+            if (plugin.isSkillDebugEnabled()) {
+                plugin.getLogger().info(String.format("[SkillDBG] %s: Runner terminated (Caster invalid).", skillId));
+            }
+            return;
+        }
+
+        if (actionQueue.isEmpty()) {
+            if (plugin.isSkillDebugEnabled() && caster instanceof Player) {
+                ((Player)caster).sendMessage("§7[DBG] §b" + skillId + "§7: Finished. (Queue Empty)");
+            }
+            return;
+        }
 
         SkillAction action = actionQueue.poll();
+
+        String actionInfo;
+        if (action.getType() == ActionType.DELAY) {
+            actionInfo = action.getType().name() + " (" + ((DelayAction)action).getDelay() + " ticks)";
+        } else {
+            actionInfo = action.getType().name();
+        }
+
+        // [DEBUG TRACE - CONSOLE]
+        if (plugin.isSkillDebugEnabled()) {
+            String targetName = currentTarget != null ? currentTarget.getName() : "None";
+            String casterName = caster != null ? caster.getName() : "Unknown";
+
+            plugin.getLogger().info(String.format("[SkillDBG] %s: Caster=%s, Action=%s, Target=%s, QueueSize=%d",
+                    skillId,
+                    casterName,
+                    actionInfo,
+                    targetName,
+                    actionQueue.size()));
+        }
+
+        // [DEBUG TRACE - PLAYER]
+        if (caster instanceof Player player) {
+            String targetName = currentTarget != null ? currentTarget.getName() : "None";
+            String msg = String.format("§7[DBG] §b%s§7: Executing §e%s§7, Target: §a%s",
+                    skillId,
+                    actionInfo,
+                    targetName);
+            player.sendMessage(msg);
+        }
 
         // 1. Check for Target Switching
         if (action.getType() == ActionType.SELECT_TARGET) {
             TargetSelectorAction selector = (TargetSelectorAction) action;
-            // selector.resolveTarget จะ handle logic ภายในเอง
             LivingEntity newTarget = selector.resolveTarget(caster, originalTarget);
 
-            // If found, update current target
             if (newTarget != null) {
                 this.currentTarget = newTarget;
             } else if (selector.getMode() == TargetSelectorAction.SelectorMode.CURSOR) {
-                // [FIXED] ถ้าหา CURSOR ไม่เจอ (เล็งอากาศ) ให้ currentTarget เป็น null
                 this.currentTarget = null;
             }
-            // ถ้า Mode ไม่ใช่ CURSOR และหาไม่เจอ ให้อิงตาม Target เดิม
 
+            // [FIX]: For instant actions like SELECT_TARGET, we call runNext() immediately.
             runNext();
             return;
         }
@@ -72,24 +116,22 @@ public class SkillRunner {
         if (action.getType() == ActionType.DELAY) {
             long delayTicks = ((DelayAction) action).getDelay();
 
-            // [FIX] Ensure positive delay
             if (delayTicks <= 0) {
                 runNext(); // Skip delay if invalid
                 return;
             }
 
-            // [FIX] Use BukkitRunnable to ensure the continuation of the queue runs on the main thread
-            // after the delay, and check validity.
+            // Schedule the continuation on the Main Thread after the delay
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    if (caster != null && caster.isValid()) {
-                        runNext();
-                    }
+                    // Re-run runNext() on the main thread after delay
+                    plugin.getServer().getScheduler().runTask(plugin, SkillRunner.this::runNext);
                 }
             }.runTaskLater(plugin, delayTicks);
 
-            // Do NOT call runNext() immediately here, as we are waiting for the delay.
+            // STOP execution of the synchronous chain until the delay completes.
+            // Do NOT call runNext() here.
         }
         else if (action.getType() == ActionType.LOOP) {
             ((LoopAction) action).executeWithRunner(this, caster, currentTarget, level, globalContext);
@@ -107,10 +149,9 @@ public class SkillRunner {
         // 3. Execute Standard Actions
         else {
             try {
-                // Actions like Raycast, Sound, Particle do not need a target to run.
-                // Individual Actions (like Damage) should handle null checks internally if required.
                 action.execute(caster, currentTarget, level, globalContext);
             } catch (Exception e) {
+                if (plugin.isSkillDebugEnabled()) plugin.getLogger().severe("Error executing action " + action.getType().name() + " in skill " + skillId + ": " + e.getMessage());
                 e.printStackTrace();
             }
             runNext();

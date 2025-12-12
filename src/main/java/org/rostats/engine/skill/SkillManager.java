@@ -43,10 +43,6 @@ public class SkillManager {
         castSkill(caster, skillId, level, target, false);
     }
 
-    public void castSkill(LivingEntity caster, LivingEntity target, int level, List<SkillAction> actions, boolean isPassive) {
-        // NOTE: This implementation has been simplified to focus on the action queue logic.
-    }
-
     public void castSkill(LivingEntity caster, String skillId, int level, LivingEntity target, boolean isPassive) {
         SkillData skill = skillMap.get(skillId);
         if (skill == null) return;
@@ -169,7 +165,8 @@ public class SkillManager {
         }
 
         // Execute Actions
-        SkillRunner runner = new SkillRunner(plugin, caster, target, level, actionsToRun);
+        // [UPDATE]: ส่ง skillId เข้าไปใน SkillRunner
+        SkillRunner runner = new SkillRunner(plugin, caster, target, level, actionsToRun, skillId);
         // [FIX] Start the runner ASYNCHRONOUSLY to prevent main thread blocking
         // and ensure the DelayAction is processed correctly by runNext()'s task schedule.
         plugin.getServer().getScheduler().runTask(plugin, runner::runNext);

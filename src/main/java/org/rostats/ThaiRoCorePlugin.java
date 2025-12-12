@@ -57,6 +57,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
     private NamespacedKey floatingTextKey;
 
+    // [NEW DEBUG FIELD]
+    private boolean isSkillDebugEnabled = false;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -252,4 +255,14 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public SkillManager getSkillManager() { return skillManager; }
     public ProjectileHandler getProjectileHandler() { return projectileHandler; }
     public ElementManager getElementManager() { return elementManager; } // [NEW] Getter
+
+    // [NEW DEBUG GETTER/SETTER]
+    public boolean isSkillDebugEnabled() {
+        return isSkillDebugEnabled;
+    }
+
+    public void setSkillDebugEnabled(boolean isSkillDebugEnabled) {
+        this.isSkillDebugEnabled = isSkillDebugEnabled;
+        getLogger().info("Skill Debugging is now " + (isSkillDebugEnabled ? "ENABLED" : "DISABLED") + ".");
+    }
 }
