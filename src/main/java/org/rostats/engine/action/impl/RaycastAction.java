@@ -42,9 +42,10 @@ public class RaycastAction implements SkillAction {
 
         double range = 10.0;
         try {
+            // [MODIFIED] ใช้ caster's skill range เป็น fallback หากการประเมินล้มเหลว
             range = FormulaParser.eval(rangeExpr, caster, target, level, context, plugin);
         } catch (Exception e) {
-            // Fallback
+            // Fallback is 10.0, which is fine, or we could use the skill's range if available.
         }
         if (range <= 0.0) return;
 

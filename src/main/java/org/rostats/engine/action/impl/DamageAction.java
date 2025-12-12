@@ -33,7 +33,7 @@ public class DamageAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
-        // [MODIFIED] Removed the old `findTarget` fallback. If target is null here, the skill logic is wrong.
+        // [MODIFIED] Removed the old `findTarget` fallback. Rely on SkillRunner passing a valid target.
         if (target == null) return;
 
         double damage = 0.0;

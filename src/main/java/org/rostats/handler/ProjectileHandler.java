@@ -45,8 +45,10 @@ public class ProjectileHandler implements Listener {
         }
 
         if (target != null && target != caster) {
-            plugin.getSkillManager().castSkill(caster, onHitSkillId, level, target);
+            // [MODIFIED] Use master overload with isPassive=true and null context.
+            plugin.getSkillManager().castSkill(caster, onHitSkillId, level, target, true, null);
         }
+        // No action if hit a block, relying on the skill logic to handle self-destruction.
 
         // [FIXED] Removed projectile.remove() to prevent instant despawn logic risk
         // projectile.remove();
