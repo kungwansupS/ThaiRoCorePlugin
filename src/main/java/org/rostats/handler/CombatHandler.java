@@ -18,7 +18,7 @@ import org.bukkit.inventory.ItemStack;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.data.StatManager;
-import org.rostats.engine.element.Element; // Import
+import org.rostats.engine.element.Element;
 import org.rostats.engine.trigger.TriggerType;
 import org.rostats.itemeditor.ItemAttribute;
 import org.rostats.itemeditor.ItemSkillBinding;
@@ -106,6 +106,12 @@ public class CombatHandler implements Listener {
     public void onCombat(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof LivingEntity victim)) return;
 
+        // [PHASE 4 FIX] เช็คว่าดาเมจนี้มาจาก SkillSystem (DamageAction) หรือไม่
+        // ถ้าใช่ ให้ข้ามการคำนวณ Stats (ATK/DEF/CRIT) ของระบบ Auto-Attack
+        if (victim.hasMetadata("RO_SKILL_DMG")) {
+            return;
+        }
+
         double vanillaDamage = event.getDamage();
         Player attackerPlayer = null;
         LivingEntity defenderEntity = victim;
@@ -165,7 +171,7 @@ public class CombatHandler implements Listener {
             double equipPercent = isMagic ? A.getMDmgBonusPercent() : A.getPDmgBonusPercent();
             double totalATK = totalFlat * (1 + equipPercent / 100.0);
 
-            // --- STEP 2: Element Calculation (New) ---
+            // --- STEP 2: Element Calculation (Phase 4 Implemented) ---
             Element atkElement = plugin.getElementManager().getAttackElement(attackerPlayer);
             Element defElement = plugin.getElementManager().getDefenseElement(defenderEntity);
             elementModifier = plugin.getElementManager().getModifier(atkElement, defElement);
@@ -251,7 +257,7 @@ public class CombatHandler implements Listener {
             finalDamage = vanillaDamage;
             if (D != null && defenderEntity instanceof Player defP) {
                 // Apply Element Def Logic for Mobs hitting Players
-                Element mobElement = Element.NEUTRAL; // Todo: Get from mob config
+                Element mobElement = Element.NEUTRAL; // Todo: Get from mob config if possible
                 Element playerDefElement = D.getDefenseElement();
                 double mod = plugin.getElementManager().getModifier(mobElement, playerDefElement);
                 finalDamage *= mod;
@@ -282,7 +288,7 @@ public class CombatHandler implements Listener {
                 // Color coding based on element effectiveness
                 if (elementModifier > 1.0) colorPrefix = "§c"; // Red (Strong)
                 else if (elementModifier < 1.0 && elementModifier > 0) colorPrefix = "§7"; // Gray (Weak)
-                else if (elementModifier == 0) colorPrefix = "§8"; // Miss/Immune logic handled earlier but just in case
+                else if (elementModifier == 0) colorPrefix = "§8"; // Miss/Immune logic
 
                 plugin.showCombatFloatingText(defenderEntity.getLocation(), colorPrefix + dmgText);
             }

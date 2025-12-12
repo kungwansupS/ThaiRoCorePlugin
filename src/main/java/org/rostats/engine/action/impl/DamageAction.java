@@ -1,11 +1,12 @@
 package org.rostats.engine.action.impl;
 
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.util.RayTraceResult;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
-import org.rostats.engine.element.Element; // Import
+import org.rostats.engine.element.Element;
 import org.rostats.utils.FormulaParser;
 
 import java.util.HashMap;
@@ -49,7 +50,7 @@ public class DamageAction implements SkillAction {
 
         // --- Element Logic ---
         double elementMod = 1.0;
-        if (!isBypassDef) { // True Damage usually bypasses element too, standard logic
+        if (!isBypassDef) {
             Element skillElement = Element.fromName(element);
             Element targetDefElement = plugin.getElementManager().getDefenseElement(target);
             elementMod = plugin.getElementManager().getModifier(skillElement, targetDefElement);
@@ -61,27 +62,21 @@ public class DamageAction implements SkillAction {
             target.setHealth(newHealth);
             plugin.showTrueDamageFCT(target.getLocation(), damage);
         } else {
+            // [PHASE 4 FIX] Mark as Skill Damage so CombatHandler doesn't overwrite it
+            target.setMetadata("RO_SKILL_DMG", new FixedMetadataValue(plugin, true));
+
             // Apply Damage
             target.damage(damage, caster);
+
+            // Remove Metadata (Sync)
+            target.removeMetadata("RO_SKILL_DMG", plugin);
 
             // FCT Color based on Element
             String color = "§f";
             if (elementMod > 1.0) color = "§c";
             else if (elementMod < 1.0) color = "§7";
 
-            // Note: CombatHandler will also show damage from the event.
-            // Since target.damage() triggers EntityDamageByEntityEvent, CombatHandler handles the final FCT.
-            // But for Skill Damage specifically calculated here, we might want to suppress CombatHandler's FCT
-            // or rely on it. Since formula is arbitrary, CombatHandler might recalculate based on stats again
-            // which duplicates logic.
-            // Assuming this DamageAction is RAW damage that bypasses standard auto-attack formula but goes through armor:
-            // The cleanest way is to let the Event handle mitigation, but we injected Element Mod here.
-            // If CombatHandler re-applies element mod, it double dips.
-            // FIX: CombatHandler mostly handles Left-Click (Physical).
-            // For Skill Damage via API `damage()`, CombatHandler sees it.
-            // We need a way to tell CombatHandler "This is a Skill, don't apply auto-attack formulas, just defense".
-            // That requires metadata. For now, let's keep it simple:
-            // This multiplier applies to the BASE damage sent to the event.
+            plugin.showCombatFloatingText(target.getLocation(), color + String.format("%.0f", damage));
         }
     }
 
