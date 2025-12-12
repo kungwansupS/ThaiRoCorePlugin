@@ -72,8 +72,6 @@ public class ItemAttributeManager {
             NamespacedKey key = new NamespacedKey(plugin, "RO_STAT_" + type.getKey().toUpperCase());
 
             if (value != 0 || (type == ItemAttributeType.ATTACK_ELEMENT && value != -1) || (type == ItemAttributeType.DEFENSE_ELEMENT && value != -1)) {
-                // Special case for Elements: stored as Double but logic handles -1
-                // Actually if it's not -1 (default neutral/none), we store it.
                 if (type == ItemAttributeType.ATTACK_ELEMENT || type == ItemAttributeType.DEFENSE_ELEMENT) {
                     if (value != -1) pdc.set(key, PersistentDataType.DOUBLE, value);
                     else pdc.remove(key);
@@ -165,6 +163,14 @@ public class ItemAttributeManager {
                 }
                 lore.add("§eSkill: " + skillName + " §7(Lv." + binding.getLevel() + ")");
                 lore.add("§7Condition: §f" + binding.getTrigger().name() + " §7(" + String.format("%.0f%%", binding.getChance() * 100) + ")");
+
+                // [UPDATED] Show Skill Lore
+                if (skill != null && skill.getLore() != null && !skill.getLore().isEmpty()) {
+                    for (String line : skill.getLore()) {
+                        lore.add("  " + line.replace("&", "§")); // Add indentation for readability
+                    }
+                }
+                lore.add(" "); // Spacer between skills
             }
         }
 
@@ -189,7 +195,6 @@ public class ItemAttributeManager {
                 Double val = pdc.get(key, PersistentDataType.DOUBLE);
                 setAttributeToObj(attr, type, val != null ? val : 0.0);
             } else if (type == ItemAttributeType.ATTACK_ELEMENT || type == ItemAttributeType.DEFENSE_ELEMENT) {
-                // Default to -1 if not present
                 setAttributeToObj(attr, type, -1.0);
             }
         }
@@ -234,13 +239,6 @@ public class ItemAttributeManager {
         if (attr == null || type == null) return 0;
 
         switch (type) {
-            // ... (Previous Cases Omitted for Brevity - they are unchanged) ...
-            // Just copying the new cases here for the sake of completeness in "Full Code" context,
-            // but effectively I need to paste the WHOLE switch from before + new cases.
-            // Since I modified ItemAttributeType to include ATTACK_ELEMENT/DEFENSE_ELEMENT,
-            // I need to add them here.
-
-            // ... [Assume all previous cases exist] ...
             case STR_GEAR: return attr.getStrGear();
             case AGI_GEAR: return attr.getAgiGear();
             case VIT_GEAR: return attr.getVitGear();
@@ -305,11 +303,8 @@ public class ItemAttributeManager {
             case LIFESTEAL_M_PERCENT: return attr.getLifestealMPercent();
             case SHIELD_VALUE_FLAT: return attr.getShieldValueFlat();
             case SHIELD_RATE_PERCENT: return attr.getShieldRatePercent();
-
-            // NEW ELEMENTS
             case ATTACK_ELEMENT: return attr.getAttackElement();
             case DEFENSE_ELEMENT: return attr.getDefenseElement();
-
             default: return 0.0;
         }
     }
@@ -318,7 +313,6 @@ public class ItemAttributeManager {
         if (attr == null || type == null) return;
 
         switch (type) {
-            // ... (Previous Setters) ...
             case STR_GEAR: attr.setStrGear((int) value); break;
             case AGI_GEAR: attr.setAgiGear((int) value); break;
             case VIT_GEAR: attr.setVitGear((int) value); break;
@@ -383,8 +377,6 @@ public class ItemAttributeManager {
             case LIFESTEAL_M_PERCENT: attr.setLifestealMPercent(value); break;
             case SHIELD_VALUE_FLAT: attr.setShieldValueFlat(value); break;
             case SHIELD_RATE_PERCENT: attr.setShieldRatePercent(value); break;
-
-            // NEW SETTERS
             case ATTACK_ELEMENT: attr.setAttackElement((int) value); break;
             case DEFENSE_ELEMENT: attr.setDefenseElement((int) value); break;
         }
