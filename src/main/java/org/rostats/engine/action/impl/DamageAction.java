@@ -3,7 +3,6 @@ package org.rostats.engine.action.impl;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.util.RayTraceResult;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
@@ -20,6 +19,9 @@ public class DamageAction implements SkillAction {
     private final String element;
     private final boolean isBypassDef;
 
+    // Debug Mode Toggle (Global Static)
+    private static boolean DEBUG_MODE = false;
+
     public DamageAction(ThaiRoCorePlugin plugin, String formula, String element, boolean isBypassDef) {
         this.plugin = plugin;
         this.formula = formula;
@@ -27,6 +29,14 @@ public class DamageAction implements SkillAction {
         this.isBypassDef = isBypassDef;
     }
 
+    // Static method to toggle debug
+    public static void setDebugMode(boolean enabled) {
+        DEBUG_MODE = enabled;
+    }
+
+    public static boolean isDebugMode() {
+        return DEBUG_MODE;
+    }
 
     @Override
     public ActionType getType() {
@@ -37,7 +47,7 @@ public class DamageAction implements SkillAction {
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
 
         // ============ DEBUG LOGGING ============
-        if (caster instanceof Player p) {
+        if (DEBUG_MODE && caster instanceof Player p) {
             p.sendMessage("§e━━━━━━ [DEBUG] DamageAction ━━━━━━");
             p.sendMessage("§e│ Caster: §f" + caster.getName() + " §7(Type: " + caster.getClass().getSimpleName() + ")");
             p.sendMessage("§e│ Target: §f" + (target != null ? target.getName() : "§cNULL"));
@@ -46,7 +56,6 @@ public class DamageAction implements SkillAction {
             p.sendMessage("§e│ Element: §f" + element);
             p.sendMessage("§e│ Bypass DEF: §f" + isBypassDef);
 
-            // แสดง MATK ของ caster
             if (caster instanceof Player player) {
                 double matk = plugin.getStatManager().getMagicAttack(player);
                 double patk = plugin.getStatManager().getPhysicalAttack(player);
@@ -54,7 +63,6 @@ public class DamageAction implements SkillAction {
                 p.sendMessage("§e│ Caster PATK: §a" + patk);
             }
 
-            // แสดง context
             if (context != null && !context.isEmpty()) {
                 p.sendMessage("§e│ Context values:");
                 context.forEach((key, value) -> p.sendMessage("§e│  - §f" + key + " = §a" + value));
@@ -64,9 +72,8 @@ public class DamageAction implements SkillAction {
         }
         // =======================================
 
-        // [MODIFIED] Removed the old `findTarget` fallback. Rely on SkillRunner passing a valid target.
         if (target == null) {
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§c│ ❌ Target is NULL! Aborting.");
                 p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             }
@@ -77,24 +84,18 @@ public class DamageAction implements SkillAction {
         try {
             damage = FormulaParser.eval(formula, caster, target, level, context, plugin);
 
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§a│ ✓ Damage calculated: §f" + damage);
             }
         } catch (Exception e) {
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§c│ ❌ Formula Error: " + e.getMessage());
-                p.sendMessage("§c│    Stack trace:");
-                for (StackTraceElement ste : e.getStackTrace()) {
-                    if (ste.getClassName().contains("rostats")) {
-                        p.sendMessage("§c│    " + ste.toString());
-                    }
-                }
             }
             damage = 1.0;
         }
 
         if (damage <= 0) {
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§c│ ❌ Damage <= 0! Aborting.");
                 p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             }
@@ -109,7 +110,7 @@ public class DamageAction implements SkillAction {
             elementMod = plugin.getElementManager().getModifier(skillElement, targetDefElement);
             damage *= elementMod;
 
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§e│ Element Modifier: §f" + elementMod + " §7(" + skillElement + " vs " + targetDefElement + ")");
                 p.sendMessage("§e│ Final Damage (after element): §f" + damage);
             }
@@ -120,32 +121,26 @@ public class DamageAction implements SkillAction {
             target.setHealth(newHealth);
             plugin.showTrueDamageFCT(target.getLocation(), damage);
 
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§d│ ⚡ TRUE DAMAGE dealt: §f" + damage);
             }
         } else {
-            // [PHASE 4 FIX] Mark as Skill Damage so CombatHandler doesn't overwrite it
             target.setMetadata("RO_SKILL_DMG", new FixedMetadataValue(plugin, true));
-
-            // Apply Damage
             target.damage(damage, caster);
-
-            // Remove Metadata (Sync)
             target.removeMetadata("RO_SKILL_DMG", plugin);
 
-            // FCT Color based on Element
             String color = "§f";
             if (elementMod > 1.0) color = "§c";
             else if (elementMod < 1.0) color = "§7";
 
             plugin.showCombatFloatingText(target.getLocation(), color + String.format("%.0f", damage));
 
-            if (caster instanceof Player p) {
+            if (DEBUG_MODE && caster instanceof Player p) {
                 p.sendMessage("§a│ ✓ Normal damage dealt: §f" + damage);
             }
         }
 
-        if (caster instanceof Player p) {
+        if (DEBUG_MODE && caster instanceof Player p) {
             p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
     }

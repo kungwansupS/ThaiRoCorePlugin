@@ -3,6 +3,11 @@ version: '0.1.0-SNAPSHOT'
 main: org.rostats.ThaiRoCorePlugin
 api-version: '1.21'
 commands:
+  skilldebug:
+    description: Toggle skill debug mode
+    usage: /skilldebug <on|off|status>
+    permission: rostats.admin
+    aliases: [ sdebug, skilldb ]
   status:
     description: Open player status menu
     usage: /status

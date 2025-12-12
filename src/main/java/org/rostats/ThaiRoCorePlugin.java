@@ -18,6 +18,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.rostats.command.AdminCommand;
 import org.rostats.command.PlayerCommand;
 import org.rostats.command.SkillCommand;
+import org.rostats.command.SkillDebugCommand;
 import org.rostats.data.DataManager;
 import org.rostats.data.StatManager;
 import org.rostats.engine.effect.EffectManager;
@@ -109,6 +110,13 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         PluginCommand skillCmd = getCommand("roskilleditor");
         if (skillCmd != null) {
             skillCmd.setExecutor(new SkillCommand(this));
+        }
+
+        PluginCommand skillDebugCmd = getCommand("skilldebug");
+        if (skillDebugCmd != null) {
+            SkillDebugCommand debugExecutor = new SkillDebugCommand(this);
+            skillDebugCmd.setExecutor(debugExecutor);
+            skillDebugCmd.setTabCompleter(debugExecutor);
         }
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
