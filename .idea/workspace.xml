@@ -6,33 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="acb8312f-798b-40e3-978e-b3645c431b8b" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/engine/skill/SkillManager.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/GUIListener.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillLibraryGUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/gui/SkillLibraryGUI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/GUIListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/rostats/itemeditor/GUIListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/org/rostats/engine/skill/SkillManager.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$1.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener$2.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/GUIListener.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillActionPropertyGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillActionSelectorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillEditorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/gui/SkillLibraryGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/handler/DeathHandler.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/hook/PAPIHook.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/AttributeEditorGUI$Page.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/AttributeEditorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/EffectEnchantGUI$Mode.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/EffectEnchantGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener$BukkitRunnableWrapper.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/GUIListener.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemEditorCommand.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemLibraryGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/ItemTypeSelectorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/SkillBindingGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/itemeditor/TriggerSelectorGUI.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/utils/FormulaParser$1.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/org/rostats/utils/FormulaParser.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -83,6 +59,7 @@
       <option name="presentableId" value="Default" />
       <updated>1765513197834</updated>
       <workItem from="1765513199384" duration="731000" />
+      <workItem from="1765522774484" duration="621000" />
     </task>
     <servers />
   </component>

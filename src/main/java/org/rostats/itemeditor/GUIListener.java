@@ -32,7 +32,6 @@ import java.util.UUID;
 public class GUIListener implements Listener {
 
     private final ThaiRoCorePlugin plugin;
-    // skillBindingFlow not needed with new state passing
 
     public GUIListener(ThaiRoCorePlugin plugin) {
         this.plugin = plugin;
@@ -61,50 +60,44 @@ public class GUIListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // 1. Library Handling
-        if (title.startsWith("Library: ")) {
-            event.setCancelled(true);
-            String relativePath = title.substring(9);
-            if (event.getClickedInventory() == event.getView().getBottomInventory()) {
-                handleImportItem(event, player, relativePath);
-            } else {
-                handleLibraryClick(event, player, relativePath);
-            }
-        }
-        // 2. Editor Handling
-        else if (title.startsWith("Editor: ")) {
-            event.setCancelled(true);
-            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+        // [IMPORTANT] ItemEditor Scope
+        boolean isItemEditorScope = title.startsWith("Editor: ")
+                || title.startsWith("Library: ")
+                || title.startsWith("Confirm Delete: ")
+                || title.startsWith("Select Trigger: ")
+                || title.startsWith("Material Select: ")
+                || title.startsWith("SkillSelect:") // รับผิดชอบ SkillSelect ด้วย
+                || title.startsWith("ItemEditor:"); // เผื่อ TriggerSelectorGUI Title
 
+        if (!isItemEditorScope) return; // ถ้าไม่ใช่ของ ItemEditor ก็ปล่อยผ่าน
+
+        event.setCancelled(true);
+        if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+
+        if (title.startsWith("Library: ")) {
+            String relativePath = title.substring(9);
+            handleLibraryClick(event, player, relativePath);
+        }
+        else if (title.startsWith("Editor: ")) {
             if (title.contains("[SKILLS]")) {
                 handleSkillBindingClick(event, player, title);
-                return;
-            }
-            if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
+            } else if (title.contains("EFFECT Select]") || title.contains("ENCHANT Select]")) {
                 handleEffectEnchantClick(event, player, title);
-                return;
+            } else {
+                handleEditorClick(event, player, title);
             }
-            handleEditorClick(event, player, title);
         }
-        // 3. Confirm Dialog
         else if (title.startsWith("Confirm Delete: ")) {
-            event.setCancelled(true);
             handleConfirmDeleteClick(event, player, title);
         }
-        // 4. Selectors
         else if (title.startsWith("Select Trigger: ") || title.startsWith("ItemEditor: Trigger Selection:")) {
-            event.setCancelled(true);
-            // Support both old/new title formats
             String itemId = title.contains("Select Trigger: ") ? title.substring(16) : title.substring(title.lastIndexOf(":") + 1).trim();
             handleTriggerSelectClick(event, player, itemId);
         }
         else if (title.startsWith("Material Select: ")) {
-            event.setCancelled(true);
             handleMaterialSelectClick(event, player, title.substring(17));
         }
-        // 5. Skill Selector (FIX: Ensure this handles SkillSelect clicks)
         else if (title.startsWith("SkillSelect:")) {
-            event.setCancelled(true);
             handleSkillSelectModeClick(event, player, title);
         }
     }
@@ -480,8 +473,6 @@ public class GUIListener implements Listener {
 
         // Handle Navigation (Prev/Next Page) in Select Mode
         if (clicked.getType() == Material.ARROW && clicked.getItemMeta().getDisplayName().contains("Page")) {
-            // Logic to handle pagination is inside SkillLibraryGUI reconstruction usually,
-            // but here we just need to re-open it. Since this is complex, we just set switching.
             setSwitching(player);
             return;
         }
