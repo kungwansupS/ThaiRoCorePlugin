@@ -3,6 +3,7 @@ package org.rostats.gui;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -10,7 +11,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.persistence.PersistentDataType;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.data.PlayerData;
 import org.rostats.engine.action.ActionType;
@@ -130,7 +133,50 @@ public class GUIListener implements Listener {
             }
             return;
         }
+        if (title.startsWith("Skill Element:")) {
+            handleSkillElementSelect(event, player, title);
+            return;
+        }
         if (title.contains(CharacterGUI.TITLE_HEADER)) { handleCharacterStatusClick(event, player, title); return; }
+    }
+
+    // [NEW] Handle Skill Element Selection
+    private void handleSkillElementSelect(InventoryClickEvent event, Player player, String title) {
+        String[] parts = title.substring(15).trim().split(" #");
+        if (parts.length < 2) return;
+        String skillId = parts[0];
+        int index = Integer.parseInt(parts[1]);
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null) return;
+
+        Stack<EditorState> stack = editorSessions.get(player.getUniqueId());
+        if (stack == null) return;
+        List<SkillAction> activeList = stack.peek().actions;
+        if (index >= activeList.size()) return;
+        ActionType type = activeList.get(index).getType();
+
+        Map<String, Object> data = editingProperties.get(player.getUniqueId());
+        if (data == null) {
+            player.sendMessage("§cSession expired.");
+            player.closeInventory();
+            return;
+        }
+
+        if (clicked.getType() == Material.ARROW) { // Back
+            reopenPropertyGUI(player, skillId, index, data, type);
+            return;
+        }
+
+        if (clicked.hasItemMeta()) {
+            NamespacedKey key = new NamespacedKey(plugin, "skill_elem_val");
+            if (clicked.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
+                String element = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+                data.put("element", element);
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
+                reopenPropertyGUI(player, skillId, index, data, type);
+            }
+        }
     }
 
     private void handleLibraryNavigation(InventoryClickEvent event, Player player, String title) {
@@ -483,6 +529,14 @@ public class GUIListener implements Listener {
             final String fKey = key;
             final Map<String, Object> fData = data;
             Object val = fData.get(fKey);
+
+            // [UPDATED] If key is "element", open selector instead of chat
+            if (fKey.equals("element")) {
+                player.setMetadata("ROSTATS_SWITCH", new FixedMetadataValue(plugin, true));
+                new SkillElementSelectorGUI(plugin, skillId, index).open(player);
+                return;
+            }
+
             if (val instanceof Boolean) {
                 fData.put(fKey, !((Boolean) val));
                 reopenPropertyGUI(player, skillId, index, fData, activeList.get(index).getType());
