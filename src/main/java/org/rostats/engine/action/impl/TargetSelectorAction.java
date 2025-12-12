@@ -80,11 +80,6 @@ public class TargetSelectorAction implements SkillAction {
         return map;
     }
 
-    // [FIXED] Added missing getMode method
-    public SelectorMode getMode() {
-        return mode;
-    }
-
     // --- Helper Methods ---
 
     private LivingEntity getCursorTarget(LivingEntity caster, double range) {

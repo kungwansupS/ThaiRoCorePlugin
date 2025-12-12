@@ -2,6 +2,7 @@ package org.rostats.engine.action.impl;
 
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.util.RayTraceResult;
 import org.rostats.ThaiRoCorePlugin;
 import org.rostats.engine.action.ActionType;
 import org.rostats.engine.action.SkillAction;
@@ -32,7 +33,10 @@ public class DamageAction implements SkillAction {
 
     @Override
     public void execute(LivingEntity caster, LivingEntity target, int level, Map<String, Double> context) {
-        // [FIXED] ถ้า target เป็น null (เช่น Select Target ไม่เจอใคร) ให้ข้าม Action นี้ไปเลย
+        if (target == null) {
+            target = findTarget(caster, 10);
+        }
+
         if (target == null) return;
 
         double damage = 0.0;
@@ -70,11 +74,25 @@ public class DamageAction implements SkillAction {
             // FCT Color based on Element
             String color = "§f";
             if (elementMod > 1.0) color = "§c";
-            else if (elementMod < 1.0 && elementMod > 0) color = "§7";
-            else if (elementMod == 0) color = "§8";
+            else if (elementMod < 1.0) color = "§7";
 
             plugin.showCombatFloatingText(target.getLocation(), color + String.format("%.0f", damage));
         }
+    }
+
+    private LivingEntity findTarget(LivingEntity caster, int range) {
+        RayTraceResult result = caster.getWorld().rayTraceEntities(
+                caster.getEyeLocation(),
+                caster.getEyeLocation().getDirection(),
+                range,
+                0.5,
+                e -> e instanceof LivingEntity && !e.equals(caster)
+        );
+
+        if (result != null && result.getHitEntity() instanceof LivingEntity) {
+            return (LivingEntity) result.getHitEntity();
+        }
+        return null;
     }
 
     @Override

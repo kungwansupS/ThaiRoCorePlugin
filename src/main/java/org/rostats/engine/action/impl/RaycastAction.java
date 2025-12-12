@@ -48,19 +48,16 @@ public class RaycastAction implements SkillAction {
         }
         if (range <= 0.0) return;
 
-        // Predicate: ไม่รวม caster และ entities ที่ไม่ใช่ LivingEntity
-        Predicate<Entity> hitFilter = e -> e instanceof LivingEntity && !e.equals(caster);
-
+        // [UPDATE] รองรับ LOCATION (ยิงลงพื้น)
         if (targetType.equals("LOCATION")) {
-            // Raycast หา Block/Entity ที่ชน
             RayTraceResult result = caster.getWorld().rayTrace(
                     caster.getEyeLocation(),
                     caster.getEyeLocation().getDirection(),
                     range,
                     FluidCollisionMode.NEVER,
-                    true,
+                    true, // สนใจ Block ด้วย
                     0.5,
-                    hitFilter
+                    e -> e instanceof LivingEntity && !e.equals(caster)
             );
 
             Location hitLoc = null;
@@ -73,7 +70,7 @@ public class RaycastAction implements SkillAction {
             }
 
             if (hitLoc != null) {
-                // สร้าง ArmorStand ชั่วคราวเพื่อเป็นเป้าหมายสกิลที่พิกัดที่ชน
+                // สร้าง ArmorStand ชั่วคราวเพื่อเป็นเป้าหมายสกิล (เพราะระบบต้องการ LivingEntity)
                 final ArmorStand marker = (ArmorStand) hitLoc.getWorld().spawnEntity(hitLoc, EntityType.ARMOR_STAND);
                 marker.setVisible(false);
                 marker.setGravity(false);
@@ -81,34 +78,32 @@ public class RaycastAction implements SkillAction {
                 marker.setSmall(true);
 
                 // ร่ายสกิลใส่ Marker
-                // [FIXED]: ใช้ marker เป็นเป้าหมาย
                 plugin.getSkillManager().castSkill(caster, subSkillId, level, marker, true);
 
                 // ลบ Marker ทิ้ง
-                plugin.getServer().getScheduler().runTaskLater(plugin, marker::remove, 20L);
+                plugin.getServer().getScheduler().runTaskLater(plugin, marker::remove, 20L); // ลบหลัง 1 วินาที
             }
 
         } else if (targetType.equals("SINGLE")) {
-            // Raycast หา LivingEntity ตัวแรกที่ชน
+            // Logic เดิมสำหรับยิงคน
+            Predicate<Entity> filter = e -> e instanceof LivingEntity && !e.equals(caster);
             RayTraceResult result = caster.getWorld().rayTraceEntities(
                     caster.getEyeLocation(),
                     caster.getEyeLocation().getDirection(),
                     range,
                     0.5,
-                    hitFilter
+                    filter
             );
 
             if (result != null && result.getHitEntity() instanceof LivingEntity victim) {
-                // [FIXED]: victim เป็นเป้าหมาย
                 plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
             }
         } else if (targetType.equals("AOE")) {
-            // AOE จากตำแหน่งเป้าหมายเดิม (ถ้ามี) หรือ Caster
+            // Logic เดิม
             Location center = (target != null) ? target.getLocation() : caster.getLocation();
             Collection<Entity> nearby = center.getNearbyEntities(range, range, range);
             for (Entity e : nearby) {
                 if (e instanceof LivingEntity victim && !e.equals(caster)) {
-                    // [FIXED]: victim เป็นเป้าหมาย
                     plugin.getSkillManager().castSkill(caster, subSkillId, level, victim, true);
                 }
             }

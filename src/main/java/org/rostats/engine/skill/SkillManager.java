@@ -66,7 +66,7 @@ public class SkillManager {
             }
         }
 
-        List<SkillAction> actionsToRun = new LinkedList<>(skill.getActions()); // Actions original
+        List<SkillAction> finalActions = new LinkedList<>(skill.getActions());
 
         // Resource, Cooldown & Delay Checks
         if (!isPassive && caster instanceof Player player) {
@@ -111,7 +111,7 @@ public class SkillManager {
                 return;
             }
 
-            // --- Timeline Construction (Fixed Cast Time Logic) ---
+            // --- Timeline Construction ---
             double preMotion = skill.getPreMotion();
             double finalCastTimeSeconds = data.calculateTotalCastTime(
                     skill.getVariableCastTime(),
@@ -120,22 +120,14 @@ public class SkillManager {
                     skill.getFixedCastTimeReduction()
             );
 
-            // Action List Modifier (Adding Delays at the start of the final list)
-            List<SkillAction> timelineModifiers = new LinkedList<>();
-
-            // 1. Add Cast Time Delay
+            // Add Cast Time Delay
             if (finalCastTimeSeconds > 0.0) {
-                long castTicks = (long) (finalCastTimeSeconds * 20.0);
-                timelineModifiers.add(new DelayAction(castTicks));
+                finalActions.add(0, new DelayAction((long) (finalCastTimeSeconds * 20.0)));
             }
-            // 2. Add Pre-Motion Delay
+            // Add Pre-Motion Delay
             if (preMotion > 0.0) {
-                long motionTicks = (long) (preMotion * 20.0);
-                timelineModifiers.add(new DelayAction(motionTicks));
+                finalActions.add(0, new DelayAction((long) (preMotion * 20.0)));
             }
-
-            // Combine modifiers and original actions
-            actionsToRun.addAll(0, timelineModifiers);
 
             // --- Apply Costs & Delays ---
             data.setCurrentSP(data.getCurrentSP() - spCost);
@@ -165,11 +157,8 @@ public class SkillManager {
         }
 
         // Execute Actions
-        // [UPDATE]: ส่ง skillId เข้าไปใน SkillRunner
-        SkillRunner runner = new SkillRunner(plugin, caster, target, level, actionsToRun, skillId);
-        // [FIX] Start the runner ASYNCHRONOUSLY to prevent main thread blocking
-        // and ensure the DelayAction is processed correctly by runNext()'s task schedule.
-        plugin.getServer().getScheduler().runTask(plugin, runner::runNext);
+        SkillRunner runner = new SkillRunner(plugin, caster, target, level, finalActions);
+        runner.runNext();
     }
 
     public SkillData getSkill(String id) {

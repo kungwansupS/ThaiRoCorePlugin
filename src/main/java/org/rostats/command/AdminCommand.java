@@ -20,9 +20,8 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
     private final ThaiRoCorePlugin plugin;
 
-    // [UPDATE] Add 'skilldebug' to commands list for tab completion
     private static final List<String> MAIN_COMMANDS = Arrays.asList(
-            "check", "reset", "set", "add", "save", "reload", "skilldebug"
+            "check", "reset", "set", "add", "save", "reload"
     );
 
     private static final List<String> RESET_COMMANDS = Arrays.asList(
@@ -66,26 +65,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         if (sub.equals("reload")) {
             plugin.reload();
             sender.sendMessage("§aConfiguration reloaded.");
-            return true;
-        }
-
-        // [NEW] Handle skilldebug
-        if (sub.equals("skilldebug")) {
-            if (args.length < 2) {
-                sender.sendMessage("§cUsage: /roadmin skilldebug <on|off>");
-                sender.sendMessage("§7Current: " + (plugin.isSkillDebugEnabled() ? "§aON" : "§cOFF"));
-                return true;
-            }
-            String toggle = args[1].toLowerCase();
-            if (toggle.equals("on")) {
-                plugin.setSkillDebugEnabled(true);
-                sender.sendMessage("§aSkill Debugging ENABLED. Outputting trace to console.");
-            } else if (toggle.equals("off")) {
-                plugin.setSkillDebugEnabled(false);
-                sender.sendMessage("§cSkill Debugging DISABLED.");
-            } else {
-                sender.sendMessage("§cInvalid argument. Use 'on' or 'off'.");
-            }
             return true;
         }
 
@@ -217,7 +196,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         s.sendMessage("§6--- ROAdmin Help ---");
         s.sendMessage("§c/roadmin save");
         s.sendMessage("§c/roadmin reload");
-        s.sendMessage("§c/roadmin skilldebug <on|off>"); // [UPDATE] Added new command
         s.sendMessage("§c/roadmin check <player>");
         s.sendMessage("§c/roadmin reset (blevel|jlevel|stat) <player>");
         s.sendMessage("§c/roadmin set (blevel|jlevel|points) <player> <val>");
@@ -234,10 +212,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             StringUtil.copyPartialMatches(args[0], MAIN_COMMANDS, completions);
         }
         else if (args.length == 2 && MAIN_COMMANDS.contains(args[0].toLowerCase())) {
-            String sub = args[0].toLowerCase();
-            if (sub.equals("skilldebug")) { // [NEW] Handle tab for skilldebug
-                StringUtil.copyPartialMatches(args[1], Arrays.asList("on", "off"), completions);
-            } else if (!sub.equals("save") && !sub.equals("reload")) {
+            if (!args[0].equalsIgnoreCase("save") && !args[0].equalsIgnoreCase("reload")) {
                 List<String> playerNames = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
                         .collect(Collectors.toList());
