@@ -84,12 +84,17 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.itemManager = new ItemManager(this);
         this.chatInputHandler = new ChatInputHandler(this);
 
-        // [NEW] Initialize Packet Handler
+        // [NEW] Check for ProtocolLib
         if (getServer().getPluginManager().getPlugin("ProtocolLib") != null) {
-            this.packetFCTHandler = new PacketFCTHandler(this);
-            getLogger().info("✅ Packet-based FCT enabled (ProtocolLib found).");
+            try {
+                this.packetFCTHandler = new PacketFCTHandler(this);
+                getLogger().info("✅ Packet-based FCT enabled (ProtocolLib found).");
+            } catch (Throwable e) {
+                getLogger().warning("❌ ProtocolLib error: " + e.getMessage());
+                e.printStackTrace();
+            }
         } else {
-            getLogger().warning("⚠️ ProtocolLib not found! Floating text might cause lag.");
+            getLogger().warning("⚠️ ProtocolLib not found! Floating text will use ArmorStands (Legacy Mode).");
         }
 
         getServer().getPluginManager().registerEvents(attributeHandler, this);
@@ -214,7 +219,7 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
             return;
         }
 
-        // Fallback to ArmorStand (Old Logic) if ProtocolLib is missing
+        // [FALLBACK] Legacy ArmorStand logic
         getServer().getScheduler().runTask(this, () -> {
             final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
             stand.setVisible(false);
