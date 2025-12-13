@@ -1,0 +1,30 @@
+# ==========================================
+#         ThaiRo Core Configuration
+# ==========================================
+
+# Storage Settings
+storage:
+  # Type: YAML, SQLITE, MYSQL
+  type: SQLITE
+
+  # MySQL Settings (Only used if type is MYSQL)
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "thairo_rpg"
+    username: "root"
+    password: ""
+    use-ssl: false
+
+  # Table Prefix
+  table-prefix: "ro_"
+
+  # Auto-save interval in seconds (0 to disable)
+  auto-save: 300
+
+# Reset System
+reset-system:
+  free-resets: 3
+  reset-item: "NETHER_STAR"
+
+# Other settings...

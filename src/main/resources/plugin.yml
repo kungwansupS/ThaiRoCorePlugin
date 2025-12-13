@@ -1,0 +1,34 @@
+name: ThaiRoCorePlugin
+version: '0.1.0-SNAPSHOT'
+main: org.rostats.ThaiRoCorePlugin
+api-version: '1.21'
+commands:
+  skilldebug:
+    description: Toggle skill debug mode
+    usage: /skilldebug <on|off|status>
+    permission: rostats.admin
+    aliases: [ sdebug, skilldb ]
+  status:
+    description: Open player status menu
+    usage: /status
+    aliases: [st, char]
+  roadmin:
+    description: Admin commands for ROStats
+    usage: /roadmin <args>
+    permission: rostats.admin
+  roitemedit:
+    description: Open the Item Attribute Editor GUI
+    usage: /roitemedit
+    aliases: [riedit]
+    permission: rostats.itemeditor.admin
+  roskilleditor: # เปลี่ยนชื่อคำสั่งตามที่ขอ
+    description: Skill creation and management menu
+    usage: /roskilleditor
+    permission: rostats.admin
+permissions:
+  rostats.admin:
+    description: Admin permission
+    default: op
+  rostats.itemeditor.admin:
+    description: Permission to use the Item Attribute Editor
+    default: op
