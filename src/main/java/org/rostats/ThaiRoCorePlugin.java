@@ -53,7 +53,10 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     private EffectManager effectManager;
     private SkillManager skillManager;
-    private ElementManager elementManager; // [NEW]
+    private ElementManager elementManager;
+
+    // [NEW] Packet FCT Handler
+    private PacketFCTHandler packetFCTHandler;
 
     private final Set<Entity> activeFloatingTexts = ConcurrentHashMap.newKeySet();
     private NamespacedKey floatingTextKey;
@@ -68,18 +71,26 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
         this.dataManager = new DataManager(this);
         this.manaManager = new ManaManager(this);
         this.attributeHandler = new AttributeHandler(this);
-        this.combatHandler = new CombatHandler(this); // CombatHandler might need ElementManager, but we pass plugin so getter works
+        this.combatHandler = new CombatHandler(this);
 
         this.projectileHandler = new ProjectileHandler(this);
         this.statusHandler = new StatusHandler(this);
 
         this.effectManager = new EffectManager(this);
-        this.elementManager = new ElementManager(this); // [NEW] Init here
+        this.elementManager = new ElementManager(this);
         this.skillManager = new SkillManager(this);
 
         this.itemAttributeManager = new ItemAttributeManager(this);
         this.itemManager = new ItemManager(this);
         this.chatInputHandler = new ChatInputHandler(this);
+
+        // [NEW] Initialize Packet Handler
+        if (getServer().getPluginManager().getPlugin("ProtocolLib") != null) {
+            this.packetFCTHandler = new PacketFCTHandler(this);
+            getLogger().info("✅ Packet-based FCT enabled (ProtocolLib found).");
+        } else {
+            getLogger().warning("⚠️ ProtocolLib not found! Floating text might cause lag.");
+        }
 
         getServer().getPluginManager().registerEvents(attributeHandler, this);
         getServer().getPluginManager().registerEvents(combatHandler, this);
@@ -197,6 +208,13 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public void showCombatFloatingText(Location loc, String text) { showAnimatedText(loc.add(0, 1.5, 0), text); }
 
     private void showAnimatedText(Location startLoc, String text) {
+        // [NEW] Use Packet Handler if available
+        if (packetFCTHandler != null) {
+            packetFCTHandler.show(startLoc, text);
+            return;
+        }
+
+        // Fallback to ArmorStand (Old Logic) if ProtocolLib is missing
         getServer().getScheduler().runTask(this, () -> {
             final ArmorStand stand = startLoc.getWorld().spawn(startLoc, ArmorStand.class);
             stand.setVisible(false);
@@ -259,5 +277,5 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
     public EffectManager getEffectManager() { return effectManager; }
     public SkillManager getSkillManager() { return skillManager; }
     public ProjectileHandler getProjectileHandler() { return projectileHandler; }
-    public ElementManager getElementManager() { return elementManager; } // [NEW] Getter
+    public ElementManager getElementManager() { return elementManager; }
 }
