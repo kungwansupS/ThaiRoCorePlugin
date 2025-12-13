@@ -130,20 +130,7 @@ public class FormulaParser {
 
             if (context != null && context.containsKey(key)) {
                 value = String.valueOf(context.get(key));
-            }
-            // ============ [FIX] Shorthand stat placeholders ============
-            // ตอนนี้สามารถใช้ %matk%, %patk%, %str% ได้โดยตรง ไม่ต้องใส่ player_
-            else if (key.equals("matk") || key.equals("patk") ||
-                    key.equals("str") || key.equals("agi") ||
-                    key.equals("vit") || key.equals("int") ||
-                    key.equals("dex") || key.equals("luk") ||
-                    key.equals("hp") || key.equals("max_hp") ||
-                    key.equals("sp") || key.equals("max_sp")) {
-                // Default to caster stats
-                value = getEntityData(caster, key, plugin);
-            }
-            // ===========================================================
-            else if (key.startsWith("player_")) {
+            } else if (key.startsWith("player_")) {
                 value = getEntityData(caster, key.substring(7), plugin);
             } else if (key.startsWith("target_")) {
                 value = getEntityData(target, key.substring(7), plugin);
