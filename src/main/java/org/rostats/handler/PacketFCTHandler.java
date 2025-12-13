@@ -58,16 +58,20 @@ public class PacketFCTHandler {
 
             WrappedDataWatcher watcher = new WrappedDataWatcher();
 
+            // Fix Warning: ใช้ getByteSerializer() แทน get(Byte.class)
+            WrappedDataWatcher.Serializer byteSerializer = WrappedDataWatcher.Registry.getByteSerializer();
+
             // Index 14: Display Billboard (Byte) -> 3 = CENTER (Look at player)
-            WrappedDataWatcher.Serializer byteSerializer = WrappedDataWatcher.Registry.get(Byte.class);
             watcher.setObject(14, byteSerializer, (byte) 3);
 
             // Index 23: Text (Optional Component)
             WrappedDataWatcher.Serializer chatSerializer = WrappedDataWatcher.Registry.getChatComponentSerializer(true);
             watcher.setObject(23, chatSerializer, Optional.of(WrappedChatComponent.fromLegacyText(text).getHandle()));
 
+            // Fix Warning: ใช้ getIntegerSerializer() แทน get(Integer.class)
+            WrappedDataWatcher.Serializer intSerializer = WrappedDataWatcher.Registry.getIntegerSerializer();
+
             // Index 25: Background Color (Int) -> 0 = Transparent
-            WrappedDataWatcher.Serializer intSerializer = WrappedDataWatcher.Registry.get(Integer.class);
             watcher.setObject(25, intSerializer, 0);
 
             // Index 27: TextDisplay Flags (Byte) -> Shadow (1)
@@ -107,7 +111,9 @@ public class PacketFCTHandler {
 
                             protocolManager.sendServerPacket(player, teleportPacket);
 
-                            Thread.sleep(50); // 50ms = 1 tick (approx)
+                            // Thread.sleep(50); is not a reliable way to delay for 1 tick in Bukkit/Paper environment
+                            // For asynchronous tasks, Thread.sleep(50) is used as a workaround to approximate 1 tick (50ms).
+                            Thread.sleep(50);
                         }
 
                         // 4. Destroy Packet
