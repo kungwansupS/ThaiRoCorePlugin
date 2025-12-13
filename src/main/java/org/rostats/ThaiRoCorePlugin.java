@@ -175,7 +175,9 @@ public class ThaiRoCorePlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        dataManager.savePlayerData(event.getPlayer(), true);
+        // [FIXED] Changed to false (Synchronous Save) to prevent data race condition
+        // รอให้บันทึกเสร็จก่อนค่อยลบข้อมูลออกจาก Memory
+        dataManager.savePlayerData(event.getPlayer(), false);
 
         statManager.removeData(event.getPlayer().getUniqueId());
         if (manaManager != null) {
